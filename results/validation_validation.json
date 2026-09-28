@@ -1,0 +1,86 @@
+{
+ "summary": {
+  "dataset": "CORD-v2 validation ground truth",
+  "docs": 100,
+  "flagged_ground_truth": 9,
+  "catch_rate_overall": {
+   "rate": 0.9504,
+   "n": 565
+  },
+  "catch_rate": {
+   "cash_paid_taken_as_total": {
+    "rate": 1.0,
+    "n": 37
+   },
+   "line_amount_misread": {
+    "rate": 0.9333,
+    "n": 90
+   },
+   "line_item_dropped": {
+    "rate": 1.0,
+    "n": 90
+   },
+   "line_item_duplicated": {
+    "rate": 1.0,
+    "n": 90
+   },
+   "subtotal_taken_as_total": {
+    "rate": 1.0,
+    "n": 38
+   },
+   "tax_missed": {
+    "rate": 1.0,
+    "n": 38
+   },
+   "total_digit_misread": {
+    "rate": 0.7582,
+    "n": 91
+   },
+   "total_off_by_1000x": {
+    "rate": 1.0,
+    "n": 91
+   }
+  }
+ },
+ "flagged_ground_truth": {
+  "2": [
+   "Line items add up to 20000, subtotal is 18181"
+  ],
+  "7": [
+   "Line items add up to 54091, subtotal is 63636"
+  ],
+  "13": [
+   "Line items add up to 41363, subtotal is 41364"
+  ],
+  "29": [
+   "No total found"
+  ],
+  "49": [
+   "No total found"
+  ],
+  "77": [
+   "subtotal + tax + service - discount = 63272.73, total is 58000.00"
+  ],
+  "86": [
+   "Line items add up to 52000, subtotal is 26000"
+  ],
+  "94": [
+   "subtotal + tax + service - discount = 72795, total is 80100"
+  ],
+  "95": [
+   "subtotal + tax + service - discount = 29972, total is 30000"
+  ]
+ },
+ "missed_examples": {
+  "total_digit_misread": [
+   3,
+   11,
+   12
+  ],
+  "line_amount_misread": [
+   43,
+   50,
+   60
+  ]
+ }
+}
