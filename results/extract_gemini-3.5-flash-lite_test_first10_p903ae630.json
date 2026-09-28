@@ -1,0 +1,218 @@
+{
+ "summary": {
+  "model": "gemini-3.5-flash-lite",
+  "prompt_version": "903ae630",
+  "split": "test",
+  "docs": 10,
+  "failed_calls_or_invalid_json": 0,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 0.75,
+    "n": 8
+   },
+   "tax": {
+    "rate": 0.5,
+    "n": 4
+   },
+   "discount": {
+    "rate": 0.5,
+    "n": 2
+   },
+   "total": {
+    "rate": 0.7778,
+    "n": 9
+   },
+   "item_amounts_f1": {
+    "rate": 0.8,
+    "n": 10
+   },
+   "item_names_f1": {
+    "rate": 1.0,
+    "n": 10
+   },
+   "all_correct": {
+    "rate": 0.8,
+    "n": 10
+   }
+  },
+  "wrong_docs_flagged_by_validation": "1 / 2",
+  "correct_docs_flagged_by_validation": "0 / 8",
+  "median_seconds": 5.325,
+  "calls_with_retries": 0,
+  "median_tokens_in_out": [
+   1290.0,
+   242.0
+  ],
+  "issue_date_with_vendor_order": null,
+  "wrong_dates_flagged_ambiguous": "0 / 0",
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 3.2,
+   "in": 1290,
+   "out": 192,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "discount": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "flagged": [
+    "total_math",
+    "line_math"
+   ]
+  },
+  {
+   "id": 1,
+   "seconds": 5.75,
+   "in": 1274,
+   "out": 282,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 2,
+   "seconds": 12.42,
+   "in": 1290,
+   "out": 254,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 3,
+   "seconds": 4.84,
+   "in": 1290,
+   "out": 186,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 4,
+   "seconds": 15.87,
+   "in": 1290,
+   "out": 286,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "discount": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 5,
+   "seconds": 18.67,
+   "in": 1310,
+   "out": 190,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "flagged": []
+  },
+  {
+   "id": 6,
+   "seconds": 4.9,
+   "in": 1290,
+   "out": 274,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 7,
+   "seconds": 3.38,
+   "in": 1290,
+   "out": 230,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 8,
+   "seconds": 3.65,
+   "in": 1290,
+   "out": 282,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 9,
+   "seconds": 87.61,
+   "in": 1290,
+   "out": 191,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  }
+ ]
+}

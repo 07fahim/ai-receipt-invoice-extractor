@@ -1,0 +1,123 @@
+"""Send a document image to a vision LLM and get a schema Document back.
+
+Two API styles cover all providers: Gemini (generateContent) and OpenAI-compatible (Groq, Z.ai).
+Keys come from .env; nothing is logged except model output and token counts.
+"""
+import base64
+import json
+import os
+import re
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+from schema import Document
+
+ROOT = Path(__file__).parent
+
+# name -> (api style, base url, model id, key variable, seconds between calls to stay under free limits)
+MODELS = {
+    'gemini-3.5-flash-lite': ('gemini', None, 'gemini-3.5-flash-lite', 'GEMINI_API_KEY', 4.5),
+    'gemini-3.1-flash-lite': ('gemini', None, 'gemini-3.1-flash-lite', 'GEMINI_API_KEY', 4.5),
+    'gemini-3.8-flash': ('gemini', None, 'gemini-3.8-flash', 'GEMINI_API_KEY', 13),  # free tier: 5/min, 20/day
+    'gemma-4-31b': ('gemini', None, 'gemma-4-31b-it', 'GEMINI_API_KEY', 10),
+    'groq-qwen3.8-27b': ('openai', 'https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY', 20),
+    'glm-4.6v-flash': ('openai', 'https://api.z.ai/api/paas/v4', 'glm-4.6v-flash', 'ZAI_API_KEY', 3),
+}
+
+PROMPT = """Extract the data from this receipt or invoice image.
+Return only one JSON object with exactly these keys:
+doc_type ("invoice" or "receipt"), vendor, buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
+issue_date_text and due_date_text (each date exactly as printed, character for character),
+currency (ISO 4217 code), subtotal, discount, tax, service_charge, total,
+items: list of {description, quantity, unit_price, amount, discount}.
+Rules:
+- Use null for anything not printed on the document. Never guess or calculate a missing value.
+- Amounts are plain JSON numbers without currency symbols or thousands separators.
+  Use the document's own number format to decide whether "." or "," separates thousands.
+- amount is the line total as printed, before any line discount. Discounts are positive numbers.
+- total is the final amount due, not the cash paid or the change.
+- Include add-ons that have their own price as separate items."""
+
+
+def load_env():
+    f = ROOT / '.env'
+    if f.exists():
+        for line in f.read_text(encoding='utf-8-sig').splitlines():
+            if '=' in line and not line.lstrip().startswith('#'):
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"\''))
+
+
+def mime(image):
+    return 'image/png' if image[:4] == b'\x89PNG' else 'image/jpeg'
+
+
+def post(url, headers, body, retries=3):
+    """POST JSON; wait and retry on rate limits (429) and server errors. Returns (response, attempts)."""
+    data = json.dumps(body).encode()
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json',
+                                                              'User-Agent': 'receipt-extractor/0.1', **headers})
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                return json.load(r), attempt + 1
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503) and attempt < retries:
+                time.sleep(30 * (attempt + 1))
+                continue
+            raise RuntimeError(f'HTTP {e.code}: {e.read().decode(errors="replace")[:300]}') from None
+
+
+def call(name, image):
+    """Return (raw_text, input_tokens, output_tokens, attempts). attempts > 1 means retry waits are in the time."""
+    style, base, model, key_var, _ = MODELS[name]
+    key = os.environ[key_var]
+    b64 = base64.b64encode(image).decode()
+    if style == 'gemini':
+        config = {'temperature': 0}
+        if model.startswith('gemini'):
+            config['responseMimeType'] = 'application/json'
+        r, attempts = post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                 {'x-goog-api-key': key},
+                 {'contents': [{'parts': [{'inline_data': {'mime_type': mime(image), 'data': b64}}, {'text': PROMPT}]}],
+                  'generationConfig': config})
+        parts = r['candidates'][0]['content']['parts']
+        text = ''.join(p.get('text', '') for p in parts if not p.get('thought'))
+        u = r.get('usageMetadata', {})
+        return text, u.get('promptTokenCount'), u.get('candidatesTokenCount'), attempts
+    r, attempts = post(f'{base}/chat/completions', {'Authorization': f'Bearer {key}'},
+             {'model': model, 'temperature': 0, 'response_format': {'type': 'json_object'},
+              'messages': [{'role': 'user', 'content': [
+                  {'type': 'text', 'text': PROMPT},
+                  {'type': 'image_url', 'image_url': {'url': f'data:{mime(image)};base64,{b64}'}}]}]})
+    u = r.get('usage', {})
+    return r['choices'][0]['message']['content'], u.get('prompt_tokens'), u.get('completion_tokens'), attempts
+
+
+MONEY = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
+ITEM_NUMBERS = ('quantity', 'unit_price', 'amount', 'discount')
+
+
+def parse(text):
+    """Model text to Document: the first JSON object, after removing <think> blocks. Raises on invalid output.
+    Numbers sent as text are rejected: "60.000" would otherwise silently become 60."""
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
+    start = text.find('{')
+    if start == -1:
+        raise ValueError('no JSON object in model output')
+    data, _ = json.JSONDecoder().raw_decode(text[start:])  # ignores any text after the object
+    if not isinstance(data, dict) or not (set(data) & set(Document.model_fields)):
+        raise ValueError('JSON has none of the expected keys')  # e.g. nested under another key
+    if data.get('items') is None:
+        data['items'] = []  # "null when not printed" also applies to the list
+    if not all(isinstance(i, dict) for i in data['items']):
+        raise ValueError('items must be objects')
+    numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
+    if any(isinstance(v, str) for v in numbers):
+        raise ValueError('amount given as text, not a number')
+    if isinstance(data.get('doc_type'), str):
+        dt = data['doc_type'].strip().lower()
+        data['doc_type'] = dt if dt in ('invoice', 'receipt') else None
+    return Document.model_validate(data)
