@@ -2,12 +2,17 @@
 
 Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
 Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler) and GEMINI_API_KEY in .env.
+Optional WEBHOOK_URL (+ WEBHOOK_SECRET): each passed or reviewed document is sent there, e.g. to n8n.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
 """
 import csv
 import hashlib
+import hmac
 import io
+import json
 import os
+import time
+import urllib.request
 
 import pypdfium2
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, UploadFile
@@ -51,6 +56,29 @@ def save(con, doc_id, doc: Document, status, extra=None):
                 (*fields.values(), doc_id))
 
 
+def send_event(doc_id):
+    """POST the document to WEBHOOK_URL (e.g. an n8n workflow that adds a Google Sheets row).
+    Signed with HMAC-SHA256 of the body in X-Signature when WEBHOOK_SECRET is set. Never raises."""
+    url = os.environ.get('WEBHOOK_URL')
+    if not url:
+        return
+    with store.conn() as con:
+        r = get_row(con, doc_id)
+    body = json.dumps({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
+                       'status': r['status'], 'document': r['document'], 'checks': r['checks']}).encode()
+    headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
+    secret = os.environ.get('WEBHOOK_SECRET')
+    if secret:
+        headers['X-Signature'] = 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    for attempt in range(3):  # ponytail: in-process retries; a queue if deliveries must survive restarts
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=10):
+                return
+        except Exception as e:
+            print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
+            time.sleep(2 ** attempt)
+
+
 def process(doc_id):
     """Background job: send the file to the model, parse, check, store. Failures are stored, never raised."""
     with store.conn() as con:
@@ -62,6 +90,9 @@ def process(doc_id):
                  'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
             save(con, doc_id, doc, None, extra)
+            passed = get_row(con, doc_id)['status'] == 'passed'
+        if passed:
+            send_event(doc_id)
     except Exception as e:
         with store.conn() as con:
             con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() WHERE id = %s",
@@ -113,11 +144,12 @@ def get_document(doc_id: int):
 
 
 @app.put('/documents/{doc_id}')
-def update_document(doc_id: int, doc: Document):
-    """Save the user's corrections. Checks run again; the document is marked reviewed."""
+def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks):
+    """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook."""
     with store.conn() as con:
         get_row(con, doc_id)
         save(con, doc_id, doc, 'reviewed')
+    tasks.add_task(send_event, doc_id)
     return get_document(doc_id)
 
 
@@ -179,16 +211,19 @@ class DateOrder(BaseModel):
 
 
 @app.put('/vendors/{vendor}/date-order')
-def set_vendor_date_order(vendor: str, body: DateOrder):
-    """Confirm how this vendor prints dates (MDY or DMY). Unreviewed documents of the vendor are re-checked."""
+def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks):
+    """Confirm how this vendor prints dates (MDY or DMY). Unreviewed documents of the vendor are re-checked;
+    those that now pass are sent to the webhook."""
     if body.date_order not in ('MDY', 'DMY'):
         raise HTTPException(422, 'date_order must be MDY or DMY')
     with store.conn() as con:
         store.set_date_order(con, vendor, body.date_order)
         rows = con.execute("SELECT id, document FROM documents WHERE lower(vendor) = %s "
-                           "AND status IN ('passed', 'needs_review')", (vendor.strip().lower(),)).fetchall()
+                           "AND status = 'needs_review'", (vendor.strip().lower(),)).fetchall()
         for r in rows:
             save(con, r['id'], Document.model_validate(r['document']), None)
+            if get_row(con, r['id'])['status'] == 'passed':
+                tasks.add_task(send_event, r['id'])
     return {'vendor': vendor, 'date_order': body.date_order, 'rechecked': len(rows)}
 
 
