@@ -33,6 +33,7 @@ branch (the store number or branch name printed with the business name, e.g. "#0
 buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
 issue_date_text and due_date_text (each date exactly as printed, character for character),
 currency (ISO 4217 code), subtotal, discount, tax, service_charge, total,
+total_text (the total exactly as printed, character for character),
 items: list of {description, quantity, unit_price, amount, discount}.
 Rules:
 - Use null for anything not printed on the document. Never guess or calculate a missing value.

@@ -62,4 +62,15 @@ assert checks(**amb) == ['date_ambiguous']
 fixed = validate(Document(**amb), today=TODAY, date_order='MDY')
 assert fixed == []  # re-read as 11 May 2021, not flagged
 assert apply_date_order(Document(**amb), 'MDY').issue_date == date(2021, 5, 11)
+
+# printed total: thousands read as decimals ("22.000" -> 22) is flagged; the right reading and real cents are not
+from validate import thousands_read_as_decimals as tr
+small = lambda total, text, **kw: checks(total=D(total), total_text=text, items=[Item(amount=D(total))], **kw)
+assert small('22', '22.000') == ['total_format'] and small('7', '·7,000') == ['total_format']
+assert small('1250', 'Rp 1.250.000') == ['total_format'] and small('22000', '22.000') == []
+assert small('7.61', '$7.61') == [] and small('1250', '1,250.00') == [] and small('22', None) == []
+assert small('22', '22.000', currency='KWD') == []  # dinars really have 3 decimals
+assert tr('TOTAL 22.000', D('22')) == '22.000' and tr('22.000', D('22000')) is None and tr('0.500', D('0.5')) is None
+msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
+assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')

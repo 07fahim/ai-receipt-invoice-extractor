@@ -30,4 +30,5 @@ class Document(BaseModel):
     tax: Optional[Decimal] = None
     service_charge: Optional[Decimal] = None
     total: Optional[Decimal] = None
+    total_text: Optional[str] = None  # total exactly as printed, e.g. 22.000 (thousands or decimals can be ambiguous)
     items: list[Item] = []
