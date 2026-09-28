@@ -27,6 +27,7 @@ export type Doc = {
   tax: string | null;
   service_charge: string | null;
   total: string | null;
+  total_text?: string | null;
   items: Item[];
 };
 
