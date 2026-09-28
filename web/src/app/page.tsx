@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ClipboardCheck, Download, Upload } from "lucide-react";
+import { Archive, Calculator, ClipboardCheck, Download, Store, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,18 @@ const features = [
   { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are done in about five seconds." },
   { icon: ClipboardCheck, title: "Review only what needs it", text: "Flagged fields are shown next to the original, with the reason." },
   { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import, or send rows to Google Sheets." },
+];
+
+// Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
+const useCases = [
+  { icon: Calculator, title: "Bookkeepers", docs: "Receipts · invoices",
+    text: "A client's month of paperwork in one upload. You only answer the questions where the numbers don't add up." },
+  { icon: Store, title: "Restaurants and shops", docs: "Produce · meat · repairs",
+    text: "Every supplier bill looks different. They all end up in the same spreadsheet or QuickBooks import." },
+  { icon: Wallet, title: "Expense claims", docs: "Fuel · taxi · supplies",
+    text: "Staff photograph their receipts. You review the flagged ones and export the rest." },
+  { icon: Archive, title: "Year-end and audits", docs: "Last year's receipts",
+    text: "Clear a backlog in batches of 20, with duplicates caught before they are counted twice." },
 ];
 
 const checks = [
@@ -46,6 +58,7 @@ export default function Home() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Logo />
           <nav className="flex items-center gap-7 text-sm font-medium text-foreground/80">
+            <a href="#who" className="hidden hover:text-foreground md:block">Who it&apos;s for</a>
             <a href="#features" className="hidden hover:text-foreground md:block">Features</a>
             <a href="#checks" className="hidden hover:text-foreground md:block">Checks</a>
             <a href="#privacy" className="hidden hover:text-foreground md:block">Privacy</a>
@@ -101,12 +114,31 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="border-t bg-background px-6 py-22">
+        <section id="who" className="border-t bg-background px-6 py-22">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="display text-[clamp(30px,3.6vw,44px)]">For the bills that come in</h2>
+            <p className="mt-4 max-w-2xl text-lg text-foreground/75">
+              Your till and accounting software know what you sell. The receipts and invoices you receive from others
+              still get typed in by hand.
+            </p>
+            <div className="mt-11 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {useCases.map(({ icon: Icon, title, docs, text }) => (
+                <div key={title} className="flex flex-col rounded-xl border bg-card p-6 shadow-xs">
+                  <span className="mb-4 grid size-10 place-items-center rounded-lg bg-accent text-primary">
+                    <Icon className="size-5" aria-hidden />
+                  </span>
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="mt-1.5 mb-4 text-sm text-muted-foreground">{text}</p>
+                  <p className="mt-auto border-t border-dashed pt-3 font-mono text-xs text-foreground/70">{docs}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="border-t px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">From a pile of receipts to a clean spreadsheet</h2>
-            <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              For bookkeepers and small businesses who still type receipts and invoices in by hand.
-            </p>
             <div className="mt-11 grid gap-5 md:grid-cols-3">
               {features.map(({ icon: Icon, title, text }) => (
                 <div key={title} className="rounded-xl border bg-card p-6 shadow-xs">
@@ -121,13 +153,13 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="checks" className="px-6 py-22">
+        <section id="checks" className="border-t bg-background px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Every document is checked</h2>
             <p className="mt-4 text-lg text-foreground/75">A document that fails a check goes to your review list.</p>
             <ul className="mt-11 grid gap-3 md:grid-cols-3">
               {checks.map(([title, text]) => (
-                <li key={title} className="flex gap-3 rounded-xl border p-4">
+                <li key={title} className="flex gap-3 rounded-xl border bg-card p-4">
                   <span className="grid size-5.5 shrink-0 place-items-center rounded-full bg-ok-soft text-xs font-bold text-ok" aria-hidden>
                     ✓
                   </span>
@@ -141,7 +173,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="privacy" className="border-t bg-background px-6 py-22">
+        <section id="privacy" className="border-t px-6 py-22">
           <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-[1fr_1.4fr] md:gap-12">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Privacy</h2>
             <ul className="divide-y">
