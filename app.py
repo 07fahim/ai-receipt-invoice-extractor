@@ -343,11 +343,47 @@ def cells(columns, row_):
     return [cell(c, v) for c, v in zip(columns, row_)]
 
 
+# QuickBooks Online "Import bills" layout; headers are matched to QuickBooks fields during the import.
+QB_COLUMNS = ['Bill no.', 'Supplier', 'Bill Date', 'Due Date', 'Account', 'Line Description', 'Line Amount', 'Line Tax Code']
+
+
+def quickbooks_rows():
+    """(rows, skipped): one row per bill line, only for checked documents (passed or reviewed).
+    Lines are the items plus service charge, tax and discount, so they add up to the total; if they don't
+    (e.g. a cash-rounded total), the bill gets one line with the total. Documents without a date or total
+    are skipped: QuickBooks needs both. Account is a placeholder the user maps to an expense account."""
+    rows, skipped = [], 0
+    with store.conn() as con:
+        found = con.execute("SELECT id, document FROM documents WHERE status IN ('passed', 'reviewed') ORDER BY id")
+        for r in found:
+            d = Document.model_validate(r['document'])
+            if d.issue_date is None or d.total is None:
+                skipped += 1
+                continue
+            lines = [(i.description, i.amount - (i.discount or 0)) for i in d.items if i.amount is not None]
+            lines += [(name, v) for name, v in (('Service charge', d.service_charge), ('Tax', d.tax),
+                                                ('Discount', -d.discount if d.discount else None)) if v]
+            if not lines or sum(v for _, v in lines) != d.total:
+                lines = [('Total', d.total)]
+            # ponytail: US date order; QuickBooks asks for the file's date format on import
+            bill = [cell('text', d.doc_number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
+                    f'{d.issue_date:%m/%d/%Y}', f'{(d.due_date or d.issue_date):%m/%d/%Y}', 'Uncategorized Expense']
+            rows += [bill + [cell('text', desc), f'{v:.2f}', None] for desc, v in lines]
+    return rows, skipped
+
+
 @app.get('/export')
 def export(format: str = 'xlsx', status: str | None = None):
-    """Download documents as CSV (one row per document) or XLSX (Documents and Items sheets)."""
-    if format not in ('csv', 'xlsx'):
-        raise HTTPException(422, 'format must be csv or xlsx')
+    """Download documents as CSV (one row per document), XLSX (Documents and Items sheets) or a QuickBooks
+    Online bill import CSV (X-Skipped header: documents left out for a missing date or total)."""
+    if format not in ('csv', 'xlsx', 'quickbooks'):
+        raise HTTPException(422, 'format must be csv, xlsx or quickbooks')
+    if format == 'quickbooks':
+        rows, skipped = quickbooks_rows()
+        buf = io.StringIO()
+        csv.writer(buf).writerows([QB_COLUMNS] + rows)
+        return Response(buf.getvalue().encode('utf-8-sig'), media_type='text/csv', headers={
+            'Content-Disposition': 'attachment; filename="quickbooks-bills.csv"', 'X-Skipped': str(skipped)})
     docs, items = export_rows(status)
     if format == 'csv':
         buf = io.StringIO()
