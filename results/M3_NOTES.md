@@ -85,6 +85,22 @@ Label errors in the invoice set (model right, label wrong), checked against the 
 - validation 10: the label seller has a typo, "Dunn-Campbel."
 - validation 6, 11, 47: the label leaves a line amount empty that the image shows
 
+## M5: vendor/branch split, prompt 4f6fccfb (measured 2026-09-29)
+The prompt now asks for `branch` separately: "the store number or branch name printed with the business name; never the street address". The in-between prompt 4763a025 put street addresses in `branch` (train invoices 1 and 31, and "017314, 7230 Pendleton Pike…" on the landing-page Taco Bell receipt).
+
+| | Old | 4f6fccfb |
+|---|---|---|
+| Invoices with a wrong `branch` (train 50 / test 26 / validation 48) | 2 / – / – (4763a025) | 0 / 0 / 0 |
+| Train invoices: other scores, per invoice | | identical on all 50 |
+| Test / validation invoices: changes vs 4e4da96c | | 1 each: an ambiguous date read the other way (test 16 worse, validation 23 better), both flagged as ambiguous |
+| CORD receipts fully correct, test / validation | 94% / 96% (903ae630) | 94% / 95% |
+| CORD wrong receipts flagged, test / validation | 1 / 6, 1 / 4 | 1 / 6, 1 / 5 |
+| CORD correct receipts flagged anyway, test / validation | 5 / 94, 6 / 96 | 6 / 94, 7 / 95 |
+
+- **All three CORD changes are the known thousands-separator error**, checked against the images: test 32 now right (was wrong), test 79 "22.000" read as 22 and validation 66 "·7,000" read as 7 (both right before). The checks cannot see it because every amount on those receipts scales together. It moves in both directions between prompt versions, so it is model variance on this weakness, not an effect of the branch wording.
+- Validation 0 failed once with Google's 503 "high demand" after 3 retries; a rerun read it normally.
+- Candidate fix (not measured): a prompt hint or check for 3-decimal amounts. It must not break currencies that really use 3 decimals (KWD, BHD, OMR).
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
