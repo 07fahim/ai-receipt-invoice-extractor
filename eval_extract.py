@@ -1,6 +1,7 @@
 """M3: extraction accuracy of vision LLMs on CORD-v2.
 
 python eval_extract.py MODEL [SPLIT] [LIMIT]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
+SPLIT: test / validation (CORD receipts) or invoices_test / invoices_validation (katanaml invoices).
 Raw model responses are cached in data/llm_cache/ so a rerun costs no quota.
 Writes results/extract_<model>_<split>.json.
 """
@@ -13,11 +14,13 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 import cord
+import invoices
 import providers
 from validate import validate
 
 ROOT = Path(__file__).parent
 HEADER = ('subtotal', 'tax', 'service_charge', 'discount', 'total')
+TEXT = ('doc_number', 'issue_date', 'vendor', 'buyer', 'currency')
 
 
 def same(a, b):
@@ -44,13 +47,25 @@ def name_f1(pred, gold):
     return 1.0 if not pred and not gold else (0.0 if hit == 0 else 2 * hit / (len(pred) + len(gold)))
 
 
+def text_match(field, p, g):
+    """Dates and currency must be equal. Names and numbers ignore case and spaces; vendor/buyer labels
+    include the address, so the name only has to be the start of it."""
+    if p is None:
+        return False
+    if field in ('issue_date', 'currency'):
+        return str(p).upper() == str(g).upper()
+    p, g = (''.join(str(x).casefold().split()) for x in (p, g))
+    return p == g if field == 'doc_number' else bool(p) and (g.startswith(p) or p.startswith(g))
+
+
 def score(pred, gold):
     """Per-field correctness for the fields the ground truth has."""
     s = {f: same(getattr(pred, f), getattr(gold, f)) for f in HEADER if getattr(gold, f) is not None}
+    s.update({f: text_match(f, getattr(pred, f), getattr(gold, f)) for f in TEXT if getattr(gold, f) is not None})
     s['item_amounts_f1'] = f1([i.amount for i in pred.items if i.amount is not None],
                               [i.amount for i in gold.items if i.amount is not None])
     s['item_names_f1'] = name_f1([i.description for i in pred.items], [i.description for i in gold.items])
-    s['all_correct'] = all(v for k, v in s.items() if k in HEADER) and s['item_amounts_f1'] == 1.0
+    s['all_correct'] = all(v for k, v in s.items() if k in HEADER + TEXT) and s['item_amounts_f1'] == 1.0
     return s
 
 
@@ -74,16 +89,20 @@ def main(name, split='test', limit=None):
     providers.load_env()
     cache_dir = ROOT / 'data' / 'llm_cache' / name.replace('/', '_')
     cache_dir.mkdir(parents=True, exist_ok=True)
-    docs = list(cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet'))[:int(limit) if limit else None]
+    if split.startswith('invoices_'):
+        docs = list(invoices.load(split.removeprefix('invoices_')))
+    else:
+        docs = [(i, img, cord.to_document(p)) for i, img, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
+    docs = docs[:int(limit) if limit else None]
 
     rows = []
-    for doc_id, image, gt_parse, _ in docs:
+    for doc_id, image, gold in docs:
         rec = run_model(name, image, cache_dir / f'{split}_{doc_id}.json')
         row = {'id': doc_id, 'seconds': rec['seconds'], 'in': rec['in'], 'out': rec['out'], 'error': rec['error']}
         if rec['error'] is None:
             try:
                 pred = providers.parse(rec['text'])
-                row['score'] = score(pred, cord.to_document(gt_parse))
+                row['score'] = score(pred, gold)
                 row['flagged'] = [i['check'] for i in validate(pred)]
             except Exception as e:
                 row['error'] = f'parse: {str(e)[:200]}'
@@ -92,7 +111,7 @@ def main(name, split='test', limit=None):
 
     ok = [r for r in rows if not r['error']]
     field = {}
-    for f in HEADER + ('item_amounts_f1', 'item_names_f1', 'all_correct'):
+    for f in HEADER + TEXT + ('item_amounts_f1', 'item_names_f1', 'all_correct'):
         vals = [r['score'][f] for r in ok if f in r['score']]
         if vals:
             field[f] = {'rate': round(statistics.mean(vals), 4), 'n': len(vals)}
