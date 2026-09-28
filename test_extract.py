@@ -33,4 +33,6 @@ assert text_match('doc_number', '97159829', '97159829') and not text_match('doc_
 assert text_match('issue_date', date(2015, 9, 18), date(2015, 9, 18)) and text_match('currency', 'usd', 'USD')
 s = score(Document(doc_number='1', total=D(5), items=[]), Document(doc_number='2', total=D(5), items=[]))
 assert s['total'] and not s['doc_number'] and not s['all_correct']
+# a sign error on the total is wrong; only discounts ignore sign
+assert not score(Document(total=D(-100)), Document(total=D(100)))['total']
 print('ok')
