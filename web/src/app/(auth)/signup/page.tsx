@@ -18,7 +18,12 @@ export default function SignupPage() {
     const form = new FormData(e.currentTarget);
     const address = String(form.get("email"));
     run(async () => {
-      const { error } = await createClient().auth.signUp({ email: address, password: String(form.get("password")) });
+      const { error } = await createClient().auth.signUp({
+        email: address,
+        password: String(form.get("password")),
+        // the email has a 6-digit code (custom template) or a link (Supabase's default); the link signs in here
+        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      });
       if (error) throw error;
       setEmail(address);
     });
@@ -41,7 +46,8 @@ export default function SignupPage() {
         <div>
           <h1 className="text-xl font-semibold">Check your email</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
+            We sent an email to <span className="font-medium text-foreground">{email}</span>. Enter the 6-digit code from it, or
+            click the link in it.
           </p>
         </div>
         <form onSubmit={verify} className="grid gap-4">
