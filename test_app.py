@@ -33,6 +33,27 @@ def fake_call(model, data):
 
 
 providers.call = fake_call
+
+# a local webhook receiver standing in for n8n
+import hashlib, hmac, json, threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+events = []
+
+
+class Hook(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = self.rfile.read(int(self.headers['Content-Length']))
+        events.append((json.loads(body), self.headers['X-Signature'], body))
+        self.send_response(200); self.end_headers()
+
+    def log_message(self, *a):
+        pass
+
+
+hook = HTTPServer(('127.0.0.1', 0), Hook)
+threading.Thread(target=hook.serve_forever, daemon=True).start()
+os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
+os.environ['WEBHOOK_SECRET'] = 'test-secret'
 c = TestClient(app.app)
 JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
@@ -70,6 +91,12 @@ doc = c.get(f'/documents/{good_id}').json()['document']
 doc['total'] = '60.00'
 d = c.put(f'/documents/{good_id}', json=doc).json()
 assert d['status'] == 'reviewed' and d['total'] == 60.0 and d['checks'][0]['check'] == 'total_math'
+
+# webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
+kinds = [(e['event'], e['id']) for e, _, _ in events]
+assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
+e, sig, raw = events[-1]
+assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
 
 # history search and filters
 assert [x['id'] for x in c.get('/documents', params={'q': 'green'}).json()] == [good_id]
