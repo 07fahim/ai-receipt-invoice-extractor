@@ -7,6 +7,13 @@ const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 // The API checks the token itself on every call; this is only the page-level redirect.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  // Not set up yet (no web/.env.local): public pages still work; /app needs the settings.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    if (request.nextUrl.pathname.startsWith("/app")) {
+      return new NextResponse("Sign-in is not set up: add web/.env.local (see web/.env.example).", { status: 503 });
+    }
+    return response;
+  }
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
-export function Logo({ href = "/" }: { href?: string }) {
+export function Logo({ href = "/", className }: { href?: string; className?: string }) {
   return (
-    <Link href={href} className="flex items-center gap-2 text-[17px] font-bold">
-      <span className="size-5.5 rounded-[6px] bg-primary" aria-hidden />
+    <Link href={href} className={cn("display text-[19px] [font-stretch:140%] leading-none", className)}>
       Crosscheck
     </Link>
   );
