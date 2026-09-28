@@ -20,6 +20,7 @@ ROOT = Path(__file__).parent
 MODELS = {
     'gemini-3.5-flash-lite': ('gemini', None, 'gemini-3.5-flash-lite', 'GEMINI_API_KEY', 4.5),
     'gemini-3.1-flash-lite': ('gemini', None, 'gemini-3.1-flash-lite', 'GEMINI_API_KEY', 4.5),
+    'gemini-3.8-flash': ('gemini', None, 'gemini-3.8-flash', 'GEMINI_API_KEY', 13),  # free tier: 5/min, 20/day
     'gemma-4-31b': ('gemini', None, 'gemma-4-31b-it', 'GEMINI_API_KEY', 10),
     'groq-qwen3.8-27b': ('openai', 'https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY', 20),
     'glm-4.6v-flash': ('openai', 'https://api.z.ai/api/paas/v4', 'glm-4.6v-flash', 'ZAI_API_KEY', 3),
