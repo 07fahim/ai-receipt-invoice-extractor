@@ -353,6 +353,32 @@ def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, 
     return {'vendor': vendor, 'date_order': body.date_order, 'rechecked': len(rows)}
 
 
+def delete_auth_user(uid):
+    """Remove the sign-in account with Supabase's Admin API (SUPABASE_SECRET_KEY, backend only). Raises on failure."""
+    key = os.environ.get('SUPABASE_SECRET_KEY')
+    if not key:
+        raise HTTPException(503, 'account deletion is not set up on this server')
+    url = f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1/admin/users/{uid}'
+    urllib.request.urlopen(urllib.request.Request(url, method='DELETE', headers={'apikey': key, 'Authorization': f'Bearer {key}'}),
+                           timeout=15)
+
+
+@app.delete('/account', status_code=204)
+def delete_account(uid: str = Depends(current_user)):
+    """Delete the user's documents, files and settings, then the sign-in account. If the account can't be
+    removed, nothing is deleted (the database changes roll back)."""
+    with store.conn() as con:
+        con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
+        con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
+        try:
+            delete_auth_user(uid)
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f'deleting auth user {uid} failed: {e!r}')
+            raise HTTPException(502, 'Could not delete the account. Please try again.')
+
+
 @app.get('/stats')
 def stats(uid: str = Depends(current_user)):
     """Dashboard numbers for the user. Money is summed per currency (never converted), and only from checked
