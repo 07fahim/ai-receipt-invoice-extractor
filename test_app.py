@@ -159,10 +159,14 @@ try:
     assert [x['id'] for x in c.get('/documents', params={'status': 'failed'}).json()] == [bad_id]
     assert [x['id'] for x in c.get('/documents', params={'date_from': '2021-01-01'}).json()] == [amb_id]
 
-    # stats: failed documents are not counted in spend
+    # stats: spend counts only checked documents (passed or reviewed), never failed or waiting ones
     s = c.get('/stats').json()
     assert s['documents'] == 3 and s['by_status'] == {'reviewed': 1, 'passed': 1, 'failed': 1}
     assert {x['currency']: x['total'] for x in s['spend_by_currency']} == {'USD': 60.0, None: 10.0}
+    erin = as_user(str(uuid.uuid4()))  # a document waiting for review is not spend yet
+    c.post('/documents', files=[('files', ('w.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=erin)
+    s = c.get('/stats', headers=erin).json()
+    assert s['by_status'] == {'needs_review': 1} and s['spend_by_currency'] == [] and s['top_vendors'] == [] and s['by_month'] == []
 
     # pages: image = 1 page; PDF pages are rendered
     assert c.get(f'/documents/{good_id}/pages').json() == {'pages': 1}
