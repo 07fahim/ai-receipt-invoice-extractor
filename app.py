@@ -75,20 +75,37 @@ def send_event(doc_id):
     secret = os.environ.get('WEBHOOK_SECRET')
     if secret:
         headers['X-Signature'] = 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    for attempt in range(3):  # ponytail: in-process retries; a queue if deliveries must survive restarts
-        try:
-            with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=10):
-                return
-        except Exception as e:
-            print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
-            time.sleep(2 ** attempt)
+    # ponytail: in-process retries on a side thread; a queue if deliveries must survive restarts
+    def deliver():
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=10):
+                    return
+            except Exception as e:
+                print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+    worker = threading.Thread(target=deliver, daemon=True)
+    worker.start()
+    return worker  # tests join it; the app does not wait
+
+
+def public_error(e):
+    """Short message for the review screen; the full error goes to the server log only."""
+    print(f'extraction failed: {e!r}')
+    text = str(e)
+    if 'HTTP 503' in text or 'HTTP 429' in text:
+        return 'The AI service is busy. Please retry in a few minutes.'
+    if isinstance(e, ValueError):
+        return 'The AI answer could not be read as a document. Please retry.'
+    return 'Extraction failed. Please retry.'
 
 
 def process(doc_id):
     """Background job: send the file to the model, parse, check, store. Failures are stored, never raised."""
-    with store.conn() as con:
-        data = get_row(con, doc_id, with_file=True)['file']
     try:
+        with store.conn() as con:
+            data = get_row(con, doc_id, with_file=True)['file']
         text, tin, tout, _ = providers.call(MODEL, bytes(data))
         doc = providers.parse(text)
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
@@ -96,12 +113,15 @@ def process(doc_id):
         with store.conn() as con:
             save(con, doc_id, doc, None, extra)
             passed = get_row(con, doc_id)['status'] == 'passed'
-        if passed:
-            send_event(doc_id)
+    except HTTPException:
+        return  # the document was deleted meanwhile
     except Exception as e:
         with store.conn() as con:
             con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() WHERE id = %s",
-                        (str(e)[:300], doc_id))
+                        (public_error(e), doc_id))
+        return
+    if passed:
+        send_event(doc_id)  # outside the try: a webhook problem never marks a good document failed
 
 
 @app.middleware('http')
