@@ -27,4 +27,13 @@ assert fields({'menu': {'nm': 'A', 'price': '1'}, 'total': {'total_price': '1'}}
 assert fields({'menu': [{'nm': 'A', 'unitprice': '2', 'itemsubtotal': '4'}, {'nm': 'B'}]}) == \
     [('item_name', 'A'), ('item_unit_price', '2'), ('item_amount', '4'), ('item_name', 'B')]
 assert fields({'sub_total': {'subtotal_price': ['46.636', '46.636']}}) == [('subtotal', '46.636')] * 2
+from decimal import Decimal as D
+from cord import parse_amount, to_document
+assert [parse_amount(x) for x in ('60.000', '1,591,600', '9.999,99', '99,999.99', 'Rp. 111,000', '-60.000', '99 -', '-', '100%', '2.00')] == \
+    [D(60000), D(1591600), D('9999.99'), D('99999.99'), D(111000), D(-60000), D(-99), None, None, D('2.00')]
+d = to_document({'menu': {'nm': 'Tea', 'price': '24,000', 'discountprice': '-4,000',
+                          'sub': [{'nm': 'Jelly', 'price': '4,000'}, {'nm': 'Less Ice'}]},
+                 'total': {'total_etc': '24.000'}})
+assert [(i.description, i.amount, i.discount) for i in d.items] == [('Tea', D(24000), D(-4000)), ('Jelly', D(4000), None)]
+assert d.total == D(24000)
 print('ok')
