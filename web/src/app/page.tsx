@@ -152,7 +152,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="px-6 py-22">
+        <section className="px-6 pt-12 pb-20">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white md:p-12">
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt</h2>
