@@ -13,7 +13,7 @@ import app
 import providers
 
 ANSWERS = {
-    'good': '{"doc_type": "receipt", "vendor": "Green Field", "issue_date": "2016-05-26", "issue_date_text": "5/26/2016",'
+    'good': '{"doc_type": "receipt", "vendor": "Green Field", "branch": "017314", "issue_date": "2016-05-26", "issue_date_text": "5/26/2016",'
             ' "currency": "USD", "subtotal": 51.90, "tax": 4.68, "total": 56.58,'
             ' "items": [{"description": "Coffee", "amount": 3.00}, {"description": "Lunch", "amount": 45.90},'
             ' {"description": "Coke", "amount": 3.00}]}',
@@ -157,6 +157,7 @@ try:
     from openpyxl import load_workbook
     csv_text = c.get('/export', params={'format': 'csv'}).content.decode('utf-8-sig')
     assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_text.splitlines()) == 3
+    assert 'vendor,branch,buyer' in csv_text.splitlines()[0] and ',Green Field,017314,' in csv_text
     wb = load_workbook(io.BytesIO(c.get('/export').content))
     assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
