@@ -1,5 +1,6 @@
 """Self-check for the API with a fake model (no model calls, no quota). Run: python test_app.py
 Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end."""
+import csv
 import io
 import os
 import uuid
@@ -172,6 +173,22 @@ try:
     items = load_workbook(io.BytesIO(c.get('/export').content))['Items']
     assert items.cell(items.max_row, 2).value == '2023'
     assert "'=HYPERLINK" in c.get('/export', params={'format': 'csv', 'status': 'passed'}).content.decode('utf-8-sig')
+
+    # QuickBooks bills: one row per line, lines add up to the total; a cash-rounded total becomes one line;
+    # documents without a date are skipped and counted
+    ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 1000,'
+                          ' "total": 1000.40, "items": [{"description": "Rice", "amount": 1000}]}')
+    upload(('r.jpg', JPG + b'rounded'))
+    qb_id = upload(('g2.jpg', JPG + b'good')).json()[0]['id']
+    r = c.get('/export', params={'format': 'quickbooks'})
+    qb = list(csv.reader(r.content.decode('utf-8-sig').splitlines()))
+    assert qb[0][:3] == ['Bill no.', 'Supplier', 'Bill Date'] and int(r.headers['x-skipped']) >= 1
+    first = [x for x in qb if x[0] == f'CC-{qb_id}']
+    assert [(x[5], x[6]) for x in first] == [('Coffee', '3.00'), ('Lunch', '45.90'), ('Coke', '3.00'), ('Tax', '4.68')]
+    # the reviewed document whose total no longer matches its lines becomes a single line
+    assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
+    assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']
+    assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.40')]
 
     # any-language file names download fine
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
