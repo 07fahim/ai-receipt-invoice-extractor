@@ -22,6 +22,7 @@ from datetime import date
 import jwt
 import pypdfium2
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel
@@ -40,6 +41,9 @@ PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a th
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # protects the model quota
 
 app = FastAPI(title='Crosscheck API')
+# the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
+app.add_middleware(CORSMiddleware, allow_origins=os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(','),
+                   allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped'])
 _jwks = None
 
 
