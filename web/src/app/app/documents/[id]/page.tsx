@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
 
-// The six kinds of checks shown to the user, and the API checks that belong to each.
+// The kinds of checks shown to the user, and the API checks that belong to each.
 const CHECK_GROUPS: [string, string[]][] = [
   ["Line items match subtotal", ["items_sum", "items_total"]],
   ["Subtotal + tax = total", ["total_math"]],
@@ -21,6 +21,7 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Dates are valid", ["date_future", "due_before_issue"]],
   ["Currency is valid", ["currency_code"]],
   ["Total and line items present", ["total_present", "items_missing"]],
+  ["Not a duplicate", ["duplicate"]],
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -83,7 +84,7 @@ export default function ReviewPage() {
       return;
     }
     const timer = setTimeout(() => {
-      sendJSON<{ document: Doc; checks: Check[] }>("POST", `/check${order ? `?date_order=${order}` : ""}`, doc)
+      sendJSON<{ document: Doc; checks: Check[] }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
         .then((r) => {
           setChecks(r.checks);
           if (order && r.document.issue_date !== doc.issue_date) setDoc((d) => d && { ...d, issue_date: r.document.issue_date, due_date: r.document.due_date });
@@ -91,7 +92,7 @@ export default function ReviewPage() {
         .catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
-  }, [doc, order]);
+  }, [doc, order, id]);
 
   const failed = new Set(checks.map((c) => c.check));
   const flagged = new Set(checks.flatMap((c) => c.fields));
@@ -362,7 +363,14 @@ export default function ReviewPage() {
                     </span>
                     <span>
                       {label}
-                      {issue && <span className="block text-xs font-normal">{issue.message}</span>}
+                      {issue && (
+                        <span className="block text-xs font-normal">
+                          {issue.message}
+                          {issue.duplicate_of && (
+                            <> · <Link href={`/app/documents/${issue.duplicate_of}`} className="text-primary underline">Open it</Link></>
+                          )}
+                        </span>
+                      )}
                     </span>
                   </li>
                 );

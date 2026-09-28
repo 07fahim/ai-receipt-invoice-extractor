@@ -16,8 +16,8 @@ const checks = [
   ["Totals add up", "Subtotal + tax + service − discount"],
   ["Each line adds up", "Quantity × unit price"],
   ["Dates are valid", "Unclear dates like 05/11 go to review"],
-  ["Currency is valid", "USD, BDT, INR and more"],
-  ["Nothing is missing", "Total and line items present"],
+  ["Nothing is missing", "Total, line items and a valid currency"],
+  ["No duplicates", "The same invoice uploaded twice is flagged"],
 ];
 
 // The sample receipt's lines and checks, as the app would show them.

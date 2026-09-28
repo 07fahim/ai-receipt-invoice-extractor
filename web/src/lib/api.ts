@@ -30,7 +30,7 @@ export type Doc = {
   items: Item[];
 };
 
-export type Check = { check: string; fields: string[]; message: string };
+export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number };
 
 export type DocumentRow = {
   id: number;
