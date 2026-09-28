@@ -45,11 +45,16 @@ def validate(doc: Document, today: date | None = None) -> list[dict]:
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
     if doc.subtotal is not None and doc.total is not None:
-        before_tax = doc.subtotal + (doc.service_charge or 0) - abs(doc.discount or 0)
-        # tax-inclusive receipts print the included tax but do not add it
-        if not (close(before_tax + tax, doc.total) or (tax and close(before_tax, doc.total))):
+        expected = doc.subtotal + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
+        if not close(expected, doc.total):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
-                 f'subtotal + tax + service - discount = {before_tax + tax}, total is {doc.total}')
+                 f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
+    elif doc.total is not None and amounts and None not in amounts:
+        # no subtotal printed: the lines themselves must add up to the total
+        net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
+        expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
+        if not (close(expected, doc.total) or (tax and close(expected - tax, doc.total))):
+            fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):
         if None not in (i.quantity, i.unit_price, i.amount) and not close(i.quantity * i.unit_price, i.amount):
