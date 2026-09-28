@@ -53,13 +53,15 @@ def validate(doc: Document, today: date | None = None) -> list[dict]:
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
     elif doc.total is not None and amounts and None not in amounts:
-        # no subtotal printed: the lines themselves must add up to the total
+        # no subtotal printed: the lines themselves must add up to the total.
+        # ponytail: also accepts "tax already included", so a wrong tax is not caught here; tax_included field later
         net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
         expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
         if not (close(expected, doc.total, TOTAL_ROUNDING) or (tax and close(expected - tax, doc.total, TOTAL_ROUNDING))):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):
+        # ponytail: exact to 0.01; weighed items (0.235 kg x price) may need rounding room on invoices
         if None not in (i.quantity, i.unit_price, i.amount) and not close(i.quantity * i.unit_price, i.amount):
             fail('line_math', [f'items[{n}]'], f'{i.quantity} x {i.unit_price} = {i.quantity * i.unit_price}, line amount is {i.amount}')
 
