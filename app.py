@@ -87,12 +87,22 @@ def get_row(con, doc_id, uid, with_file=False):
     return r
 
 
+def run_checks(con, uid, doc: Document, order, doc_id=None):
+    """validate() plus the one check that needs the user's other documents: an earlier copy of the same invoice."""
+    checks = validate(doc, date_order=order)
+    dup = store.duplicate_of(con, uid, doc, before_id=doc_id)
+    if dup:
+        checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
+                       'message': f'Possible duplicate of {dup["doc_number"]}, uploaded {dup["created_at"]:%d %b %Y}'})
+    return checks
+
+
 def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None):
     """Store a document with its checks. The date order (the user's choice for this document, else the one
     confirmed for the vendor) is applied first."""
     order = date_order or store.date_order(con, uid, doc.vendor)
     doc = apply_date_order(doc, order)
-    checks = validate(doc, date_order=order)
+    checks = run_checks(con, uid, doc, order, doc_id)
     if status is None:
         status = 'needs_review' if checks else 'passed'
     fields = {'document': Jsonb(doc.model_dump(mode='json')), 'checks': Jsonb(checks), 'status': status,
@@ -242,12 +252,15 @@ def get_document(doc_id: int, uid: str = Depends(current_user)):
 
 
 @app.post('/check')
-def check(doc: Document, date_order: DateOrderValue | None = None, uid: str = Depends(current_user)):
+def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int | None = None,
+          uid: str = Depends(current_user)):
     """Run the checks without saving, so the review screen can show them while the user edits.
+    doc_id: the document being edited, so it is compared only with documents uploaded before it.
     Returns the document with printed dates re-read in the date order, and the failed checks."""
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
-    return {'document': apply_date_order(doc, order), 'checks': validate(doc, date_order=order)}
+        doc = apply_date_order(doc, order)
+        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id)}
 
 
 @app.put('/documents/{doc_id}')

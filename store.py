@@ -2,6 +2,7 @@
 order each user confirmed per vendor. Every row belongs to a Supabase Auth user (user_id). Connection string comes from DATABASE_URL in .env; APP_SCHEMA picks the schema
 (default 'app', kept out of Supabase's public Data API; tests use their own schema)."""
 import os
+import re
 import threading
 from contextlib import contextmanager
 
@@ -89,6 +90,26 @@ def date_order(con, user_id, vendor):
     r = con.execute('SELECT date_order FROM vendor_date_orders WHERE user_id = %s AND vendor = %s',
                     (user_id, vendor.strip().lower())).fetchone()
     return r['date_order'] if r else None
+
+
+def same_number(number):
+    """Invoice number for comparing: letters and digits only, lower case ('INV-1042' = 'inv 1042' = '#INV1042')."""
+    return re.sub(r'[\W_]', '', (number or '').lower())
+
+
+def duplicate_of(con, user_id, doc, before_id=None):
+    """The earliest of the user's documents with the same vendor, invoice number and total; None if there is none.
+    before_id: only documents uploaded before this one, so the first copy stays clean and later copies are flagged.
+    ponytail: exact match after clean-up; fuzzy matching would flag INV-1042 against INV-1043."""
+    number = same_number(doc.doc_number)
+    if not (number and doc.vendor and doc.total is not None):
+        return None
+    return con.execute(
+        "SELECT id, document->>'doc_number' AS doc_number, created_at FROM documents "
+        "WHERE user_id = %s AND lower(trim(vendor)) = lower(trim(%s)) AND total = %s AND id < %s "
+        "AND status IN ('passed', 'needs_review', 'reviewed') "
+        "AND regexp_replace(lower(document->>'doc_number'), '[^[:alnum:]]', '', 'g') = %s ORDER BY id LIMIT 1",
+        (user_id, doc.vendor, doc.total, before_id or 2 ** 62, number)).fetchone()
 
 
 def set_date_order(con, user_id, vendor, order):

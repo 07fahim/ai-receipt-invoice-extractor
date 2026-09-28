@@ -43,6 +43,10 @@ ANSWERS = {
                  ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
     'ambiguous2': '{"vendor": "Other Co", "issue_date": "2021-05-11", "issue_date_text": "05/11/2021",'
                   ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
+    # the same invoice twice (number printed differently), and the vendor's next invoice
+    'inv1042': '{"vendor": "ABC Ltd", "doc_number": "INV-1042", "total": 20, "items": [{"amount": 20}]}',
+    'inv1042b': '{"vendor": "abc ltd ", "doc_number": "#inv 1042", "total": 20, "items": [{"amount": 20}]}',
+    'inv1043': '{"vendor": "ABC Ltd", "doc_number": "INV-1043", "total": 20, "items": [{"amount": 20}]}',
 }
 calls = []
 
@@ -280,6 +284,20 @@ try:
     app.delete_auth_user = removed.append
     assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
     assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
+
+    # duplicates: a later copy of the same invoice (same vendor, number and total) is flagged and links to the first;
+    # the first copy, the next invoice number and other users' copies are not
+    george = as_user(str(uuid.uuid4()))
+    ids = [x['id'] for x in c.post('/documents', headers=george, files=[
+        ('files', (f'{k}.jpg', io.BytesIO(JPG + k.encode()), 'image/jpeg')) for k in ('inv1042', 'inv1042b', 'inv1043')]).json()]
+    first, copy, other = (c.get(f'/documents/{i}', headers=george).json() for i in ids)
+    assert first['status'] == 'passed' and other['status'] == 'passed', (first['checks'], other['checks'])
+    assert copy['status'] == 'needs_review' and [x['check'] for x in copy['checks']] == ['duplicate']
+    assert copy['checks'][0]['duplicate_of'] == ids[0] and 'INV-1042' in copy['checks'][0]['message']
+    live = c.post('/check', json=copy['document'], params={'doc_id': ids[1]}, headers=george).json()['checks']
+    assert [x['check'] for x in live] == ['duplicate']
+    assert c.post('/check', json=first['document'], params={'doc_id': ids[0]}, headers=george).json()['checks'] == []
+    assert c.post('/check', json=copy['document'], headers=as_user(str(uuid.uuid4()))).json()['checks'] == []
 
     # delete removes the record and the file
     assert c.delete(f'/documents/{good_id}').status_code == 204
