@@ -227,6 +227,11 @@ try:
         assert c.get('/documents', headers=as_user(ALICE, **bad)).status_code == 401, bad
     assert c.get('/documents', headers={'Authorization': 'Basic abc'}).status_code == 401
 
+    # the web app's origin may call the API from the browser; other sites may not
+    pre = {'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization'}
+    assert anon.options('/documents', headers={'Origin': 'http://localhost:3000', **pre}).headers['access-control-allow-origin'] == 'http://localhost:3000'
+    assert 'access-control-allow-origin' not in anon.options('/documents', headers={'Origin': 'https://evil.example', **pre}).headers
+
     # another user sees none of Alice's documents and cannot change them
     bob = as_user(BOB)
     assert c.get('/documents', headers=bob).json() == [] and c.get('/stats', headers=bob).json()['documents'] == 0
