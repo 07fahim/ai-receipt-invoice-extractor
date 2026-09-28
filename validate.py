@@ -36,6 +36,9 @@ def validate(doc: Document, today: date | None = None) -> list[dict]:
     if doc.total is None:
         fail('total_present', ['total'], 'No total found')
 
+    if not doc.items and (doc.total or doc.subtotal):
+        fail('items_missing', ['items'], 'Amounts found but no line items')
+
     tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
     if doc.subtotal is not None and amounts and None not in amounts:

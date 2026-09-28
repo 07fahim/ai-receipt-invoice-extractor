@@ -8,7 +8,8 @@ TODAY = date(2026, 9, 28)
 
 
 def checks(**kw):
-    return [i['check'] for i in validate(Document(**kw), today=TODAY)]
+    """Failed check names; items_missing is ignored here and tested on its own below."""
+    return [i['check'] for i in validate(Document(**kw), today=TODAY) if i['check'] != 'items_missing']
 
 
 good = dict(
@@ -37,6 +38,8 @@ assert checks(subtotal=D('334011'), total=D('334000')) == []
 assert checks(subtotal=D('334011'), total=D('334500')) == ['total_math']
 assert checks(subtotal=D('91000'), total=D('91000'), items=[Item(amount=D('91070'))]) == ['items_sum']
 # missing inputs skip checks instead of failing them
+assert [i['check'] for i in validate(Document(total=D('10')))] == ['items_missing']
+assert [i['check'] for i in validate(Document())] == ['total_present']
 assert checks(total=D('10')) == []
 assert checks(total=D('10'), subtotal=D('10'), items=[Item(amount=None)]) == []
 assert checks(total=D('10'), items=[Item(amount=None)]) == []
