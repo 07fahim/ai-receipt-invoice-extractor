@@ -2,9 +2,11 @@
 
 python eval_extract.py MODEL [SPLIT] [LIMIT]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
 SPLIT: test / validation (CORD receipts) or invoices_test / invoices_validation (katanaml invoices).
-Raw model responses are cached in data/llm_cache/ so a rerun costs no quota.
+Raw model responses are cached in data/llm_cache/<model>/<prompt version>/ so a rerun costs no quota
+and a changed prompt never reuses old answers.
 Writes results/extract_<model>_<split>.json.
 """
+import hashlib
 import json
 import statistics
 import sys
@@ -87,7 +89,8 @@ def run_model(name, image, cache):
 
 def main(name, split='test', limit=None):
     providers.load_env()
-    cache_dir = ROOT / 'data' / 'llm_cache' / name.replace('/', '_')
+    prompt_version = hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8]
+    cache_dir = ROOT / 'data' / 'llm_cache' / name.replace('/', '_') / prompt_version
     cache_dir.mkdir(parents=True, exist_ok=True)
     if split.startswith('invoices_'):
         docs = list(invoices.load(split.removeprefix('invoices_')))
@@ -118,7 +121,7 @@ def main(name, split='test', limit=None):
     wrong = [r for r in ok if not r['score']['all_correct']]
     right = [r for r in ok if r['score']['all_correct']]
     summary = {
-        'model': name, 'split': split, 'docs': len(rows),
+        'model': name, 'prompt_version': prompt_version, 'split': split, 'docs': len(rows),
         'failed_calls_or_invalid_json': len(rows) - len(ok),
         'field_accuracy': field,
         'wrong_docs_flagged_by_validation': f'{sum(bool(r["flagged"]) for r in wrong)} / {len(wrong)}',
