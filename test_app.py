@@ -240,6 +240,15 @@ try:
     assert c.put('/vendors/Green Field/date-order', json={'date_order': 'DMY'}, headers=bob).json()['rechecked'] == 0
     assert c.get(f'/documents/{good_id}').status_code == 200
 
+    # daily upload limit per user: files over the limit are refused, then the whole request
+    app.DAILY_UPLOAD_LIMIT = 2
+    carol = as_user(CAROL)
+    three = [('files', (f'{k}.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg')) for k in range(3)]
+    r = c.post('/documents', files=three, headers=carol).json()
+    assert ['id' in x for x in r] == [True, True, False] and 'daily limit' in r[2]['error']
+    assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
+    app.DAILY_UPLOAD_LIMIT = 50
+
     # delete removes the record and the file
     assert c.delete(f'/documents/{good_id}').status_code == 204
     assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
