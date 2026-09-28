@@ -25,4 +25,12 @@ s = score(Document(total=D(100), discount=D(10), items=[Item(description='a', am
 assert s['total'] and s['discount'] and s['all_correct']          # discount sign is a convention
 s = score(Document(total=D(90), items=[Item(amount=D(110))]), gold)
 assert not s['total'] and not s['discount'] and not s['all_correct'] and 'tax' not in s
+from datetime import date
+from eval_extract import text_match
+assert text_match('vendor', 'Bradley-Andrade', 'Bradley-Andrade 9879 Elizabeth Common')
+assert not text_match('vendor', 'Castro PLC', 'Bradley-Andrade 9879 Elizabeth Common') and not text_match('vendor', '', 'X')
+assert text_match('doc_number', '97159829', '97159829') and not text_match('doc_number', '9715982', '97159829')
+assert text_match('issue_date', date(2015, 9, 18), date(2015, 9, 18)) and text_match('currency', 'usd', 'USD')
+s = score(Document(doc_number='1', total=D(5), items=[]), Document(doc_number='2', total=D(5), items=[]))
+assert s['total'] and not s['doc_number'] and not s['all_correct']
 print('ok')
