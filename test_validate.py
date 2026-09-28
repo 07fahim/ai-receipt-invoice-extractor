@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal as D
 
 from schema import Document, Item
-from validate import validate
+from validate import apply_date_order, validate
 
 TODAY = date(2026, 9, 28)
 
@@ -52,4 +52,14 @@ assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000')) == ['tota
 # no subtotal: lines must add up to the total
 assert checks(total=D('91000'), items=[Item(amount=D('17500')), Item(amount=D('46000')), Item(amount=D('27500'))]) == []
 assert checks(total=D('91000'), items=[Item(amount=D('17500')), Item(amount=D('46000'))]) == ['items_total']
+# printed dates: ambiguous day/month is flagged unless the vendor's date order is known
+from validate import ambiguous, read_date
+assert ambiguous('05/11/2021') and not ambiguous('09/18/2015') and not ambiguous('05/05/2021') and not ambiguous('2021-05-11')
+assert read_date('05/11/2021', 'MDY') == date(2021, 5, 11) and read_date('05/11/21', 'DMY') == date(2021, 11, 5)
+assert read_date('13/13/2021', 'MDY') is None and read_date(None, 'MDY') is None
+amb = dict(total=D('10'), items=[Item(amount=D('10'))], issue_date=date(2021, 11, 5), issue_date_text='05/11/2021')
+assert checks(**amb) == ['date_ambiguous']
+fixed = validate(Document(**amb), today=TODAY, date_order='MDY')
+assert fixed == []  # re-read as 11 May 2021, not flagged
+assert apply_date_order(Document(**amb), 'MDY').issue_date == date(2021, 5, 11)
 print('ok')
