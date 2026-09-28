@@ -1,8 +1,10 @@
 """Self-check for the API with a fake model (no model calls, no quota). Run: python test_app.py
-Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end."""
+Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end.
+Sign-in tokens are signed with a local test key instead of Supabase's."""
 import csv
 import io
 import os
+import time
 import uuid
 
 os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
@@ -10,8 +12,26 @@ os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
 import pypdfium2
 from fastapi.testclient import TestClient
 
+import jwt
+from cryptography.hazmat.primitives.asymmetric import ec
+
 import app
 import providers
+
+# sign-in: tokens like Supabase's (ES256, audience 'authenticated'), verified with a local test key
+os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
+KEY, OTHER_KEY = ec.generate_private_key(ec.SECP256R1()), ec.generate_private_key(ec.SECP256R1())
+app.signing_key = lambda token: KEY.public_key()
+ALICE, BOB, CAROL = (str(uuid.uuid4()) for _ in range(3))
+
+
+def token(sub, key=KEY, **claims):
+    body = {'sub': sub, 'aud': 'authenticated', 'iss': 'https://test.supabase.co/auth/v1', 'exp': int(time.time()) + 3600}
+    return jwt.encode({**body, **claims}, key, algorithm='ES256')
+
+
+def as_user(sub, **kw):
+    return {'Authorization': f'Bearer {token(sub, **kw)}'}
 
 ANSWERS = {
     'good': '{"doc_type": "receipt", "vendor": "Green Field", "branch": "017314", "issue_date": "2016-05-26", "issue_date_text": "5/26/2016",'
@@ -65,7 +85,7 @@ def send_and_wait(doc_id):  # the app delivers on a side thread; tests wait so e
 
 
 app.send_event = send_and_wait
-c = TestClient(app.app)
+c = TestClient(app.app, headers=as_user(ALICE))
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
@@ -194,6 +214,31 @@ try:
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
     r = c.get(f'/documents/{uni_id}/file')
     assert r.status_code == 200 and "filename*=UTF-8''" in r.headers['content-disposition'] and r.content.startswith(JPG)
+
+    # sign-in required on every endpoint; expired, wrong-audience and forged tokens are refused
+    routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
+              for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
+              for m in rt.methods - {'HEAD'}]
+    assert len(routes) == 12, routes
+    anon = TestClient(app.app)
+    for m, path in routes:
+        assert anon.request(m, path).status_code == 401, (m, path)
+    for bad in ({'exp': int(time.time()) - 10}, {'aud': 'anon'}, {'key': OTHER_KEY}):
+        assert c.get('/documents', headers=as_user(ALICE, **bad)).status_code == 401, bad
+    assert c.get('/documents', headers={'Authorization': 'Basic abc'}).status_code == 401
+
+    # another user sees none of Alice's documents and cannot change them
+    bob = as_user(BOB)
+    assert c.get('/documents', headers=bob).json() == [] and c.get('/stats', headers=bob).json()['documents'] == 0
+    doc = c.get(f'/documents/{good_id}').json()['document']
+    for m, path, body in (('GET', '', None), ('PUT', '', doc), ('DELETE', '', None), ('POST', '/retry', None),
+                          ('GET', '/file', None), ('GET', '/pages', None), ('GET', '/pages/0', None)):
+        assert c.request(m, f'/documents/{good_id}{path}', json=body, headers=bob).status_code == 404, (m, path)
+    assert c.get('/export', params={'format': 'csv'}, headers=bob).content.decode('utf-8-sig').count('\n') == 1
+    assert c.get('/export', params={'format': 'quickbooks'}, headers=bob).content.decode('utf-8-sig').count('\n') == 1
+    # Bob's date format for a vendor re-checks only his own documents
+    assert c.put('/vendors/Green Field/date-order', json={'date_order': 'DMY'}, headers=bob).json()['rechecked'] == 0
+    assert c.get(f'/documents/{good_id}').status_code == 200
 
     # delete removes the record and the file
     assert c.delete(f'/documents/{good_id}').status_code == 204
