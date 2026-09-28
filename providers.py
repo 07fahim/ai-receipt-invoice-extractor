@@ -55,14 +55,14 @@ def mime(image):
 
 
 def post(url, headers, body, retries=3):
-    """POST JSON; wait and retry on rate limits (429) and server errors."""
+    """POST JSON; wait and retry on rate limits (429) and server errors. Returns (response, attempts)."""
     data = json.dumps(body).encode()
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json',
                                                               'User-Agent': 'receipt-extractor/0.1', **headers})
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
-                return json.load(r)
+                return json.load(r), attempt + 1
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503) and attempt < retries:
                 time.sleep(30 * (attempt + 1))
@@ -71,7 +71,7 @@ def post(url, headers, body, retries=3):
 
 
 def call(name, image):
-    """Return (raw_text, input_tokens, output_tokens)."""
+    """Return (raw_text, input_tokens, output_tokens, attempts). attempts > 1 means retry waits are in the time."""
     style, base, model, key_var, _ = MODELS[name]
     key = os.environ[key_var]
     b64 = base64.b64encode(image).decode()
@@ -79,21 +79,21 @@ def call(name, image):
         config = {'temperature': 0}
         if model.startswith('gemini'):
             config['responseMimeType'] = 'application/json'
-        r = post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+        r, attempts = post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
                  {'x-goog-api-key': key},
                  {'contents': [{'parts': [{'inline_data': {'mime_type': mime(image), 'data': b64}}, {'text': PROMPT}]}],
                   'generationConfig': config})
         parts = r['candidates'][0]['content']['parts']
         text = ''.join(p.get('text', '') for p in parts if not p.get('thought'))
         u = r.get('usageMetadata', {})
-        return text, u.get('promptTokenCount'), u.get('candidatesTokenCount')
-    r = post(f'{base}/chat/completions', {'Authorization': f'Bearer {key}'},
+        return text, u.get('promptTokenCount'), u.get('candidatesTokenCount'), attempts
+    r, attempts = post(f'{base}/chat/completions', {'Authorization': f'Bearer {key}'},
              {'model': model, 'temperature': 0, 'response_format': {'type': 'json_object'},
               'messages': [{'role': 'user', 'content': [
                   {'type': 'text', 'text': PROMPT},
                   {'type': 'image_url', 'image_url': {'url': f'data:{mime(image)};base64,{b64}'}}]}]})
     u = r.get('usage', {})
-    return r['choices'][0]['message']['content'], u.get('prompt_tokens'), u.get('completion_tokens')
+    return r['choices'][0]['message']['content'], u.get('prompt_tokens'), u.get('completion_tokens'), attempts
 
 
 MONEY = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
