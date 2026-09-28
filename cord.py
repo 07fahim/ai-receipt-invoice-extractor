@@ -32,7 +32,8 @@ def load(path=PARQUET):
 def parse_amount(s):
     """CORD number text to Decimal: '60.000' and '60,000' = 60000, '9.999,99' and '99,999.99' keep
     2 decimals, '-60.000' and '99 -' are negative. None when there are no digits (e.g. tax '-')
-    or when the value is a percentage ('100%' is not an amount)."""
+    or when the value is a percentage ('100%' is not an amount).
+    CORD-only: '12.5' would become 125 and '1.000' 1000; providers return numbers, not strings."""
     s = str(s)
     if '%' in s:
         return None
@@ -59,6 +60,7 @@ def to_document(gt_parse):
     for m in as_list(gt_parse.get('menu')):
         name = next((v for v in as_list(m.get('nm')) if isinstance(v, str)), None)
         items.append(Item(description=name, quantity=first_amount(m, 'cnt'), unit_price=first_amount(m, 'unitprice'),
+                          # itemsubtotal is after the line discount (schema amount is before); only used when price is missing
                           amount=first_amount(m, 'price') if 'price' in m else first_amount(m, 'itemsubtotal'),
                           discount=first_amount(m, 'discountprice')))
         # add-ons with their own price are separate lines; unpriced ones ("Less Ice") are notes
