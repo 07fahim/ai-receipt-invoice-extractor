@@ -1,0 +1,90 @@
+{
+ "summary": {
+  "dataset": "CORD-v2 test ground truth",
+  "docs": 100,
+  "flagged_ground_truth": 7,
+  "catch_rate_overall": {
+   "rate": 0.9304,
+   "n": 589
+  },
+  "catch_rate": {
+   "cash_paid_taken_as_total": {
+    "rate": 1.0,
+    "n": 44
+   },
+   "line_amount_misread": {
+    "rate": 0.957,
+    "n": 93
+   },
+   "line_item_dropped": {
+    "rate": 0.9677,
+    "n": 93
+   },
+   "line_item_duplicated": {
+    "rate": 0.9677,
+    "n": 93
+   },
+   "subtotal_taken_as_total": {
+    "rate": 1.0,
+    "n": 41
+   },
+   "tax_missed": {
+    "rate": 1.0,
+    "n": 39
+   },
+   "total_digit_misread": {
+    "rate": 0.6667,
+    "n": 93
+   },
+   "total_off_by_1000x": {
+    "rate": 1.0,
+    "n": 93
+   }
+  }
+ },
+ "flagged_ground_truth": {
+  "0": [
+   "subtotal + tax + service - discount = 5455, total is 60000"
+  ],
+  "9": [
+   "No total found"
+  ],
+  "12": [
+   "1 x 880 = 880, line amount is 0"
+  ],
+  "39": [
+   "No total found"
+  ],
+  "43": [
+   "subtotal + tax + service - discount = 180000.00, total is 165000.00"
+  ],
+  "57": [
+   "No total found"
+  ],
+  "76": [
+   "No total found"
+  ]
+ },
+ "missed_examples": {
+  "total_digit_misread": [
+   3,
+   6,
+   7
+  ],
+  "line_amount_misread": [
+   11,
+   15,
+   55
+  ],
+  "line_item_dropped": [
+   26,
+   31,
+   70
+  ],
+  "line_item_duplicated": [
+   26,
+   31,
+   70
+  ]
+ }
+}
