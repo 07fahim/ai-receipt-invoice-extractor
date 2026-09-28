@@ -11,6 +11,7 @@ import hmac
 import io
 import json
 import os
+import threading
 import time
 import urllib.request
 
@@ -29,6 +30,8 @@ providers.load_env()
 MODEL = os.environ.get('EXTRACT_MODEL', 'gemini-3.1-flash-lite')
 MAX_BYTES = 10 * 1024 * 1024
 MAX_FILES = 20
+MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
+PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 
 app = FastAPI(title='Receipt & Invoice Extractor')
 
@@ -111,6 +114,11 @@ async def upload(files: list[UploadFile], tasks: BackgroundTasks):
         if len(data) > MAX_BYTES or kind is None:
             created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP file under 10 MB'})
             continue
+        if kind == 'application/pdf':
+            pages = pdf_pages(data)
+            if not 1 <= pages <= MAX_PDF_PAGES:
+                created.append({'file_name': f.filename, 'error': f'PDF must be readable with 1 to {MAX_PDF_PAGES} pages'})
+                continue
         with store.conn() as con:
             doc_id = con.execute("INSERT INTO documents (file_name, mime, file, status) VALUES (%s, %s, %s, 'processing') "
                                  'RETURNING id', (os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
@@ -178,15 +186,24 @@ def get_file(doc_id: int):
                     headers={'Content-Disposition': f'inline; filename="{r["file_name"]}"'})
 
 
-def pdf_of(r):
-    return pypdfium2.PdfDocument(bytes(r['file']))
+def pdf_pages(data):
+    """Page count of a PDF, 0 if it can't be read."""
+    with PDF_LOCK:
+        try:
+            pdf = pypdfium2.PdfDocument(bytes(data))
+        except pypdfium2.PdfiumError:
+            return 0
+        try:
+            return len(pdf)
+        finally:
+            pdf.close()
 
 
 @app.get('/documents/{doc_id}/pages')
 def page_count(doc_id: int):
     with store.conn() as con:
         r = get_row(con, doc_id, with_file=True)
-    return {'pages': len(pdf_of(r)) if r['mime'] == 'application/pdf' else 1}
+    return {'pages': pdf_pages(r['file']) if r['mime'] == 'application/pdf' else 1}
 
 
 @app.get('/documents/{doc_id}/pages/{n}')
@@ -198,11 +215,17 @@ def page_image(doc_id: int, n: int):
         if n != 0:
             raise HTTPException(404, 'page not found')
         return Response(bytes(r['file']), media_type=r['mime'])
-    pdf = pdf_of(r)
-    if not 0 <= n < len(pdf):
-        raise HTTPException(404, 'page not found')
     buf = io.BytesIO()
-    pdf[n].render(scale=2).to_pil().save(buf, 'PNG')
+    with PDF_LOCK:
+        pdf = pypdfium2.PdfDocument(bytes(r['file']))
+        try:
+            if not 0 <= n < len(pdf):
+                raise HTTPException(404, 'page not found')
+            page = pdf[n]
+            scale = min(2, 2000 / max(page.get_size()))  # at most 2000 px on the long side, whatever the page size
+            page.render(scale=scale).to_pil().save(buf, 'PNG')
+        finally:
+            pdf.close()
     return Response(buf.getvalue(), media_type='image/png')
 
 
