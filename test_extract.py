@@ -10,7 +10,7 @@ assert d.doc_type == 'receipt' and d.total == D(60000)
 # text after the object is ignored (GLM adds a sentence)
 assert parse('{"total": 5}\nEnd the code block.').total == D(5)
 # amounts as text are rejected ("60.000" would silently become 60)
-for bad in ('{"total": "60.000"}', '{"items": [{"amount": "7,500"}]}', 'not json'):
+for bad in ('{"total": "60.000"}', '{"items": [{"amount": "7,500"}]}', 'not json', '{"document": {"total": 5}}', '{"items": ["x"]}'):
     try:
         parse(bad)
         raise AssertionError(bad)
@@ -37,4 +37,6 @@ assert s['total'] and not s['doc_number'] and not s['all_correct']
 assert not score(Document(total=D(-100)), Document(total=D(100)))['total']
 # 1-3 character names and longer wrong names do not match
 assert not text_match('vendor', 'B', 'Bradley-Andrade 9879') and not text_match('vendor', 'Bradley-Andrade 9879 and more', 'Bradley-Andrade 9879')
+assert parse('{"items": null, "total": 1}').items == []
+assert parse('{"doc_type": "Invoice ", "total": 1}').doc_type == 'invoice' and parse('{"doc_type": "bill", "total": 1}').doc_type is None
 print('ok')

@@ -47,7 +47,7 @@ def load_env():
         for line in f.read_text(encoding='utf-8-sig').splitlines():
             if '=' in line and not line.lstrip().startswith('#'):
                 k, v = line.split('=', 1)
-                os.environ.setdefault(k.strip(), v.strip())
+                os.environ.setdefault(k.strip(), v.strip().strip('"\''))
 
 
 def mime(image):
@@ -108,9 +108,16 @@ def parse(text):
     if start == -1:
         raise ValueError('no JSON object in model output')
     data, _ = json.JSONDecoder().raw_decode(text[start:])  # ignores any text after the object
-    numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data.get('items') or [] for k in ITEM_NUMBERS]
+    if not isinstance(data, dict) or not (set(data) & set(Document.model_fields)):
+        raise ValueError('JSON has none of the expected keys')  # e.g. nested under another key
+    if data.get('items') is None:
+        data['items'] = []  # "null when not printed" also applies to the list
+    if not all(isinstance(i, dict) for i in data['items']):
+        raise ValueError('items must be objects')
+    numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
     if any(isinstance(v, str) for v in numbers):
         raise ValueError('amount given as text, not a number')
     if isinstance(data.get('doc_type'), str):
-        data['doc_type'] = data['doc_type'].lower()
+        dt = data['doc_type'].strip().lower()
+        data['doc_type'] = dt if dt in ('invoice', 'receipt') else None
     return Document.model_validate(data)
