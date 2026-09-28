@@ -2,3 +2,4 @@ rapidocr==3.9.2
 onnxruntime==1.30.0
 pyarrow
 pillow
+pydantic==2.13.5
