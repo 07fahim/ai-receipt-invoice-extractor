@@ -7,6 +7,7 @@ ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 50 files per 
 Optional WEBHOOK_URL (+ WEBHOOK_SECRET): each passed or reviewed document is sent there, e.g. to n8n.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
 """
+import contextlib
 import csv
 import hashlib
 import hmac
@@ -42,7 +43,13 @@ PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a th
 DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # protects the model quota
 
-app = FastAPI(title='Crosscheck API')
+@contextlib.asynccontextmanager
+async def lifespan(_):
+    threading.Thread(target=resume_stuck, daemon=True).start()
+    yield
+
+
+app = FastAPI(title='Crosscheck API', lifespan=lifespan)
 # the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(','),
                    allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped'])
@@ -176,6 +183,20 @@ def process(doc_id):
         return
     if passed:
         send_event(doc_id)  # outside the try: a webhook problem never marks a good document failed
+
+
+def resume_stuck():
+    """At startup: documents still 'processing' lost their background job when the server stopped; read them again.
+    ponytail: assumes one API process; with several, claim rows first (UPDATE ... RETURNING) so none is read twice."""
+    try:
+        with store.conn() as con:
+            ids = [r['id'] for r in con.execute("SELECT id FROM documents WHERE status = 'processing' ORDER BY id")]
+    except Exception as e:
+        print(f'resuming stuck documents failed: {e!r}')
+        return []
+    for doc_id in ids:
+        process(doc_id)   # never raises; failures are stored on the document
+    return ids
 
 
 @app.middleware('http')
