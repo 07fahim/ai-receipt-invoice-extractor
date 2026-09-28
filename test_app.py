@@ -41,6 +41,8 @@ ANSWERS = {
     # 05/11/2021 is ambiguous; the model read it as 5 November
     'ambiguous': '{"vendor": "Nguyen-Roach", "issue_date": "2021-11-05", "issue_date_text": "05/11/2021",'
                  ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
+    'ambiguous2': '{"vendor": "Other Co", "issue_date": "2021-05-11", "issue_date_text": "05/11/2021",'
+                  ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
 }
 calls = []
 
@@ -112,6 +114,16 @@ try:
     d = c.get(f'/documents/{amb_id}').json()
     assert d['status'] == 'passed' and d['issue_date'] == '2021-05-11'
     assert c.put('/vendors/x/date-order', json={'date_order': 'YMD'}).status_code == 422
+    # live checks without saving; a date format chosen for one document only resolves that document
+    dave = as_user(str(uuid.uuid4()))  # own user, so Alice's counts below stay the same
+    amb2 = c.post('/documents', files=[('files', ('inv2.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=dave).json()[0]['id']
+    doc2 = c.get(f'/documents/{amb2}', headers=dave).json()['document']
+    assert [x['check'] for x in c.post('/check', json=doc2, headers=dave).json()['checks']] == ['date_ambiguous']
+    live = c.post('/check', json=doc2, params={'date_order': 'DMY'}, headers=dave).json()
+    assert live['checks'] == [] and live['document']['issue_date'] == '2021-11-05'
+    d = c.put(f'/documents/{amb2}', json=live['document'], params={'date_order': 'DMY'}, headers=dave).json()
+    assert d['status'] == 'reviewed' and d['checks'] == [] and d['issue_date'] == '2021-11-05'
+    assert c.post('/check', json=doc2, params={'date_order': 'YMD'}).status_code == 422
 
     # failed call is stored as failed with a short public message
     bad_id = upload(('bad.jpg', JPG + b'boom')).json()[0]['id']
@@ -129,7 +141,8 @@ try:
 
     # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
     kinds = [(e['event'], e['id']) for e, _, _ in events]
-    assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
+    assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', amb2),
+                     ('document.reviewed', good_id)], kinds
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
 
@@ -219,7 +232,7 @@ try:
     routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
               for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
               for m in rt.methods - {'HEAD'}]
-    assert len(routes) == 12, routes
+    assert len(routes) == 13, routes
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
