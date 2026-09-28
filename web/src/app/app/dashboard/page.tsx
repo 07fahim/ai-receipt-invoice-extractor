@@ -86,7 +86,7 @@ export default function DashboardPage() {
         <Kpi label="Total spend" value={spend ? money(spend.total) : "–"} unit={code}>
           {others.length > 0
             ? `Not included: ${others.map((o) => `${o.n} ${o.currency ?? "no-currency"}`).join(", ")} document${others.length > 1 || others[0].n > 1 ? "s" : ""}`
-            : `${spend?.n ?? 0} documents`}
+            : `${spend?.n ?? 0} document${spend?.n === 1 ? "" : "s"}`}
         </Kpi>
         <Kpi label="Documents" value={String(stats.documents)}>
           {(stats.by_status.passed ?? 0) + (stats.by_status.reviewed ?? 0)} checked
