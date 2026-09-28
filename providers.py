@@ -50,8 +50,17 @@ def load_env():
                 os.environ.setdefault(k.strip(), v.strip().strip('"\''))
 
 
-def mime(image):
-    return 'image/png' if image[:4] == b'\x89PNG' else 'image/jpeg'
+def mime(data):
+    """File type from its first bytes (not the file name). None if not a supported type."""
+    if data[:4] == b'%PDF':
+        return 'application/pdf'
+    if data[:4] == b'\x89PNG':
+        return 'image/png'
+    if data[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
 
 
 def post(url, headers, body, retries=3):
@@ -87,6 +96,8 @@ def call(name, image):
         text = ''.join(p.get('text', '') for p in parts if not p.get('thought'))
         u = r.get('usageMetadata', {})
         return text, u.get('promptTokenCount'), u.get('candidatesTokenCount'), attempts
+    if mime(image) == 'application/pdf':
+        raise ValueError(f'{name} does not read PDFs; use a Gemini model or send page images')
     r, attempts = post(f'{base}/chat/completions', {'Authorization': f'Bearer {key}'},
              {'model': model, 'temperature': 0, 'response_format': {'type': 'json_object'},
               'messages': [{'role': 'user', 'content': [
