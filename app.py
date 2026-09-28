@@ -211,3 +211,56 @@ def stats():
         'by_month': q("SELECT substr(issue_date, 1, 7) month, currency, ROUND(SUM(total), 2) total, COUNT(*) n "
                       "FROM documents WHERE issue_date IS NOT NULL AND status != 'failed' GROUP BY month, currency ORDER BY month"),
     }
+
+
+DOC_COLUMNS = ['id', 'file_name', 'status', 'doc_type', 'vendor', 'buyer', 'doc_number', 'issue_date', 'due_date',
+               'currency', 'subtotal', 'discount', 'tax', 'service_charge', 'total']
+ITEM_COLUMNS = ['document_id', 'description', 'quantity', 'unit_price', 'amount', 'discount']
+
+
+def export_rows(status):
+    """(document rows, item rows) for export; failed documents are left out."""
+    sql, args = "SELECT id, file_name, status, document FROM documents WHERE status != 'failed' AND document IS NOT NULL", []
+    if status:
+        sql += ' AND status = ?'; args.append(status)
+    docs, items = [], []
+    for r in db().execute(sql + ' ORDER BY id', args):
+        d = json.loads(r['document'])
+        docs.append([r['id'], r['file_name'], r['status']] + [d.get(k) for k in DOC_COLUMNS[3:]])
+        items += [[r['id']] + [i.get(k) for k in ITEM_COLUMNS[1:]] for i in d.get('items') or []]
+    return docs, items
+
+
+def number(v):
+    """Money is stored as exact decimal text; spreadsheets get numbers."""
+    try:
+        return float(v) if isinstance(v, str) and v.replace('.', '', 1).lstrip('-').isdigit() else v
+    except ValueError:
+        return v
+
+
+@app.get('/export')
+def export(format: str = 'xlsx', status: str | None = None):
+    """Download documents as CSV (one row per document) or XLSX (Documents and Items sheets)."""
+    docs, items = export_rows(status)
+    if format == 'csv':
+        import csv
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(DOC_COLUMNS)
+        w.writerows(docs)
+        return Response(buf.getvalue().encode('utf-8-sig'), media_type='text/csv',
+                        headers={'Content-Disposition': 'attachment; filename="documents.csv"'})
+    if format != 'xlsx':
+        raise HTTPException(422, 'format must be csv or xlsx')
+    from openpyxl import Workbook
+    wb = Workbook()
+    for ws, cols, rows in ((wb.active, DOC_COLUMNS, docs), (wb.create_sheet('Items'), ITEM_COLUMNS, items)):
+        ws.append(cols)
+        for row_ in rows:
+            ws.append([number(v) for v in row_])
+    wb.active.title = 'Documents'
+    buf = io.BytesIO()
+    wb.save(buf)
+    return Response(buf.getvalue(), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={'Content-Disposition': 'attachment; filename="documents.xlsx"'})
