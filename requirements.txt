@@ -9,3 +9,4 @@ python-multipart==0.0.32
 pypdfium2==5.13.0
 openpyxl==3.1.5
 psycopg[binary,pool]==3.3.6
+httpx==0.28.1  # for the API self-check (FastAPI TestClient)
