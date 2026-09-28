@@ -1,7 +1,9 @@
 """M3: extraction accuracy of vision LLMs on CORD-v2.
 
 python eval_extract.py MODEL [SPLIT] [LIMIT]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
-SPLIT: test / validation (CORD receipts) or invoices_test / invoices_validation (katanaml invoices).
+SPLIT: test / validation (CORD receipts) or invoices_test / invoices_validation / invoices_train (katanaml invoices).
+The katanaml invoices are US format, so 'issue_date with vendor order' re-reads printed dates as MDY,
+like a user confirming the vendor's date format once in the app.
 Raw model responses are cached in data/llm_cache/<model>/<prompt version>/ so a rerun costs no quota
 and a changed prompt never reuses old answers.
 Writes results/extract_<model>_<split>.json.
@@ -18,7 +20,7 @@ from pathlib import Path
 import cord
 import invoices
 import providers
-from validate import validate
+from validate import apply_date_order, validate
 
 ROOT = Path(__file__).parent
 HEADER = ('subtotal', 'tax', 'service_charge', 'discount', 'total')
@@ -71,6 +73,10 @@ def score(pred, gold):
     return s
 
 
+def rate(vals):
+    return {'rate': round(statistics.mean(vals), 4), 'n': len(vals)} if vals else None
+
+
 def run_model(name, image, cache):
     if cache.exists():
         return json.loads(cache.read_text(encoding='utf8'))
@@ -107,6 +113,10 @@ def main(name, split='test', limit=None):
                 pred = providers.parse(rec['text'])
                 row['score'] = score(pred, gold)
                 row['flagged'] = [i['check'] for i in validate(pred)]
+                if gold.issue_date is not None:
+                    row['date_ok_with_vendor_order'] = apply_date_order(pred, 'MDY').issue_date == gold.issue_date
+                    row['date_flagged_ambiguous'] = 'date_ambiguous' in row['flagged']
+                    row['date_wrong_raw'] = not row['score'].get('issue_date', True)
             except Exception as e:
                 row['error'] = f'parse: {str(e)[:200]}'
         rows.append(row)
@@ -129,6 +139,8 @@ def main(name, split='test', limit=None):
         'median_seconds': statistics.median([r['seconds'] for r in rows]),
         'median_tokens_in_out': [statistics.median([r['in'] for r in ok if r['in']] or [0]),
                                  statistics.median([r['out'] for r in ok if r['out']] or [0])],
+        'issue_date_with_vendor_order': rate([r['date_ok_with_vendor_order'] for r in ok if 'date_ok_with_vendor_order' in r]),
+        'wrong_dates_flagged_ambiguous': f"{sum(r['date_flagged_ambiguous'] for r in ok if r.get('date_wrong_raw'))} / {sum(bool(r.get('date_wrong_raw')) for r in ok)}",
         'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items()),
     }
     out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}.json'
