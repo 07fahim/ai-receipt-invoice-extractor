@@ -171,6 +171,12 @@ assert c.delete(f'/documents/{good_id}').status_code == 204
 assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
 assert c.delete(f'/documents/{good_id}').status_code == 404
 assert c.post('/documents', files=[]).status_code in (400, 422)
+# size limits: an 11 MB file is refused; a request larger than 20 files x 10 MB is refused before reading
+over = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'0' * (10 * 1024 * 1024)), 'image/jpeg'))]).json()
+assert 'error' in over[0]
+assert c.post('/documents', content=b'x', headers={'content-length': str(300 * 1024 * 1024),
+                                                   'content-type': 'multipart/form-data; boundary=x'}).status_code == 413
+assert c.post('/documents', files=[('files', (f'{k}.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg')) for k in range(21)]).status_code == 400
 import store
 with store.conn() as con:
     con.execute(f'DROP SCHEMA {store.schema_name()} CASCADE')
