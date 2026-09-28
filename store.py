@@ -2,6 +2,7 @@
 order confirmed per vendor. Connection string comes from DATABASE_URL in .env; APP_SCHEMA picks the schema
 (default 'app', kept out of Supabase's public Data API; tests use their own schema)."""
 import os
+import threading
 from contextlib import contextmanager
 
 from psycopg.rows import dict_row
@@ -31,31 +32,43 @@ CREATE TABLE IF NOT EXISTS vendor_settings (
 """
 
 _pool = None
+_pool_lock = threading.Lock()
 
 
 def schema_name():
     name = os.environ.get('APP_SCHEMA', 'app')  # not 'public': Supabase's Data API only exposes public by default
-    assert name.replace('_', '').isalnum(), name  # used inside SQL text below
+    if not name.replace('_', '').isalnum():  # used inside SQL text below
+        raise ValueError(f'invalid schema name: {name!r}')
     return name
 
 
 def pool():
     """One connection pool per process; creates the schema and tables on first use."""
     global _pool
-    if _pool is None:
-        name = schema_name()
-
-        def configure(con):
-            con.execute(f'SET search_path TO {name}')
-            con.commit()
-
-        _pool = ConnectionPool(os.environ['DATABASE_URL'], min_size=1, max_size=5, configure=configure,
-                               kwargs={'row_factory': dict_row}, open=True)
-        with _pool.connection() as con:
-            con.execute(f'CREATE SCHEMA IF NOT EXISTS {name}')
-            con.execute(f'SET search_path TO {name}')
-            con.execute(SCHEMA)
+    with _pool_lock:  # two first requests at once must not build two pools
+        if _pool is None:
+            _pool = _open_pool()
     return _pool
+
+
+def _open_pool():
+    """Create the pool, then the schema and tables."""
+    name = schema_name()
+
+    def configure(con):
+        con.execute(f'SET search_path TO {name}')
+        con.commit()
+
+    # prepare_threshold=None: no server-side prepared statements, so a transaction-mode pooler also works;
+    # check: drop connections the pooler closed while idle. max_size 10 of the pooler's free-tier limit.
+    new = ConnectionPool(os.environ['DATABASE_URL'], min_size=1, max_size=10, configure=configure,
+                         check=ConnectionPool.check_connection,
+                         kwargs={'row_factory': dict_row, 'prepare_threshold': None}, open=True)
+    with new.connection() as con:
+        con.execute(f'CREATE SCHEMA IF NOT EXISTS {name}')
+        con.execute(f'SET search_path TO {name}')
+        con.execute(SCHEMA)
+    return new
 
 
 @contextmanager
