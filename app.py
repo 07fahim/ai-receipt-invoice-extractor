@@ -14,6 +14,7 @@ import os
 import threading
 import time
 import urllib.request
+from datetime import date
 
 import pypdfium2
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, UploadFile
@@ -128,8 +129,8 @@ async def upload(files: list[UploadFile], tasks: BackgroundTasks):
 
 
 @app.get('/documents')
-def list_documents(status: str | None = None, q: str | None = None, date_from: str | None = None,
-                   date_to: str | None = None, limit: int = Query(50, le=200), offset: int = 0):
+def list_documents(status: str | None = None, q: str | None = None, date_from: date | None = None,
+                   date_to: date | None = None, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
     """History: newest first. q searches vendor and file name; dates filter on the document's issue date."""
     sql, args = 'SELECT id, file_name, status, vendor, currency, issue_date, total, created_at FROM documents WHERE true', []
     if status:
