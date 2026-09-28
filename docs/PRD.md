@@ -29,18 +29,19 @@ Upload (image or PDF, several files at once)
 | Group | Fields |
 |---|---|
 | Document | doc_type (invoice / receipt), vendor (seller) name, buyer name, invoice or receipt number, issue date, due date, currency |
-| Amounts | subtotal, tax, discount, total |
-| Line items | description, quantity, unit price, amount |
+| Amounts | subtotal, discount, tax, service charge, total |
+| Line items | description, quantity, unit price, amount, line discount |
 
 Missing fields are `null`. The model must never guess a value that is not on the page.
 
 ### Validation (deterministic code, no AI)
-1. Sum of line item amounts vs subtotal (tolerance: 0.01 or rounding of the document's currency).
-2. subtotal + tax − discount vs total.
-3. quantity × unit price vs line amount.
-4. Dates parse, are not in the future, due date not before issue date.
+Built and measured in M2 (`results/M2_NOTES.md`):
+1. Line items (after line discounts) add up to the subtotal, exactly. Without a subtotal, lines must add up to the total.
+2. subtotal + tax + service charge − discount = total; only the total may be cash-rounded (up to 0.05%).
+3. quantity × unit price = line amount.
+4. Issue date not in the future; due date not before issue date.
 5. Currency is a valid ISO 4217 code (when present).
-6. Total is present.
+6. Total is present, and a document with amounts has line items.
 
 Each failed check names the fields involved, so the review screen can highlight them. A document with any failed check gets status **needs review**; otherwise **passed**. The status comes from these checks, not from the model rating its own confidence.
 
@@ -96,6 +97,7 @@ Canonical output:
   "subtotal": 850.00,
   "tax": 127.50,
   "discount": 0.00,
+  "service_charge": 0.00,
   "total": 977.50,
   "items": [
     {"description": "Paper cups (box)", "quantity": 2, "unit_price": 350.00, "amount": 700.00},
