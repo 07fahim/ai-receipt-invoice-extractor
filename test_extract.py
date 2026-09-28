@@ -35,4 +35,6 @@ s = score(Document(doc_number='1', total=D(5), items=[]), Document(doc_number='2
 assert s['total'] and not s['doc_number'] and not s['all_correct']
 # a sign error on the total is wrong; only discounts ignore sign
 assert not score(Document(total=D(-100)), Document(total=D(100)))['total']
+# 1-3 character names and longer wrong names do not match
+assert not text_match('vendor', 'B', 'Bradley-Andrade 9879') and not text_match('vendor', 'Bradley-Andrade 9879 and more', 'Bradley-Andrade 9879')
 print('ok')
