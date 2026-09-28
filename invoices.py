@@ -37,8 +37,13 @@ def load(split):
         yield n, row['image']['bytes'], to_document(g)
 
 
-def load_photos(folder='indian_invoices/Photos/Photos'):
-    """Yield (doc_id, image_bytes, None) for an unlabelled photo set, e.g. the Indian grocery invoices
-    (Kaggle surajitsadhukhan/indian-grocery-tax-invoice-image-dataset, CC BY 4.0). No gold: only checks are measured."""
+PHOTO_SETS = {
+    'photos_indian': 'indian_invoices/Photos/Photos',  # Kaggle surajitsadhukhan/indian-grocery-tax-invoice-image-dataset, CC BY 4.0
+    'photos_us': 'us_receipts',  # ExpressExpense sample receipt dataset (US restaurants), CC0
+}
+
+
+def load_photos(folder):
+    """Yield (doc_id, image_bytes, None) for an unlabelled photo set. No gold: only checks are measured."""
     for n, f in enumerate(sorted((DATA / folder).glob('*.jpg'))):
         yield n, f.read_bytes(), None

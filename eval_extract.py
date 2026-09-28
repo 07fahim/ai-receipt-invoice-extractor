@@ -3,7 +3,7 @@
 python eval_extract.py MODEL [SPLIT] [LIMIT] [PROMPT_VERSION]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
 PROMPT_VERSION re-scores cached answers of an older prompt without calling the API (0 for no limit).
 SPLIT: test / validation (CORD receipts), invoices_test / invoices_validation / invoices_train (katanaml invoices),
-or photos_indian (unlabelled Indian invoice photos: only the checks are measured).
+or photos_indian / photos_us (unlabelled photos: only the checks are measured).
 The katanaml invoices are US format, so 'issue_date with vendor order' re-reads printed dates as MDY,
 like a user confirming the vendor's date format once in the app.
 Raw model responses are cached in data/llm_cache/<model>/<prompt version>/ so a rerun costs no quota
@@ -112,8 +112,8 @@ def main(name, split='test', limit=None, prompt_version=None):
     date_order = 'MDY' if split.startswith('invoices_') else None  # katanaml invoices are US format
     cache_dir = ROOT / 'data' / 'llm_cache' / name.replace('/', '_') / prompt_version
     cache_dir.mkdir(parents=True, exist_ok=True)
-    if split == 'photos_indian':
-        docs = list(invoices.load_photos())
+    if split in invoices.PHOTO_SETS:
+        docs = list(invoices.load_photos(invoices.PHOTO_SETS[split]))
     elif split.startswith('invoices_'):
         docs = list(invoices.load(split.removeprefix('invoices_')))
     else:
