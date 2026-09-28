@@ -36,6 +36,7 @@ def ambiguous(text):
 
 def read_date(text, order):
     """Printed numeric date in a known order ('MDY' US, 'DMY' most other countries); None if it can't be read."""
+    assert order in ('MDY', 'DMY'), order
     m = NUMERIC_DATE.search(text or '')
     if not m:
         return None
