@@ -38,4 +38,9 @@ assert checks(subtotal=D('46636'), tax=D('4664'), total=D('51800')) == ['total_m
 # missing inputs skip checks instead of failing them
 assert checks(total=D('10')) == []
 assert checks(total=D('10'), subtotal=D('10'), items=[Item(amount=None)]) == []
+# line discounts reduce the items sum
+assert checks(**{**good, 'items': [Item(amount=D('700'), discount=D('-100')), good['items'][1]], 'subtotal': D('750'), 'total': D('877.50')}) == []
+# tax-inclusive: lines = subtotal + tax, or total = subtotal with tax already inside
+assert checks(subtotal=D('22728'), tax=D('2272'), total=D('25000'), items=[Item(amount=D('25000'))]) == []
+assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000')) == []
 print('ok')
