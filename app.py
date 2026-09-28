@@ -3,7 +3,7 @@
 Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
 Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler), SUPABASE_URL and GEMINI_API_KEY in .env.
 Every request except the docs needs a Supabase Auth access token ('Authorization: Bearer ...'); users only
-ever see their own documents.
+ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 50 files per user per 24 hours).
 Optional WEBHOOK_URL (+ WEBHOOK_SECRET): each passed or reviewed document is sent there, e.g. to n8n.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
 """
@@ -37,6 +37,7 @@ MAX_BYTES = 10 * 1024 * 1024
 MAX_FILES = 20
 MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
+DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # protects the model quota
 
 app = FastAPI(title='Crosscheck API')
 _jwks = None
@@ -173,8 +174,18 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
     A plain def: FastAPI runs it in a thread, so the database writes don't block other requests."""
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'send 1 to {MAX_FILES} files')
+    with store.conn() as con:
+        used = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND created_at > now() - interval '1 day'",
+                           (uid,)).fetchone()['n']
+    # ponytail: counted once per request; two parallel uploads can overshoot the limit slightly
+    left = DAILY_UPLOAD_LIMIT - used
+    if left <= 0:
+        raise HTTPException(429, f'daily limit of {DAILY_UPLOAD_LIMIT} files reached; try again tomorrow')
     created = []
     for f in files:
+        if left <= 0:
+            created.append({'file_name': f.filename, 'error': f'daily limit of {DAILY_UPLOAD_LIMIT} files reached'})
+            continue
         data = f.file.read(MAX_BYTES + 1)
         kind = providers.mime(data)  # type from the file's bytes, never from its name
         if len(data) > MAX_BYTES or kind is None:
@@ -189,6 +200,7 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
             doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
                                  "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
                                  (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
+        left -= 1
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
     return created
