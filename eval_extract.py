@@ -12,6 +12,7 @@ Writes results/extract_<model>_<split>[_first<N>]_p<prompt version>.json.
 """
 import hashlib
 import json
+import os
 import statistics
 import sys
 import time
@@ -119,6 +120,9 @@ def main(name, split='test', limit=None, prompt_version=None):
     else:
         docs = [(i, img, cord.to_document(p)) for i, img, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
     docs = docs[:limit]
+    only = os.environ.get('ONLY')  # e.g. ONLY=5,32,78: just the problem documents while iterating on a prompt
+    if only:
+        docs = [d for d in docs if str(d[0]) in only.split(',')]
     if not docs:
         raise SystemExit('no documents to evaluate')
 
@@ -155,7 +159,7 @@ def main(name, split='test', limit=None, prompt_version=None):
                    'checks_failed': sorted(Counter(c for r in ok for c in r['flagged']).items()),
                    'median_seconds': statistics.median([r['seconds'] for r in rows]),
                    'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items())}
-        out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}_p{prompt_version}.json'
+        out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}{"_only" if only else ""}_p{prompt_version}.json'
         out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
         print(json.dumps(summary, indent=1, default=str))
         return
@@ -180,7 +184,7 @@ def main(name, split='test', limit=None, prompt_version=None):
         'wrong_dates_flagged_ambiguous': f"{sum(r['date_flagged_ambiguous'] for r in ok if r.get('date_wrong_raw'))} / {sum(bool(r.get('date_wrong_raw')) for r in ok)}",
         'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items()),
     }
-    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}_p{prompt_version}.json'
+    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}{"_only" if only else ""}_p{prompt_version}.json'
     out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
     print(json.dumps(summary, indent=1, default=str))
 
