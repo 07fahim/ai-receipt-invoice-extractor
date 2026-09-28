@@ -1,5 +1,5 @@
 """PostgreSQL storage for the app (Supabase or any Postgres): one row per uploaded document, plus the date
-order confirmed per vendor. Connection string comes from DATABASE_URL in .env; APP_SCHEMA picks the schema
+order each user confirmed per vendor. Every row belongs to a Supabase Auth user (user_id). Connection string comes from DATABASE_URL in .env; APP_SCHEMA picks the schema
 (default 'app', kept out of Supabase's public Data API; tests use their own schema)."""
 import os
 import threading
@@ -11,6 +11,7 @@ from psycopg_pool import ConnectionPool
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID,                  -- Supabase Auth user; rows without one are visible to nobody
     file_name TEXT NOT NULL,
     mime TEXT NOT NULL,
     file BYTEA NOT NULL,           -- ponytail: files in the database (demo scale, survives redeploys); Supabase Storage if it grows
@@ -23,11 +24,15 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS documents_vendor ON documents (lower(vendor));
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id UUID;   -- tables created before accounts existed
+CREATE INDEX IF NOT EXISTS documents_user ON documents (user_id, id);
+CREATE INDEX IF NOT EXISTS documents_vendor ON documents (user_id, lower(vendor));
 CREATE INDEX IF NOT EXISTS documents_status ON documents (status);
-CREATE TABLE IF NOT EXISTS vendor_settings (
-    vendor TEXT PRIMARY KEY,       -- lower-case vendor name
-    date_order TEXT NOT NULL CHECK (date_order IN ('MDY', 'DMY'))
+CREATE TABLE IF NOT EXISTS vendor_date_orders (
+    user_id UUID NOT NULL,
+    vendor TEXT NOT NULL,          -- lower-case vendor name
+    date_order TEXT NOT NULL CHECK (date_order IN ('MDY', 'DMY')),
+    PRIMARY KEY (user_id, vendor)
 );
 """
 
@@ -78,13 +83,15 @@ def conn():
         yield con
 
 
-def date_order(con, vendor):
+def date_order(con, user_id, vendor):
     if not vendor:
         return None
-    r = con.execute('SELECT date_order FROM vendor_settings WHERE vendor = %s', (vendor.strip().lower(),)).fetchone()
+    r = con.execute('SELECT date_order FROM vendor_date_orders WHERE user_id = %s AND vendor = %s',
+                    (user_id, vendor.strip().lower())).fetchone()
     return r['date_order'] if r else None
 
 
-def set_date_order(con, vendor, order):
-    con.execute('INSERT INTO vendor_settings (vendor, date_order) VALUES (%s, %s) '
-                'ON CONFLICT (vendor) DO UPDATE SET date_order = excluded.date_order', (vendor.strip().lower(), order))
+def set_date_order(con, user_id, vendor, order):
+    con.execute('INSERT INTO vendor_date_orders (user_id, vendor, date_order) VALUES (%s, %s, %s) '
+                'ON CONFLICT (user_id, vendor) DO UPDATE SET date_order = excluded.date_order',
+                (user_id, vendor.strip().lower(), order))
