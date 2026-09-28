@@ -29,7 +29,7 @@ export default function AccountPage() {
     setBusy(true);
     try {
       await sendJSON("DELETE", "/account");
-      await createClient().auth.signOut();
+      await createClient().auth.signOut({ scope: "local" }); // the account is gone, so only clear this browser's session
       toast.success("Your account and all your documents were deleted.");
       router.replace("/");
       router.refresh();
