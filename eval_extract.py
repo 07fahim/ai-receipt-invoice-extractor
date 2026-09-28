@@ -64,7 +64,8 @@ def run_model(name, image, cache):
     except Exception as e:  # recorded and counted as a failed extraction
         rec = {'text': None, 'in': None, 'out': None, 'error': str(e)[:300]}
     rec['seconds'] = round(time.perf_counter() - t, 2)
-    cache.write_text(json.dumps(rec, ensure_ascii=False), encoding='utf8')
+    if rec['error'] is None:  # failed calls are not cached, so a rerun retries them
+        cache.write_text(json.dumps(rec, ensure_ascii=False), encoding='utf8')
     time.sleep(providers.MODELS[name][4])
     return rec
 
