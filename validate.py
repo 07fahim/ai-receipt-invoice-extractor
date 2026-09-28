@@ -1,4 +1,5 @@
 """Deterministic checks on an extracted Document. No AI: a failed check sends the document to review."""
+import re
 from datetime import date
 from decimal import Decimal
 
@@ -24,14 +25,56 @@ def close(a, b, rel=Decimal(0)):
     return abs(a - b) <= max(Decimal('0.01'), abs(b) * rel)
 
 
-def validate(doc: Document, today: date | None = None) -> list[dict]:
+NUMERIC_DATE = re.compile(r'\b(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})\b')
+
+
+def ambiguous(text):
+    """True for printed dates like 05/11/2021 that read differently as day/month and month/day."""
+    m = NUMERIC_DATE.search(text or '')
+    return bool(m) and int(m[1]) <= 12 and int(m[2]) <= 12 and int(m[1]) != int(m[2])
+
+
+def read_date(text, order):
+    """Printed numeric date in a known order ('MDY' US, 'DMY' most other countries); None if it can't be read."""
+    m = NUMERIC_DATE.search(text or '')
+    if not m:
+        return None
+    a, b, y = int(m[1]), int(m[2]), int(m[3])
+    y += 2000 if y < 100 else 0
+    month, day = (a, b) if order == 'MDY' else (b, a)
+    try:
+        return date(y, month, day)
+    except ValueError:
+        return None
+
+
+def apply_date_order(doc: Document, order: str | None) -> Document:
+    """Re-read the printed dates with the date order the user confirmed for this vendor or country."""
+    if order is None:
+        return doc
+    update = {}
+    for field in ('issue_date', 'due_date'):
+        d = read_date(getattr(doc, field + '_text'), order)
+        if d is not None:
+            update[field] = d
+    return doc.model_copy(update=update)
+
+
+def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     """Return failed checks as {'check', 'fields', 'message'}. Empty list = passed.
-    Checks with missing inputs are skipped, except a missing total."""
+    Checks with missing inputs are skipped, except a missing total.
+    date_order: 'MDY' or 'DMY' when known for this vendor; otherwise ambiguous dates are flagged."""
     today = today or date.today()
+    doc = apply_date_order(doc, date_order)
     issues = []
 
     def fail(check, fields, message):
         issues.append({'check': check, 'fields': fields, 'message': message})
+
+    if date_order is None:
+        for field in ('issue_date', 'due_date'):
+            if ambiguous(getattr(doc, field + '_text')):
+                fail('date_ambiguous', [field], f'{getattr(doc, field + "_text")} could be day/month or month/day')
 
     if doc.total is None:
         fail('total_present', ['total'], 'No total found')
