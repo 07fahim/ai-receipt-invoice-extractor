@@ -2,10 +2,12 @@
 
 1. False alarms: correct (ground-truth) receipts that get flagged anyway.
 2. Catch rate: take receipts that pass, inject one typical extraction mistake, count how many get flagged.
-Writes results/validation.json.
+Writes results/validation.json, or results/validation_<split>.json for another split:
+    python eval_validation.py validation
 """
 import json
 import random
+import sys
 from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
@@ -13,7 +15,7 @@ from pathlib import Path
 import cord
 from validate import validate
 
-OUT = Path(__file__).parent / 'results' / 'validation.json'
+ROOT = Path(__file__).parent
 
 
 def bump_digit(value, rng):
@@ -47,9 +49,10 @@ def mutations(doc, gt_parse, rng):
         yield 'tax_missed', d.model_copy(update={'tax': None})
 
 
-def main():
+def main(split='test'):
     rng = random.Random(0)
-    docs = [(i, p, cord.to_document(p)) for i, _, p, _ in cord.load()]
+    out = ROOT / 'results' / ('validation.json' if split == 'test' else f'validation_{split}.json')
+    docs = [(i, p, cord.to_document(p)) for i, _, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
     false_alarms = {i: [x['message'] for x in validate(doc)] for i, _, doc in docs}
     false_alarms = {i: m for i, m in false_alarms.items() if m}
 
@@ -65,15 +68,15 @@ def main():
 
     total = [x for v in caught.values() for x in v]
     summary = {
-        'dataset': 'CORD-v2 test ground truth', 'docs': len(docs),
+        'dataset': f'CORD-v2 {split} ground truth', 'docs': len(docs),
         'flagged_ground_truth': len(false_alarms),
         'catch_rate_overall': {'rate': round(sum(total) / len(total), 4), 'n': len(total)},
         'catch_rate': {k: {'rate': round(sum(v) / len(v), 4), 'n': len(v)} for k, v in sorted(caught.items())},
     }
-    OUT.write_text(json.dumps({'summary': summary, 'flagged_ground_truth': false_alarms,
+    out.write_text(json.dumps({'summary': summary, 'flagged_ground_truth': false_alarms,
                                'missed_examples': examples}, indent=1, ensure_ascii=False), encoding='utf8')
     print(json.dumps(summary, indent=1))
 
 
 if __name__ == '__main__':
-    main()
+    main(*sys.argv[1:2])
