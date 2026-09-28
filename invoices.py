@@ -35,3 +35,10 @@ def load(split):
                 and all(k in s for k in ('total_net_worth', 'total_vat', 'total_gross_worth'))):
             continue
         yield n, row['image']['bytes'], to_document(g)
+
+
+def load_photos(folder='indian_invoices/Photos/Photos'):
+    """Yield (doc_id, image_bytes, None) for an unlabelled photo set, e.g. the Indian grocery invoices
+    (Kaggle surajitsadhukhan/indian-grocery-tax-invoice-image-dataset, CC BY 4.0). No gold: only checks are measured."""
+    for n, f in enumerate(sorted((DATA / folder).glob('*.jpg'))):
+        yield n, f.read_bytes(), None
