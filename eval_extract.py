@@ -89,8 +89,8 @@ def run_model(name, image, cache):
         return json.loads(cache.read_text(encoding='utf8'))
     t = time.perf_counter()
     try:
-        text, tin, tout = providers.call(name, image)
-        rec = {'text': text, 'in': tin, 'out': tout, 'error': None}
+        text, tin, tout, attempts = providers.call(name, image)
+        rec = {'text': text, 'in': tin, 'out': tout, 'attempts': attempts, 'error': None}
     except Exception as e:  # recorded and counted as a failed extraction
         rec = {'text': None, 'in': None, 'out': None, 'error': str(e)[:300]}
     rec['seconds'] = round(time.perf_counter() - t, 2)
