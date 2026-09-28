@@ -137,6 +137,15 @@ try:
     # retry: a failed document can be retried; it is extracted again
     assert c.post(f'/documents/{bad_id}/retry').status_code == 202 and c.get(f'/documents/{bad_id}').json()['status'] == 'failed'
 
+    # a restart while a document was being read: at startup it is read again instead of staying 'processing'
+    hank = str(uuid.uuid4())
+    import store
+    with store.conn() as con:
+        stuck = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                            "VALUES (%s, 's.jpg', 'image/jpeg', %s, 'processing') RETURNING id", (hank, JPG + b'good')).fetchone()['id']
+    assert app.resume_stuck() == [stuck] and c.get(f'/documents/{stuck}', headers=as_user(hank)).json()['status'] == 'passed'
+    assert app.resume_stuck() == []
+
     # review: user corrects the total -> reviewed, checks run again
     doc = c.get(f'/documents/{good_id}').json()['document']
     doc['total'] = '60.00'
@@ -146,7 +155,7 @@ try:
     # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
     kinds = [(e['event'], e['id']) for e, _, _ in events]
     assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', amb2),
-                     ('document.reviewed', good_id)], kinds
+                     ('document.passed', stuck), ('document.reviewed', good_id)], kinds
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
 
