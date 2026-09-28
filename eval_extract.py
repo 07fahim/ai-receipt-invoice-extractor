@@ -7,7 +7,7 @@ The katanaml invoices are US format, so 'issue_date with vendor order' re-reads 
 like a user confirming the vendor's date format once in the app.
 Raw model responses are cached in data/llm_cache/<model>/<prompt version>/ so a rerun costs no quota
 and a changed prompt never reuses old answers.
-Writes results/extract_<model>_<split>.json.
+Writes results/extract_<model>_<split>[_first<N>]_p<prompt version>.json.
 """
 import hashlib
 import json
@@ -160,7 +160,7 @@ def main(name, split='test', limit=None, prompt_version=None):
         'wrong_dates_flagged_ambiguous': f"{sum(r['date_flagged_ambiguous'] for r in ok if r.get('date_wrong_raw'))} / {sum(bool(r.get('date_wrong_raw')) for r in ok)}",
         'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items()),
     }
-    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}.json'
+    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}_p{prompt_version}.json'
     out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
     print(json.dumps(summary, indent=1, default=str))
 
