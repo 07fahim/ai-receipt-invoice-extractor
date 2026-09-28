@@ -36,15 +36,20 @@ def validate(doc: Document, today: date | None = None) -> list[dict]:
     if doc.total is None:
         fail('total_present', ['total'], 'No total found')
 
+    tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
-    if doc.subtotal is not None and amounts and None not in amounts and not close(sum(amounts), doc.subtotal):
-        fail('items_sum', ['items', 'subtotal'], f'Line items add up to {sum(amounts)}, subtotal is {doc.subtotal}')
+    if doc.subtotal is not None and amounts and None not in amounts:
+        net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
+        # tax-inclusive prices: lines add up to subtotal + tax
+        if not (close(net, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
+            fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
     if doc.subtotal is not None and doc.total is not None:
-        expected = (doc.subtotal + (doc.tax or 0) + (doc.service_charge or 0) - abs(doc.discount or 0))
-        if not close(expected, doc.total):
+        before_tax = doc.subtotal + (doc.service_charge or 0) - abs(doc.discount or 0)
+        # tax-inclusive receipts print the included tax but do not add it
+        if not (close(before_tax + tax, doc.total) or (tax and close(before_tax, doc.total))):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
-                 f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
+                 f'subtotal + tax + service - discount = {before_tax + tax}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):
         if None not in (i.quantity, i.unit_price, i.amount) and not close(i.quantity * i.unit_price, i.amount):

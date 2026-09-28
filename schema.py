@@ -10,7 +10,8 @@ class Item(BaseModel):
     description: Optional[str] = None
     quantity: Optional[Decimal] = None
     unit_price: Optional[Decimal] = None
-    amount: Optional[Decimal] = None
+    amount: Optional[Decimal] = None  # before the line discount
+    discount: Optional[Decimal] = None  # line discount; positive = money taken off
 
 
 class Document(BaseModel):
