@@ -26,9 +26,12 @@ def to_document(g):
 
 
 def load(split):
-    """Yield (doc_id, image_bytes, gold Document). Rows whose labels are malformed are skipped (2 in validation)."""
+    """Yield (doc_id, image_bytes, gold Document). Rows with malformed or incomplete labels are skipped
+    (2 of 50 in validation; some in train)."""
     for n, row in enumerate(pq.read_table(DATA / f'katanaml_{split}.parquet').to_pylist()):
         g = json.loads(row['ground_truth'])['gt_parse']
-        if not isinstance(g.get('header'), dict) or not isinstance(g.get('summary'), dict):
+        h, s = g.get('header'), g.get('summary')
+        if not (isinstance(h, dict) and isinstance(s, dict) and 'invoice_date' in h
+                and all(k in s for k in ('total_net_worth', 'total_vat', 'total_gross_worth'))):
             continue
         yield n, row['image']['bytes'], to_document(g)
