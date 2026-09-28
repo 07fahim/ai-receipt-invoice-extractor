@@ -43,6 +43,8 @@ Built and measured in M2 (`results/M2_NOTES.md`):
 5. Currency is a valid ISO 4217 code (when present).
 6. Total is present, and a document with amounts has line items.
 
+Known limits (measured, see `results/M2_NOTES.md`): VAT-inclusive receipts where subtotal = total get flagged (fix: a `tax_included` field set by the extractor, tested in M3); a one-digit misread in the last digits of a total can hide inside the 0.05% rounding allowance.
+
 Each failed check names the fields involved, so the review screen can highlight them. A document with any failed check gets status **needs review**; otherwise **passed**. The status comes from these checks, not from the model rating its own confidence.
 
 ## 3. Out of scope for v0.1
