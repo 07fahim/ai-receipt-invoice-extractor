@@ -93,7 +93,7 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
     dup = store.duplicate_of(con, uid, doc, before_id=doc_id)
     if dup:
         checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
-                       'message': f'Possible duplicate of {dup["doc_number"]}, uploaded {dup["created_at"]:%d %b %Y}'})
+                       'message': f'Same vendor, number and total as {dup["doc_number"]}, uploaded earlier'})
     return checks
 
 

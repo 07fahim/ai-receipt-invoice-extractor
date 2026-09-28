@@ -105,7 +105,7 @@ def duplicate_of(con, user_id, doc, before_id=None):
     if not (number and doc.vendor and doc.total is not None):
         return None
     return con.execute(
-        "SELECT id, document->>'doc_number' AS doc_number, created_at FROM documents "
+        "SELECT id, document->>'doc_number' AS doc_number FROM documents "
         "WHERE user_id = %s AND lower(trim(vendor)) = lower(trim(%s)) AND total = %s AND id < %s "
         "AND status IN ('passed', 'needs_review', 'reviewed') "
         "AND regexp_replace(lower(document->>'doc_number'), '[^[:alnum:]]', '', 'g') = %s ORDER BY id LIMIT 1",
