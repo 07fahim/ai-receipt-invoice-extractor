@@ -27,8 +27,13 @@ HEADER = ('subtotal', 'tax', 'service_charge', 'discount', 'total')
 TEXT = ('doc_number', 'issue_date', 'vendor', 'buyer', 'currency')
 
 
-def same(a, b):
-    return a is not None and b is not None and abs(abs(a) - abs(b)) < 0.005  # discount sign is a convention
+def same(a, b, field=''):
+    """Money equal to the cent. Only a discount may differ in sign (a convention, not an error)."""
+    if a is None or b is None:
+        return False
+    if field == 'discount':
+        a, b = abs(a), abs(b)
+    return abs(a - b) < 0.005
 
 
 def f1(pred, gold):
@@ -64,7 +69,7 @@ def text_match(field, p, g):
 
 def score(pred, gold):
     """Per-field correctness for the fields the ground truth has."""
-    s = {f: same(getattr(pred, f), getattr(gold, f)) for f in HEADER if getattr(gold, f) is not None}
+    s = {f: same(getattr(pred, f), getattr(gold, f), f) for f in HEADER if getattr(gold, f) is not None}
     s.update({f: text_match(f, getattr(pred, f), getattr(gold, f)) for f in TEXT if getattr(gold, f) is not None})
     s['item_amounts_f1'] = f1([i.amount for i in pred.items if i.amount is not None],
                               [i.amount for i in gold.items if i.amount is not None])
