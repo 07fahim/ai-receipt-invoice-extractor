@@ -13,6 +13,7 @@ import json
 import os
 import threading
 import time
+import urllib.parse
 import urllib.request
 from datetime import date
 
@@ -186,8 +187,9 @@ def delete_document(doc_id: int):
 def get_file(doc_id: int):
     with store.conn() as con:
         r = get_row(con, doc_id, with_file=True)
+    # RFC 5987 form: any language in the name, and no quotes or line breaks can reach the header
     return Response(bytes(r['file']), media_type=r['mime'],
-                    headers={'Content-Disposition': f'inline; filename="{r["file_name"]}"'})
+                    headers={'Content-Disposition': f"inline; filename*=UTF-8''{urllib.parse.quote(r['file_name'])}"})
 
 
 def pdf_pages(data):
