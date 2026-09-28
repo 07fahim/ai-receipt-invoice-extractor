@@ -96,6 +96,8 @@ export default function ReviewPage() {
   const failed = new Set(checks.map((c) => c.check));
   const flagged = new Set(checks.flatMap((c) => c.fields));
   const dateUnclear = failed.has("date_ambiguous") && !order;
+  // keep the date-format choice on screen once made (the check then passes), so it can be changed
+  const dateChoice = failed.has("date_ambiguous") || order !== null;
   const otherFailing = checks.filter((c) => c.check !== "date_ambiguous");
 
   function edit(patch: Partial<Doc>) {
@@ -235,7 +237,7 @@ export default function ReviewPage() {
                       onChange={(e) => edit({ issue_date: e.target.value || null })}
                     />
                   </FieldBox>
-                  {failed.has("date_ambiguous") && (
+                  {dateChoice && (
                     <fieldset id="date-why" className="mt-2 rounded-lg border border-[#FCD34D] bg-[#FFFBEB] px-3 pt-1 pb-3 text-[13px]">
                       <legend className="px-1 font-semibold text-warn">&ldquo;{doc.issue_date_text}&rdquo; can be read two ways</legend>
                       <div className="my-1.5 flex flex-wrap gap-2">
@@ -276,10 +278,10 @@ export default function ReviewPage() {
 
             <Group title="Line items">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-sm">
+                <table className="w-full min-w-[340px] table-fixed text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground">
-                      <th className="w-[46%] px-1 pb-1.5 font-medium">Description</th>
+                      <th className="w-[44%] px-1 pb-1.5 font-medium">Description</th>
                       <th className="px-1 pb-1.5 text-right font-medium">Qty</th>
                       <th className="px-1 pb-1.5 text-right font-medium">Unit price</th>
                       <th className="px-1 pb-1.5 text-right font-medium">Amount</th>
@@ -365,7 +367,7 @@ export default function ReviewPage() {
                   </li>
                 );
               })}
-              {failed.has("date_ambiguous") && (
+              {dateChoice && (
                 <li className={cn("flex gap-2 py-1.5", !order && "font-medium text-warn")}>
                   <span className={cn("w-4 text-center", order && "text-ok")}>{order ? "✓" : "!"}</span>
                   Date format {order ? "confirmed" : "to confirm"}

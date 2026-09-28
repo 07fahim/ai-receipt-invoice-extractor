@@ -22,10 +22,15 @@ export function AppNav({ email }: { email: string }) {
   const router = useRouter();
   const [waiting, setWaiting] = useState(0);
 
+  // on every page change and every 15 s, so documents finishing in the background show up
   useEffect(() => {
-    getJSON<{ by_status: Record<string, number> }>("/stats")
-      .then((s) => setWaiting(s.by_status.needs_review ?? 0))
-      .catch(() => {}); // the count is a hint; pages show their own errors
+    const refresh = () =>
+      getJSON<{ by_status: Record<string, number> }>("/stats")
+        .then((s) => setWaiting(s.by_status.needs_review ?? 0))
+        .catch(() => {}); // the count is a hint; pages show their own errors
+    refresh();
+    const timer = setInterval(refresh, 15000);
+    return () => clearInterval(timer);
   }, [path]);
 
   async function signOut() {
