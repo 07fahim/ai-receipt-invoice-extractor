@@ -163,8 +163,11 @@ def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks):
 
 @app.post('/documents/{doc_id}/retry', status_code=202)
 def retry(doc_id: int, tasks: BackgroundTasks):
+    """Run extraction again. Only for failed or needs_review documents: a reviewed document keeps the
+    user's corrections, and one still processing is not sent to the model twice."""
     with store.conn() as con:
-        get_row(con, doc_id)
+        if get_row(con, doc_id)['status'] not in ('failed', 'needs_review'):
+            raise HTTPException(409, 'only failed or needs_review documents can be retried')
         con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() WHERE id = %s", (doc_id,))
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
