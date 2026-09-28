@@ -118,6 +118,18 @@ pdf_id = c.post('/documents', files=[('files', ('two.pdf', io.BytesIO(buf.getval
 assert c.get(f'/documents/{pdf_id}/pages').json() == {'pages': 2}
 img = c.get(f'/documents/{pdf_id}/pages/1')
 assert img.status_code == 200 and img.content[:4] == b'\x89PNG'
+# a huge page renders at most 2000 px; unreadable or 21-page PDFs are rejected at upload
+from PIL import Image
+big = pypdfium2.PdfDocument.new(); big.new_page(14400, 14400); buf = io.BytesIO(); big.save(buf)
+big_id = c.post('/documents', files=[('files', ('big.pdf', io.BytesIO(buf.getvalue()), 'application/pdf'))]).json()[0]['id']
+assert max(Image.open(io.BytesIO(c.get(f'/documents/{big_id}/pages/0').content)).size) <= 2000
+many = pypdfium2.PdfDocument.new()
+for _ in range(21):
+    many.new_page(100, 100)
+buf = io.BytesIO(); many.save(buf)
+bad = c.post('/documents', files=[('files', ('many.pdf', io.BytesIO(buf.getvalue()), 'application/pdf')),
+                                  ('files', ('broken.pdf', io.BytesIO(b'%PDF-1.7 garbage'), 'application/pdf'))]).json()
+assert all('error' in x for x in bad), bad
 
 # export: CSV one row per non-failed document; XLSX has Documents + Items with numbers
 from openpyxl import load_workbook
