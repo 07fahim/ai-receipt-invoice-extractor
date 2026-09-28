@@ -1,0 +1,1294 @@
+{
+ "summary": {
+  "dataset": "CORD-v2 test",
+  "docs": 100,
+  "ocr": "RapidOCR 3.9.2 (default models, CPU)",
+  "word_recall_mean": 0.8123,
+  "field_found_rate": {
+   "discount": {
+    "rate": 1.0,
+    "n": 6
+   },
+   "item_amount": {
+    "rate": 0.9073,
+    "n": 248
+   },
+   "item_name": {
+    "rate": 0.8725,
+    "n": 251
+   },
+   "item_qty": {
+    "rate": 0.7091,
+    "n": 220
+   },
+   "item_unit_price": {
+    "rate": 0.8955,
+    "n": 67
+   },
+   "subtotal": {
+    "rate": 0.9545,
+    "n": 66
+   },
+   "tax": {
+    "rate": 0.881,
+    "n": 42
+   },
+   "total": {
+    "rate": 0.9368,
+    "n": 95
+   }
+  },
+  "chance_rate_other_docs": {
+   "discount": {
+    "rate": 0.0667,
+    "n": 30
+   },
+   "item_amount": {
+    "rate": 0.0274,
+    "n": 1240
+   },
+   "item_name": {
+    "rate": 0.004,
+    "n": 1255
+   },
+   "item_qty": {
+    "rate": 0.35,
+    "n": 1100
+   },
+   "item_unit_price": {
+    "rate": 0.0448,
+    "n": 335
+   },
+   "subtotal": {
+    "rate": 0.0061,
+    "n": 330
+   },
+   "tax": {
+    "rate": 0.0048,
+    "n": 210
+   },
+   "total": {
+    "rate": 0.0168,
+    "n": 475
+   }
+  },
+  "docs_missing_total": 6,
+  "seconds_per_doc": {
+   "median": 1.631,
+   "max": 6.708
+  }
+ },
+ "docs": [
+  {
+   "id": 0,
+   "word_recall": 0.9583,
+   "seconds": 1.531,
+   "missed": []
+  },
+  {
+   "id": 1,
+   "word_recall": 1.0,
+   "seconds": 2.201,
+   "missed": []
+  },
+  {
+   "id": 2,
+   "word_recall": 0.44,
+   "seconds": 2.073,
+   "missed": [
+    [
+     "item_name",
+     "JASMINE MT ( L )"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 3,
+   "word_recall": 1.0,
+   "seconds": 1.533,
+   "missed": []
+  },
+  {
+   "id": 4,
+   "word_recall": 0.6957,
+   "seconds": 1.98,
+   "missed": [
+    [
+     "item_name",
+     "AVOCADO COFFEE"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 5,
+   "word_recall": 1.0,
+   "seconds": 2.707,
+   "missed": []
+  },
+  {
+   "id": 6,
+   "word_recall": 0.8421,
+   "seconds": 1.35,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 7,
+   "word_recall": 0.5625,
+   "seconds": 1.051,
+   "missed": [
+    [
+     "item_amount",
+     "100,000"
+    ]
+   ]
+  },
+  {
+   "id": 8,
+   "word_recall": 0.9286,
+   "seconds": 1.573,
+   "missed": []
+  },
+  {
+   "id": 9,
+   "word_recall": 0.8182,
+   "seconds": 1.057,
+   "missed": []
+  },
+  {
+   "id": 10,
+   "word_recall": 0.5385,
+   "seconds": 1.096,
+   "missed": [
+    [
+     "item_qty",
+     "1 x"
+    ]
+   ]
+  },
+  {
+   "id": 11,
+   "word_recall": 1.0,
+   "seconds": 0.98,
+   "missed": []
+  },
+  {
+   "id": 12,
+   "word_recall": 0.7826,
+   "seconds": 1.177,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 13,
+   "word_recall": 0.32,
+   "seconds": 1.326,
+   "missed": [
+    [
+     "item_name",
+     "BASO KUAH"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_unit_price",
+     "43.636"
+    ],
+    [
+     "item_amount",
+     "43.636"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_unit_price",
+     "3,000"
+    ],
+    [
+     "item_amount",
+     "3,000"
+    ],
+    [
+     "subtotal",
+     "46.636"
+    ],
+    [
+     "subtotal",
+     "46.636"
+    ],
+    [
+     "tax",
+     "4.664"
+    ],
+    [
+     "total",
+     "51.300"
+    ]
+   ]
+  },
+  {
+   "id": 14,
+   "word_recall": 0.85,
+   "seconds": 2.925,
+   "missed": [
+    [
+     "item_name",
+     "Mushroom Soup"
+    ],
+    [
+     "item_name",
+     "Chamomile"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "tax",
+     "25,585"
+    ],
+    [
+     "total",
+     "281,435"
+    ]
+   ]
+  },
+  {
+   "id": 15,
+   "word_recall": 0.8667,
+   "seconds": 1.019,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 16,
+   "word_recall": 0.8889,
+   "seconds": 1.755,
+   "missed": [
+    [
+     "item_name",
+     "IVINERAL WATER (bundling) 5k"
+    ]
+   ]
+  },
+  {
+   "id": 17,
+   "word_recall": 0.8108,
+   "seconds": 1.771,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_name",
+     "Mozarella Hot Dog"
+    ],
+    [
+     "item_qty",
+     "2"
+    ],
+    [
+     "item_name",
+     "Chili Pepper Croquette"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_name",
+     "Cheese Croquette"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_name",
+     "Plastik Putih Take Away"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 18,
+   "word_recall": 0.7273,
+   "seconds": 1.069,
+   "missed": []
+  },
+  {
+   "id": 19,
+   "word_recall": 0.6111,
+   "seconds": 1.13,
+   "missed": [
+    [
+     "item_name",
+     "AMBUSH CHS BUR"
+    ],
+    [
+     "item_qty",
+     "10"
+    ],
+    [
+     "item_amount",
+     "100000"
+    ]
+   ]
+  },
+  {
+   "id": 20,
+   "word_recall": 0.5455,
+   "seconds": 1.963,
+   "missed": [
+    [
+     "item_name",
+     "garlic pepper beef"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_amount",
+     "79,500"
+    ],
+    [
+     "item_name",
+     "red curry beef"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_amount",
+     "64,500"
+    ],
+    [
+     "item_amount",
+     "47,600"
+    ],
+    [
+     "subtotal",
+     "325,600"
+    ],
+    [
+     "tax",
+     "34,351"
+    ],
+    [
+     "total",
+     "377,859"
+    ]
+   ]
+  },
+  {
+   "id": 21,
+   "word_recall": 0.4167,
+   "seconds": 1.739,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_amount",
+     "Rp 35.000"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_amount",
+     "Rp 3.000"
+    ]
+   ]
+  },
+  {
+   "id": 22,
+   "word_recall": 1.0,
+   "seconds": 1.68,
+   "missed": []
+  },
+  {
+   "id": 23,
+   "word_recall": 0.9286,
+   "seconds": 1.342,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 24,
+   "word_recall": 0.96,
+   "seconds": 1.431,
+   "missed": []
+  },
+  {
+   "id": 25,
+   "word_recall": 1.0,
+   "seconds": 1.704,
+   "missed": []
+  },
+  {
+   "id": 26,
+   "word_recall": 0.9429,
+   "seconds": 1.982,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 27,
+   "word_recall": 1.0,
+   "seconds": 1.637,
+   "missed": []
+  },
+  {
+   "id": 28,
+   "word_recall": 1.0,
+   "seconds": 3.105,
+   "missed": []
+  },
+  {
+   "id": 29,
+   "word_recall": 0.8936,
+   "seconds": 2.298,
+   "missed": []
+  },
+  {
+   "id": 30,
+   "word_recall": 0.625,
+   "seconds": 1.476,
+   "missed": [
+    [
+     "total",
+     "31,500"
+    ]
+   ]
+  },
+  {
+   "id": 31,
+   "word_recall": 0.7826,
+   "seconds": 2.588,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 32,
+   "word_recall": 0.8667,
+   "seconds": 2.612,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 33,
+   "word_recall": 0.8571,
+   "seconds": 1.354,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 34,
+   "word_recall": 0.9048,
+   "seconds": 1.722,
+   "missed": [
+    [
+     "item_qty",
+     "5"
+    ]
+   ]
+  },
+  {
+   "id": 35,
+   "word_recall": 0.9565,
+   "seconds": 1.541,
+   "missed": [
+    [
+     "total",
+     "54,000"
+    ]
+   ]
+  },
+  {
+   "id": 36,
+   "word_recall": 0.2778,
+   "seconds": 3.053,
+   "missed": [
+    [
+     "item_name",
+     "XXL Crispy Chicken"
+    ]
+   ]
+  },
+  {
+   "id": 37,
+   "word_recall": 0.9091,
+   "seconds": 1.244,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 38,
+   "word_recall": 0.8039,
+   "seconds": 2.928,
+   "missed": [
+    [
+     "item_name",
+     "XLB Org Pork 10x"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "5"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 39,
+   "word_recall": 0.3214,
+   "seconds": 1.739,
+   "missed": [
+    [
+     "item_name",
+     "LUNCH BOX 3P SET W/RED BAG & SP00 N."
+    ],
+    [
+     "item_amount",
+     "1,944,000"
+    ],
+    [
+     "item_qty",
+     "5"
+    ],
+    [
+     "item_name",
+     "LUNCH BOX 3P SET W/BLACK BAG & SP OON"
+    ],
+    [
+     "item_qty",
+     "4"
+    ],
+    [
+     "item_unit_price",
+     "243,000"
+    ]
+   ]
+  },
+  {
+   "id": 40,
+   "word_recall": 0.8,
+   "seconds": 2.138,
+   "missed": [
+    [
+     "item_name",
+     "Snack Lestari All"
+    ],
+    [
+     "item_qty",
+     "2"
+    ],
+    [
+     "item_qty",
+     "2"
+    ],
+    [
+     "item_unit_price",
+     "7,000"
+    ]
+   ]
+  },
+  {
+   "id": 41,
+   "word_recall": 1.0,
+   "seconds": 1.625,
+   "missed": []
+  },
+  {
+   "id": 42,
+   "word_recall": 0.85,
+   "seconds": 2.402,
+   "missed": [
+    [
+     "item_name",
+     "Chicken HCC. 1Pcs"
+    ]
+   ]
+  },
+  {
+   "id": 43,
+   "word_recall": 0.6667,
+   "seconds": 2.568,
+   "missed": []
+  },
+  {
+   "id": 44,
+   "word_recall": 0.9,
+   "seconds": 1.393,
+   "missed": []
+  },
+  {
+   "id": 45,
+   "word_recall": 0.8148,
+   "seconds": 1.433,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 46,
+   "word_recall": 0.95,
+   "seconds": 1.572,
+   "missed": []
+  },
+  {
+   "id": 47,
+   "word_recall": 0.9722,
+   "seconds": 1.724,
+   "missed": []
+  },
+  {
+   "id": 48,
+   "word_recall": 1.0,
+   "seconds": 1.461,
+   "missed": []
+  },
+  {
+   "id": 49,
+   "word_recall": 0.9091,
+   "seconds": 1.159,
+   "missed": []
+  },
+  {
+   "id": 50,
+   "word_recall": 0.4286,
+   "seconds": 1.459,
+   "missed": [
+    [
+     "item_name",
+     "Superice Cauburry"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 51,
+   "word_recall": 0.8462,
+   "seconds": 1.814,
+   "missed": [
+    [
+     "item_name",
+     "(TA) NASI GRG TERI MEDAN"
+    ],
+    [
+     "item_name",
+     "(TA) BIHUN GORENG SEAFOOD"
+    ],
+    [
+     "item_name",
+     "(TA) KWETIAW SEAFOOD SIRAM"
+    ]
+   ]
+  },
+  {
+   "id": 52,
+   "word_recall": 0.95,
+   "seconds": 1.431,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 53,
+   "word_recall": 0.9259,
+   "seconds": 2.067,
+   "missed": []
+  },
+  {
+   "id": 54,
+   "word_recall": 1.0,
+   "seconds": 1.302,
+   "missed": []
+  },
+  {
+   "id": 55,
+   "word_recall": 0.9286,
+   "seconds": 1.28,
+   "missed": []
+  },
+  {
+   "id": 56,
+   "word_recall": 0.5385,
+   "seconds": 2.225,
+   "missed": []
+  },
+  {
+   "id": 57,
+   "word_recall": 0.625,
+   "seconds": 0.993,
+   "missed": [
+    [
+     "item_amount",
+     "22,000"
+    ]
+   ]
+  },
+  {
+   "id": 58,
+   "word_recall": 0.8421,
+   "seconds": 2.67,
+   "missed": []
+  },
+  {
+   "id": 59,
+   "word_recall": 0.5932,
+   "seconds": 5.581,
+   "missed": [
+    [
+     "item_amount",
+     "78,000"
+    ],
+    [
+     "item_name",
+     "Kepiting 7-8.4ons - Chilly 0.7 1"
+    ],
+    [
+     "item_amount",
+     "47,500"
+    ],
+    [
+     "item_amount",
+     "45,000"
+    ],
+    [
+     "item_amount",
+     "16,000"
+    ],
+    [
+     "item_name",
+     "Mantau - 3 pcs"
+    ]
+   ]
+  },
+  {
+   "id": 60,
+   "word_recall": 0.9643,
+   "seconds": 3.164,
+   "missed": []
+  },
+  {
+   "id": 61,
+   "word_recall": 0.8302,
+   "seconds": 2.392,
+   "missed": [
+    [
+     "item_amount",
+     "6,500"
+    ],
+    [
+     "item_amount",
+     "8,000"
+    ],
+    [
+     "item_unit_price",
+     "9000"
+    ],
+    [
+     "item_amount",
+     "18,000"
+    ],
+    [
+     "item_unit_price",
+     "0"
+    ],
+    [
+     "item_amount",
+     "0"
+    ]
+   ]
+  },
+  {
+   "id": 62,
+   "word_recall": 0.8125,
+   "seconds": 1.575,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 63,
+   "word_recall": 1.0,
+   "seconds": 1.59,
+   "missed": []
+  },
+  {
+   "id": 64,
+   "word_recall": 1.0,
+   "seconds": 1.97,
+   "missed": []
+  },
+  {
+   "id": 65,
+   "word_recall": 0.6154,
+   "seconds": 1.916,
+   "missed": [
+    [
+     "item_name",
+     "Bubur Polos + Telur"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 66,
+   "word_recall": 0.7368,
+   "seconds": 1.441,
+   "missed": [
+    [
+     "item_amount",
+     "0"
+    ]
+   ]
+  },
+  {
+   "id": 67,
+   "word_recall": 0.7857,
+   "seconds": 1.137,
+   "missed": []
+  },
+  {
+   "id": 68,
+   "word_recall": 0.5556,
+   "seconds": 0.963,
+   "missed": []
+  },
+  {
+   "id": 69,
+   "word_recall": 0.9545,
+   "seconds": 2.443,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 70,
+   "word_recall": 0.8485,
+   "seconds": 2.891,
+   "missed": [
+    [
+     "item_qty",
+     "2"
+    ],
+    [
+     "item_unit_price",
+     "111,000"
+    ],
+    [
+     "item_name",
+     "=*MEDIUM*="
+    ],
+    [
+     "item_qty",
+     "2"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 71,
+   "word_recall": 0.8333,
+   "seconds": 0.982,
+   "missed": []
+  },
+  {
+   "id": 72,
+   "word_recall": 0.7143,
+   "seconds": 1.504,
+   "missed": [
+    [
+     "item_name",
+     "Choco Devil"
+    ],
+    [
+     "tax",
+     "1,591"
+    ]
+   ]
+  },
+  {
+   "id": 73,
+   "word_recall": 0.9524,
+   "seconds": 1.411,
+   "missed": [
+    [
+     "item_qty",
+     "x1"
+    ]
+   ]
+  },
+  {
+   "id": 74,
+   "word_recall": 0.975,
+   "seconds": 2.682,
+   "missed": []
+  },
+  {
+   "id": 75,
+   "word_recall": 1.0,
+   "seconds": 1.468,
+   "missed": []
+  },
+  {
+   "id": 76,
+   "word_recall": 0.8889,
+   "seconds": 1.491,
+   "missed": []
+  },
+  {
+   "id": 77,
+   "word_recall": 0.875,
+   "seconds": 2.596,
+   "missed": []
+  },
+  {
+   "id": 78,
+   "word_recall": 0.875,
+   "seconds": 2.523,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 79,
+   "word_recall": 1.0,
+   "seconds": 1.219,
+   "missed": []
+  },
+  {
+   "id": 80,
+   "word_recall": 0.8667,
+   "seconds": 1.266,
+   "missed": []
+  },
+  {
+   "id": 81,
+   "word_recall": 0.8636,
+   "seconds": 3.018,
+   "missed": [
+    [
+     "item_qty",
+     "x2"
+    ],
+    [
+     "item_amount",
+     "0"
+    ]
+   ]
+  },
+  {
+   "id": 82,
+   "word_recall": 0.9667,
+   "seconds": 1.793,
+   "missed": []
+  },
+  {
+   "id": 83,
+   "word_recall": 0.7647,
+   "seconds": 1.388,
+   "missed": []
+  },
+  {
+   "id": 84,
+   "word_recall": 0.7917,
+   "seconds": 1.718,
+   "missed": []
+  },
+  {
+   "id": 85,
+   "word_recall": 0.9062,
+   "seconds": 4.381,
+   "missed": [
+    [
+     "item_amount",
+     "28.500"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 86,
+   "word_recall": 0.9,
+   "seconds": 1.208,
+   "missed": [
+    [
+     "item_name",
+     "Cheezemania"
+    ]
+   ]
+  },
+  {
+   "id": 87,
+   "word_recall": 0.4444,
+   "seconds": 1.673,
+   "missed": [
+    [
+     "item_name",
+     "PHOTAI CHIN"
+    ],
+    [
+     "tax",
+     "3,650"
+    ]
+   ]
+  },
+  {
+   "id": 88,
+   "word_recall": 0.9091,
+   "seconds": 1.587,
+   "missed": []
+  },
+  {
+   "id": 89,
+   "word_recall": 0.4737,
+   "seconds": 1.401,
+   "missed": []
+  },
+  {
+   "id": 90,
+   "word_recall": 1.0,
+   "seconds": 1.89,
+   "missed": []
+  },
+  {
+   "id": 91,
+   "word_recall": 0.6154,
+   "seconds": 1.148,
+   "missed": []
+  },
+  {
+   "id": 92,
+   "word_recall": 0.6923,
+   "seconds": 1.492,
+   "missed": []
+  },
+  {
+   "id": 93,
+   "word_recall": 0.9,
+   "seconds": 1.361,
+   "missed": [
+    [
+     "total",
+     "17,999"
+    ]
+   ]
+  },
+  {
+   "id": 94,
+   "word_recall": 0.8667,
+   "seconds": 2.878,
+   "missed": []
+  },
+  {
+   "id": 95,
+   "word_recall": 0.8696,
+   "seconds": 1.961,
+   "missed": [
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_amount",
+     "13,000"
+    ]
+   ]
+  },
+  {
+   "id": 96,
+   "word_recall": 0.5556,
+   "seconds": 1.869,
+   "missed": []
+  },
+  {
+   "id": 97,
+   "word_recall": 0.8421,
+   "seconds": 1.614,
+   "missed": [
+    [
+     "item_name",
+     "SATE ATI GO"
+    ]
+   ]
+  },
+  {
+   "id": 98,
+   "word_recall": 0.8519,
+   "seconds": 6.708,
+   "missed": [
+    [
+     "item_name",
+     "BLACK PAPPER MEATBALL PAS"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ],
+    [
+     "item_qty",
+     "1"
+    ]
+   ]
+  },
+  {
+   "id": 99,
+   "word_recall": 0.7627,
+   "seconds": 3.435,
+   "missed": []
+  }
+ ]
+}
