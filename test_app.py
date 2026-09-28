@@ -1,11 +1,10 @@
-"""Self-check for the API with a fake model (no API calls, no quota). Run: python test_app.py"""
+"""Self-check for the API with a fake model (no model calls, no quota). Run: python test_app.py
+Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end."""
 import io
 import os
-import tempfile
+import uuid
 
-tmp = tempfile.mkdtemp()
-os.environ['APP_DB'] = os.path.join(tmp, 'test.db')
-os.environ['APP_STORAGE'] = tmp
+os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
 
 import pypdfium2
 from fastapi.testclient import TestClient
@@ -48,7 +47,7 @@ assert r.status_code == 202, r.text
 good_id = r.json()[0]['id']
 assert 'error' in r.json()[1]
 d = c.get(f'/documents/{good_id}').json()
-assert d['status'] == 'passed' and d['vendor'] == 'Green Field' and d['total'] == 56.58 and 'file_path' not in d
+assert d['status'] == 'passed' and d['vendor'] == 'Green Field' and d['total'] == 56.58 and 'file' not in d
 assert d['model'] == app.MODEL and d['tokens_in'] == 100
 
 # ambiguous date -> needs review; confirming the vendor's MDY order fixes the date and re-checks
@@ -102,8 +101,11 @@ assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 
 assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
 
 # delete removes the record and the file
-path = app.get_row(app.db(), good_id)['file_path']
-assert c.delete(f'/documents/{good_id}').status_code == 204 and not os.path.exists(path)
-assert c.get(f'/documents/{good_id}').status_code == 404
+assert c.delete(f'/documents/{good_id}').status_code == 204
+assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
+assert c.delete(f'/documents/{good_id}').status_code == 404
 assert c.post('/documents', files=[]).status_code in (400, 422)
+import store
+with store.conn() as con:
+    con.execute(f'DROP SCHEMA {store.schema_name()} CASCADE')
 print('ok')
