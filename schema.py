@@ -21,6 +21,8 @@ class Document(BaseModel):
     doc_number: Optional[str] = None
     issue_date: Optional[date] = None
     due_date: Optional[date] = None
+    issue_date_text: Optional[str] = None  # dates exactly as printed, e.g. 05/11/2021 (day/month order can be ambiguous)
+    due_date_text: Optional[str] = None
     currency: Optional[str] = None  # ISO 4217, e.g. USD
     subtotal: Optional[Decimal] = None
     discount: Optional[Decimal] = None  # positive number = money taken off

@@ -1,0 +1,216 @@
+{
+ "summary": {
+  "model": "gemma-4-31b",
+  "prompt_version": "903ae630",
+  "split": "test",
+  "docs": 10,
+  "failed_calls_or_invalid_json": 1,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 0.8571,
+    "n": 7
+   },
+   "tax": {
+    "rate": 0.75,
+    "n": 4
+   },
+   "discount": {
+    "rate": 1,
+    "n": 2
+   },
+   "total": {
+    "rate": 0.8889,
+    "n": 9
+   },
+   "item_amounts_f1": {
+    "rate": 0.7778,
+    "n": 9
+   },
+   "item_names_f1": {
+    "rate": 1.0,
+    "n": 9
+   },
+   "all_correct": {
+    "rate": 0.7778,
+    "n": 9
+   }
+  },
+  "wrong_docs_flagged_by_validation": "1 / 2",
+  "correct_docs_flagged_by_validation": "0 / 7",
+  "median_seconds": 131.275,
+  "calls_with_retries": 0,
+  "median_tokens_in_out": [
+   468,
+   245
+  ],
+  "issue_date_with_vendor_order": null,
+  "wrong_dates_flagged_ambiguous": "0 / 0",
+  "errors": [
+   [
+    "not in cache",
+    1
+   ]
+  ]
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 166.58,
+   "in": 468,
+   "out": 201,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "discount": true,
+    "total": true,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ]
+  },
+  {
+   "id": 1,
+   "seconds": 221.96,
+   "in": 468,
+   "out": 275,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 2,
+   "seconds": 124.01,
+   "in": 468,
+   "out": 245,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 3,
+   "seconds": 82.88,
+   "in": 468,
+   "out": 186,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 4,
+   "seconds": 66.72,
+   "in": 468,
+   "out": 290,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "discount": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 5,
+   "seconds": 138.54,
+   "in": 468,
+   "out": 192,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "flagged": []
+  },
+  {
+   "id": 6,
+   "seconds": 143.27,
+   "in": 468,
+   "out": 283,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 7,
+   "seconds": 99.33,
+   "in": 468,
+   "out": 235,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 8,
+   "seconds": 223.01,
+   "in": 468,
+   "out": 287,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 9,
+   "seconds": 0,
+   "in": null,
+   "out": null,
+   "attempts": null,
+   "error": "not in cache"
+  }
+ ]
+}
