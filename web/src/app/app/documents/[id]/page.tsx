@@ -17,6 +17,7 @@ type Order = "MDY" | "DMY";
 const CHECK_GROUPS: [string, string[]][] = [
   ["Line items match subtotal", ["items_sum", "items_total"]],
   ["Subtotal + tax = total", ["total_math"]],
+  ["Total read as printed", ["total_format"]],
   ["Quantity × price = amount", ["line_math"]],
   ["Dates are valid", ["date_future", "due_before_issue"]],
   ["Currency is valid", ["currency_code"]],
