@@ -64,20 +64,27 @@ def mime(data):
     return None
 
 
-def post(url, headers, body, retries=3):
-    """POST JSON; wait and retry on rate limits (429) and server errors. Returns (response, attempts)."""
+def post(url, headers, body, retries=3, timeout=60):
+    """POST JSON; wait and retry on rate limits (429), server errors, timeouts and dropped connections.
+    Returns (response, attempts). ponytail: 60 s per attempt suits Gemini (about 5 s per receipt); the slow
+    models from the M3 trial (GLM, Gemma) need timeout=180."""
     data = json.dumps(body).encode()
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json',
                                                               'User-Agent': 'receipt-extractor/0.1', **headers})
         try:
-            with urllib.request.urlopen(req, timeout=180) as r:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r), attempt + 1
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503) and attempt < retries:
                 time.sleep(30 * (attempt + 1))
                 continue
             raise RuntimeError(f'HTTP {e.code}: {e.read().decode(errors="replace")[:300]}') from None
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:  # no answer, DNS failure, reset
+            if attempt < retries:
+                time.sleep(5 * (attempt + 1))
+                continue
+            raise RuntimeError(f'no answer from the model service: {e}') from None
 
 
 def call(name, image):
