@@ -1,6 +1,7 @@
 """M3: extraction accuracy of vision LLMs on CORD-v2.
 
-python eval_extract.py MODEL [SPLIT] [LIMIT]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
+python eval_extract.py MODEL [SPLIT] [LIMIT] [PROMPT_VERSION]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
+PROMPT_VERSION re-scores cached answers of an older prompt without calling the API (0 for no limit).
 SPLIT: test / validation (CORD receipts) or invoices_test / invoices_validation / invoices_train (katanaml invoices).
 The katanaml invoices are US format, so 'issue_date with vendor order' re-reads printed dates as MDY,
 like a user confirming the vendor's date format once in the app.
@@ -84,9 +85,11 @@ def rate(vals):
     return {'rate': round(statistics.mean(vals), 4), 'n': len(vals)} if vals else None
 
 
-def run_model(name, image, cache):
+def run_model(name, image, cache, cache_only=False):
     if cache.exists():
         return json.loads(cache.read_text(encoding='utf8'))
+    if cache_only:
+        return {'text': None, 'in': None, 'out': None, 'seconds': 0, 'error': 'not in cache'}
     t = time.perf_counter()
     try:
         text, tin, tout, attempts = providers.call(name, image)
@@ -100,28 +103,34 @@ def run_model(name, image, cache):
     return rec
 
 
-def main(name, split='test', limit=None):
+def main(name, split='test', limit=None, prompt_version=None):
     providers.load_env()
-    prompt_version = hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8]
+    cache_only = prompt_version is not None
+    prompt_version = prompt_version or hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8]
+    limit = int(limit) if limit and int(limit) > 0 else None
+    date_order = 'MDY' if split.startswith('invoices_') else None  # katanaml invoices are US format
     cache_dir = ROOT / 'data' / 'llm_cache' / name.replace('/', '_') / prompt_version
     cache_dir.mkdir(parents=True, exist_ok=True)
     if split.startswith('invoices_'):
         docs = list(invoices.load(split.removeprefix('invoices_')))
     else:
         docs = [(i, img, cord.to_document(p)) for i, img, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
-    docs = docs[:int(limit) if limit else None]
+    docs = docs[:limit]
+    if not docs:
+        raise SystemExit('no documents to evaluate')
 
     rows = []
     for doc_id, image, gold in docs:
-        rec = run_model(name, image, cache_dir / f'{split}_{doc_id}.json')
-        row = {'id': doc_id, 'seconds': rec['seconds'], 'in': rec['in'], 'out': rec['out'], 'error': rec['error']}
+        rec = run_model(name, image, cache_dir / f'{split}_{doc_id}.json', cache_only)
+        row = {'id': doc_id, 'seconds': rec['seconds'], 'in': rec['in'], 'out': rec['out'],
+               'attempts': rec.get('attempts'), 'error': rec['error']}
         if rec['error'] is None:
             try:
                 pred = providers.parse(rec['text'])
                 row['score'] = score(pred, gold)
                 row['flagged'] = [i['check'] for i in validate(pred)]
-                if gold.issue_date is not None:
-                    row['date_ok_with_vendor_order'] = apply_date_order(pred, 'MDY').issue_date == gold.issue_date
+                if gold.issue_date is not None and date_order:
+                    row['date_ok_with_vendor_order'] = apply_date_order(pred, date_order).issue_date == gold.issue_date
                     row['date_flagged_ambiguous'] = 'date_ambiguous' in row['flagged']
                     row['date_wrong_raw'] = not row['score'].get('issue_date', True)
             except Exception as e:
@@ -144,16 +153,17 @@ def main(name, split='test', limit=None):
         'wrong_docs_flagged_by_validation': f'{sum(bool(r["flagged"]) for r in wrong)} / {len(wrong)}',
         'correct_docs_flagged_by_validation': f'{sum(bool(r["flagged"]) for r in right)} / {len(right)}',
         'median_seconds': statistics.median([r['seconds'] for r in rows]),
+        'calls_with_retries': sum(1 for r in rows if (r.get('attempts') or 1) > 1),
         'median_tokens_in_out': [statistics.median([r['in'] for r in ok if r['in']] or [0]),
                                  statistics.median([r['out'] for r in ok if r['out']] or [0])],
         'issue_date_with_vendor_order': rate([r['date_ok_with_vendor_order'] for r in ok if 'date_ok_with_vendor_order' in r]),
         'wrong_dates_flagged_ambiguous': f"{sum(r['date_flagged_ambiguous'] for r in ok if r.get('date_wrong_raw'))} / {sum(bool(r.get('date_wrong_raw')) for r in ok)}",
         'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items()),
     }
-    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}.json'
+    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}.json'
     out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
     print(json.dumps(summary, indent=1, default=str))
 
 
 if __name__ == '__main__':
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])
