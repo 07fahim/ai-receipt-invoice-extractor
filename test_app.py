@@ -86,6 +86,9 @@ bad_id = upload(('bad.jpg', JPG + b'boom')).json()[0]['id']
 d = c.get(f'/documents/{bad_id}').json()
 assert d['status'] == 'failed' and '503' in d['error']
 
+# retry: a failed document can be retried; it is extracted again
+assert c.post(f'/documents/{bad_id}/retry').status_code == 202 and c.get(f'/documents/{bad_id}').json()['status'] == 'failed'
+
 # review: user corrects the total -> reviewed, checks run again
 doc = c.get(f'/documents/{good_id}').json()['document']
 doc['total'] = '60.00'
@@ -97,6 +100,14 @@ kinds = [(e['event'], e['id']) for e, _, _ in events]
 assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
 e, sig, raw = events[-1]
 assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
+
+# a reviewed document cannot be retried (the user's corrections would be lost)
+assert c.post(f'/documents/{good_id}/retry').status_code == 409
+assert c.get(f'/documents/{good_id}').json()['total'] == 60.0
+
+# bad query values are 422, not server errors
+for bad_q in ({'date_from': 'nope'}, {'limit': -1}, {'offset': -1}, {'limit': 0}):
+    assert c.get('/documents', params=bad_q).status_code == 422, bad_q
 
 # history search and filters
 assert [x['id'] for x in c.get('/documents', params={'q': 'green'}).json()] == [good_id]
@@ -138,6 +149,11 @@ assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_te
 wb = load_workbook(io.BytesIO(c.get('/export').content))
 assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
 assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+
+# any-language file names download fine
+uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
+r = c.get(f'/documents/{uni_id}/file')
+assert r.status_code == 200 and "filename*=UTF-8''" in r.headers['content-disposition'] and r.content.startswith(JPG)
 
 # delete removes the record and the file
 assert c.delete(f'/documents/{good_id}').status_code == 204
