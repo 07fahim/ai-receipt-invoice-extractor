@@ -236,7 +236,7 @@ try:
     routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
               for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
               for m in rt.methods - {'HEAD'}]
-    assert len(routes) == 13, routes
+    assert len(routes) == 14, routes
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
@@ -270,6 +270,16 @@ try:
     assert ['id' in x for x in r] == [True, True, False] and 'daily limit' in r[2]['error']
     assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
     app.DAILY_UPLOAD_LIMIT = 50
+
+    # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
+    frank = as_user(FRANK := str(uuid.uuid4()))
+    c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
+    removed = []
+    app.delete_auth_user = lambda uid: (_ for _ in ()).throw(RuntimeError('supabase down'))
+    assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 1
+    app.delete_auth_user = removed.append
+    assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
+    assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
 
     # delete removes the record and the file
     assert c.delete(f'/documents/{good_id}').status_code == 204
