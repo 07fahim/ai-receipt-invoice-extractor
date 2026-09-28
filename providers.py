@@ -28,7 +28,8 @@ MODELS = {
 
 PROMPT = """Extract the data from this receipt or invoice image.
 Return only one JSON object with exactly these keys:
-doc_type ("invoice" or "receipt"), vendor (the business name only), branch (store number or location, if printed),
+doc_type ("invoice" or "receipt"), vendor (the business name only),
+branch (the store number or branch name printed with the business name, e.g. "#017314" or "Gulshan branch"; never the street address),
 buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
 issue_date_text and due_date_text (each date exactly as printed, character for character),
 currency (ISO 4217 code), subtotal, discount, tax, service_charge, total,
