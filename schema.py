@@ -16,7 +16,8 @@ class Item(BaseModel):
 
 class Document(BaseModel):
     doc_type: Optional[Literal['invoice', 'receipt']] = None
-    vendor: Optional[str] = None
+    vendor: Optional[str] = None  # business name only, so date formats and totals group by vendor
+    branch: Optional[str] = None  # store number or location, e.g. "017314"
     buyer: Optional[str] = None
     doc_number: Optional[str] = None
     issue_date: Optional[date] = None
