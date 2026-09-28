@@ -93,6 +93,14 @@ assert c.get(f'/documents/{pdf_id}/pages').json() == {'pages': 2}
 img = c.get(f'/documents/{pdf_id}/pages/1')
 assert img.status_code == 200 and img.content[:4] == b'\x89PNG'
 
+# export: CSV one row per non-failed document; XLSX has Documents + Items with numbers
+from openpyxl import load_workbook
+csv_text = c.get('/export', params={'format': 'csv'}).content.decode('utf-8-sig')
+assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_text.splitlines()) == 3
+wb = load_workbook(io.BytesIO(c.get('/export').content))
+assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
+assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+
 # delete removes the record and the file
 path = app.get_row(app.db(), good_id)['file_path']
 assert c.delete(f'/documents/{good_id}').status_code == 204 and not os.path.exists(path)
