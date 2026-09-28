@@ -32,9 +32,10 @@ assert checks(**{**good, 'currency': 'bdt'}) == []
 assert checks(**{**good, 'discount': D('-50'), 'total': D('927.50')}) == []
 assert checks(**{**good, 'discount': D('50'), 'total': D('927.50')}) == []
 assert checks(**{**good, 'service_charge': D('10'), 'total': D('987.50')}) == []
-# rounding: 0.1% tolerance (IDR tax rounding), but a 1% error is caught
-assert checks(subtotal=D('46636'), tax=D('4664'), total=D('51300')) == []
-assert checks(subtotal=D('46636'), tax=D('4664'), total=D('51800')) == ['total_math']
+# the total may be cash-rounded (0.05%), line sums may not
+assert checks(subtotal=D('334011'), total=D('334000')) == []
+assert checks(subtotal=D('334011'), total=D('334500')) == ['total_math']
+assert checks(subtotal=D('91000'), total=D('91000'), items=[Item(amount=D('91070'))]) == ['items_sum']
 # missing inputs skip checks instead of failing them
 assert checks(total=D('10')) == []
 assert checks(total=D('10'), subtotal=D('10'), items=[Item(amount=None)]) == []

@@ -15,13 +15,13 @@ STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VES VND 
 XOF XPF YER ZAR ZMW ZWG
 """.split())
 
-# Allowed rounding difference: 0.1% of the expected value, at least 0.01.
-# ponytail: one rule for all currencies; per-currency minor units if invoices need it.
-REL_TOL = Decimal('0.001')
+# Line sums must match to the cent. Only the final total may be rounded (cash rounding, e.g. IDR
+# 334,011 printed as 334,000): up to 0.05% of the total. Measured on CORD, see results/M2_NOTES.md.
+TOTAL_ROUNDING = Decimal('0.0005')
 
 
-def close(a, b):
-    return abs(a - b) <= max(Decimal('0.01'), abs(b) * REL_TOL)
+def close(a, b, rel=Decimal(0)):
+    return abs(a - b) <= max(Decimal('0.01'), abs(b) * rel)
 
 
 def validate(doc: Document, today: date | None = None) -> list[dict]:
@@ -46,14 +46,14 @@ def validate(doc: Document, today: date | None = None) -> list[dict]:
 
     if doc.subtotal is not None and doc.total is not None:
         expected = doc.subtotal + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        if not close(expected, doc.total):
+        if not close(expected, doc.total, TOTAL_ROUNDING):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
     elif doc.total is not None and amounts and None not in amounts:
         # no subtotal printed: the lines themselves must add up to the total
         net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
         expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        if not (close(expected, doc.total) or (tax and close(expected - tax, doc.total))):
+        if not (close(expected, doc.total, TOTAL_ROUNDING) or (tax and close(expected - tax, doc.total, TOTAL_ROUNDING))):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):
