@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, ClipboardCheck, FileText, LogOut, Upload } from "lucide-react";
+import { BarChart3, ClipboardCheck, FileText, LogOut, Upload, UserRound } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { getJSON } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/app/review", label: "Review", icon: ClipboardCheck },
   { href: "/app/documents", label: "Documents", icon: FileText },
   { href: "/app/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/app/account", label: "Account", icon: UserRound, phoneOnly: true }, // on desktop: the email at the bottom
 ];
 
 export function AppNav({ email }: { email: string }) {
@@ -41,7 +42,7 @@ export function AppNav({ email }: { email: string }) {
       <div className="hidden px-2.5 pb-5 md:block">
         <Logo href="/app/upload" />
       </div>
-      {LINKS.map(({ href, label, icon: Icon }) => {
+      {LINKS.map(({ href, label, icon: Icon, phoneOnly }) => {
         const active = path.startsWith(href);
         return (
           <Link
@@ -51,6 +52,7 @@ export function AppNav({ email }: { email: string }) {
             className={cn(
               "relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-foreground/75 transition-colors hover:bg-secondary md:flex-row md:gap-2.5 md:px-2.5 md:py-2 md:text-[15px]",
               active && "text-primary md:bg-accent",
+              phoneOnly && "md:hidden",
             )}
           >
             <Icon className={cn("size-[18px] shrink-0", active ? "text-primary" : "text-muted-foreground")} aria-hidden />
@@ -70,7 +72,7 @@ export function AppNav({ email }: { email: string }) {
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[13px] font-semibold text-primary" aria-hidden>
           {email.slice(0, 1).toUpperCase()}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[13px]" title={email}>{email}</span>
+        <Link href="/app/account" className="min-w-0 flex-1 truncate text-[13px] hover:underline" title="Account settings">{email}</Link>
         <button onClick={signOut} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary" aria-label="Log out" title="Log out">
           <LogOut className="size-4" />
         </button>
