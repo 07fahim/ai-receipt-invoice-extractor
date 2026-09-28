@@ -101,6 +101,15 @@ The prompt now asks for `branch` separately: "the store number or branch name pr
 - Validation 0 failed once with Google's 503 "high demand" after 3 retries; a rerun read it normally.
 - Candidate fix (not measured): a prompt hint or check for 3-decimal amounts. It must not break currencies that really use 3 decimals (KWD, BHD, OMR).
 
+### Thousands-separator check, prompt ea5f2dfd (problem set only, `*_only_pea5f2dfd.json`, `*_invoices_train_first5_pea5f2dfd.json`)
+The model now also copies `total_text` (the total exactly as printed). New check `total_format`: if the printed total ends in a separator + exactly 3 digits ("22.000", "·7,000", "1.250.000") and the extracted total read those digits as decimals, the document goes to review ("Total printed as 22.000: is it 22,000 rather than 22?"). Skipped for currencies with 3 decimals (BHD, IQD, JOD, KWD, LYD, OMR, TND) and for a leading 0 ("0.500").
+
+Run on the 6 receipts that ever had this error (test 5, 32, 78, 79; validation 66, 89), 7 receipts that were correct, and the first 5 train invoices (18 calls):
+- Every receipt with a thousands error was flagged: test 0, 5, 32, 78 and validation 89 (5 / 5; before: 0 flagged). Test 0 was correct under 4f6fccfb, so the error moves between runs; the check catches it wherever it lands.
+- Test 79 and validation 66 were read correctly this time.
+- No new false alarms: the correct receipts and the US invoices ("$ 212,09", "$ 1 054,10") pass as before; validation 2 (items_sum) and train invoice 1 (ambiguous date, one line) were flagged or wrong in the same way under 4f6fccfb.
+- This is a problem set, not a full run: the headline numbers come from one full run once the prompt is final.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
