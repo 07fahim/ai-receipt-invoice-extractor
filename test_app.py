@@ -149,6 +149,17 @@ assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_te
 wb = load_workbook(io.BytesIO(c.get('/export').content))
 assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
 assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+# text stays text (leading zeros kept) and a formula from a document is never run by the spreadsheet
+ANSWERS['formula'] = ('{"vendor": "=HYPERLINK(\\"http://evil\\")", "doc_number": "00123", "total": 5,'
+                      ' "items": [{"description": "2023", "amount": 5}]}')
+f_id = upload(('f.jpg', JPG + b'formula')).json()[0]['id']
+ws = load_workbook(io.BytesIO(c.get('/export', params={'status': 'passed'}).content))['Documents']
+row_ = {h.value: cell.value for h, cell in zip(ws[1], ws[ws.max_row])}
+assert row_['id'] == f_id and row_['doc_number'] == '00123' and row_['vendor'].startswith("'=") and row_['total'] == 5.0
+assert ws.cell(ws.max_row, 5).data_type != 'f'
+items = load_workbook(io.BytesIO(c.get('/export').content))['Items']
+assert items.cell(items.max_row, 2).value == '2023'
+assert "'=HYPERLINK" in c.get('/export', params={'format': 'csv', 'status': 'passed'}).content.decode('utf-8-sig')
 
 # any-language file names download fine
 uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
