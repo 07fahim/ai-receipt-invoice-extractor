@@ -42,4 +42,22 @@ assert parse('{"doc_type": "Invoice ", "total": 1}').doc_type == 'invoice' and p
 from providers import mime
 assert mime(b'%PDF-1.7') == 'application/pdf' and mime(b'\x89PNG\r\n') == 'image/png'
 assert mime(b'\xff\xd8\xff\xe0') == 'image/jpeg' and mime(b'RIFF1234WEBPVP8 ') == 'image/webp' and mime(b'MZ\x90') is None
+# timeouts and dropped connections are retried, then reported plainly
+import providers, urllib.error
+calls, real_open, real_sleep = [], providers.urllib.request.urlopen, providers.time.sleep
+def flaky(req, timeout):
+    calls.append(timeout)
+    if len(calls) < 3:
+        raise TimeoutError('The read operation timed out') if len(calls) == 1 else urllib.error.URLError('getaddrinfo failed')
+    import io
+    return io.BytesIO(b'{"ok": 1}')
+providers.urllib.request.urlopen, providers.time.sleep = flaky, lambda s: None
+assert providers.post('http://x', {}, {}) == ({'ok': 1}, 3) and calls == [60, 60, 60]
+providers.urllib.request.urlopen = lambda req, timeout: (_ for _ in ()).throw(TimeoutError('slow'))
+try:
+    providers.post('http://x', {}, {})
+    raise AssertionError('should raise')
+except RuntimeError as e:
+    assert 'no answer' in str(e)
+providers.urllib.request.urlopen, providers.time.sleep = real_open, real_sleep
 print('ok')

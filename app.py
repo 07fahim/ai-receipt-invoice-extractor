@@ -137,6 +137,8 @@ def public_error(e):
     text = str(e)
     if 'HTTP 503' in text or 'HTTP 429' in text:
         return 'The AI service is busy. Please retry in a few minutes.'
+    if 'no answer from the model service' in text:
+        return 'The AI service did not answer. Please retry.'
     if isinstance(e, ValueError):
         return 'The AI answer could not be read as a document. Please retry.'
     return 'Extraction failed. Please retry.'
