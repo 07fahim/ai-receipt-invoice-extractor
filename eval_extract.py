@@ -58,13 +58,15 @@ def name_f1(pred, gold):
 
 def text_match(field, p, g):
     """Dates and currency must be equal. Names and numbers ignore case and spaces; vendor/buyer labels
-    include the address, so the name only has to be the start of it."""
+    include the address, so a name of 4+ characters only has to be the start of the label."""
     if p is None:
         return False
     if field in ('issue_date', 'currency'):
         return str(p).upper() == str(g).upper()
     p, g = (''.join(str(x).casefold().split()) for x in (p, g))
-    return p == g if field == 'doc_number' else bool(p) and (g.startswith(p) or p.startswith(g))
+    if field == 'doc_number' or not g:
+        return p == g
+    return p == g or (len(p) >= 4 and g.startswith(p))
 
 
 def score(pred, gold):
