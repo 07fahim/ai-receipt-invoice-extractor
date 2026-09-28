@@ -104,14 +104,24 @@ def process(doc_id):
                         (str(e)[:300], doc_id))
 
 
+@app.middleware('http')
+async def limit_upload_size(request, call_next):
+    """Refuse oversized requests before the body is read.
+    ponytail: relies on Content-Length; the host/proxy body limit covers chunked uploads (set it at deploy)."""
+    if int(request.headers.get('content-length') or 0) > MAX_FILES * MAX_BYTES + 1024 * 1024:
+        return Response('request too large', status_code=413)
+    return await call_next(request)
+
+
 @app.post('/documents', status_code=202)
-async def upload(files: list[UploadFile], tasks: BackgroundTasks):
-    """Upload up to 20 files (PDF, JPG, PNG, WebP; max 10 MB each). Extraction runs in the background."""
+def upload(files: list[UploadFile], tasks: BackgroundTasks):
+    """Upload up to 20 files (PDF, JPG, PNG, WebP; max 10 MB each). Extraction runs in the background.
+    A plain def: FastAPI runs it in a thread, so the database writes don't block other requests."""
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'send 1 to {MAX_FILES} files')
     created = []
     for f in files:
-        data = await f.read(MAX_BYTES + 1)
+        data = f.file.read(MAX_BYTES + 1)
         kind = providers.mime(data)  # type from the file's bytes, never from its name
         if len(data) > MAX_BYTES or kind is None:
             created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP file under 10 MB'})
