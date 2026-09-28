@@ -294,12 +294,23 @@ def export_rows(status):
     return docs, items
 
 
-def number(v):
-    """Money is stored as exact decimal text; spreadsheets get numbers."""
-    try:
-        return float(v) if isinstance(v, str) and v.replace('.', '', 1).lstrip('-').isdigit() else v
-    except ValueError:
-        return v
+NUMERIC = {'subtotal', 'discount', 'tax', 'service_charge', 'total', 'quantity', 'unit_price', 'amount'}
+
+
+def cell(column, v):
+    """One export cell. Money and quantities become numbers; all other text stays text (invoice number 00123
+    keeps its zeros). Text starting with = + - @ gets a leading ' so a spreadsheet never runs it as a formula."""
+    if v is None:
+        return None
+    if column in NUMERIC:
+        return float(v)
+    if isinstance(v, str) and v[:1] in ('=', '+', '-', '@'):
+        return "'" + v
+    return v
+
+
+def cells(columns, row_):
+    return [cell(c, v) for c, v in zip(columns, row_)]
 
 
 @app.get('/export')
@@ -312,7 +323,7 @@ def export(format: str = 'xlsx', status: str | None = None):
         buf = io.StringIO()
         w = csv.writer(buf)
         w.writerow(DOC_COLUMNS)
-        w.writerows(docs)
+        w.writerows(cells(DOC_COLUMNS, r) for r in docs)
         return Response(buf.getvalue().encode('utf-8-sig'), media_type='text/csv',
                         headers={'Content-Disposition': 'attachment; filename="documents.csv"'})
     from openpyxl import Workbook
@@ -320,7 +331,7 @@ def export(format: str = 'xlsx', status: str | None = None):
     for ws, cols, rows in ((wb.active, DOC_COLUMNS, docs), (wb.create_sheet('Items'), ITEM_COLUMNS, items)):
         ws.append(cols)
         for row_ in rows:
-            ws.append([number(v) for v in row_])
+            ws.append(cells(cols, row_))
     wb.active.title = 'Documents'
     buf = io.BytesIO()
     wb.save(buf)
