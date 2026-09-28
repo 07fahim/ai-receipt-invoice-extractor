@@ -18,6 +18,7 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import date
+from typing import Literal
 
 import jwt
 import pypdfium2
@@ -38,6 +39,7 @@ MAX_BYTES = 10 * 1024 * 1024
 MAX_FILES = 20
 MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
+DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # protects the model quota
 
 app = FastAPI(title='Crosscheck API')
@@ -85,9 +87,10 @@ def get_row(con, doc_id, uid, with_file=False):
     return r
 
 
-def save(con, doc_id, doc: Document, status, uid, extra=None):
-    """Store a document with its checks. The user's confirmed date order for the vendor is applied first."""
-    order = store.date_order(con, uid, doc.vendor)
+def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None):
+    """Store a document with its checks. The date order (the user's choice for this document, else the one
+    confirmed for the vendor) is applied first."""
+    order = date_order or store.date_order(con, uid, doc.vendor)
     doc = apply_date_order(doc, order)
     checks = validate(doc, date_order=order)
     if status is None:
@@ -236,12 +239,23 @@ def get_document(doc_id: int, uid: str = Depends(current_user)):
         return get_row(con, doc_id, uid)
 
 
+@app.post('/check')
+def check(doc: Document, date_order: DateOrderValue | None = None, uid: str = Depends(current_user)):
+    """Run the checks without saving, so the review screen can show them while the user edits.
+    Returns the document with printed dates re-read in the date order, and the failed checks."""
+    with store.conn() as con:
+        order = date_order or store.date_order(con, uid, doc.vendor)
+    return {'document': apply_date_order(doc, order), 'checks': validate(doc, date_order=order)}
+
+
 @app.put('/documents/{doc_id}')
-def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, uid: str = Depends(current_user)):
-    """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook."""
+def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_order: DateOrderValue | None = None,
+                    uid: str = Depends(current_user)):
+    """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook.
+    date_order: the user's reading of this document's printed dates (MDY/DMY), when only this one is confirmed."""
     with store.conn() as con:
         get_row(con, doc_id, uid)
-        save(con, doc_id, doc, 'reviewed', uid)
+        save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
     tasks.add_task(send_event, doc_id)
     return get_document(doc_id, uid)
 
