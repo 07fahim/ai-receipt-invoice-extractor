@@ -54,6 +54,16 @@ hook = HTTPServer(('127.0.0.1', 0), Hook)
 threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
+_send = app.send_event
+
+
+def send_and_wait(doc_id):  # the app delivers on a side thread; tests wait so events can be checked
+    worker = _send(doc_id)
+    if worker:
+        worker.join()
+
+
+app.send_event = send_and_wait
 c = TestClient(app.app)
 JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
@@ -84,7 +94,7 @@ assert c.put('/vendors/x/date-order', json={'date_order': 'YMD'}).status_code ==
 # failed call is stored as failed; retry works once the model answers
 bad_id = upload(('bad.jpg', JPG + b'boom')).json()[0]['id']
 d = c.get(f'/documents/{bad_id}').json()
-assert d['status'] == 'failed' and '503' in d['error']
+assert d['status'] == 'failed' and 'busy' in d['error'] and 'HTTP' not in d['error']  # no raw provider text
 
 # retry: a failed document can be retried; it is extracted again
 assert c.post(f'/documents/{bad_id}/retry').status_code == 202 and c.get(f'/documents/{bad_id}').json()['status'] == 'failed'
