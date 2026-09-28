@@ -2,7 +2,8 @@
 
 python eval_extract.py MODEL [SPLIT] [LIMIT] [PROMPT_VERSION]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
 PROMPT_VERSION re-scores cached answers of an older prompt without calling the API (0 for no limit).
-SPLIT: test / validation (CORD receipts) or invoices_test / invoices_validation / invoices_train (katanaml invoices).
+SPLIT: test / validation (CORD receipts), invoices_test / invoices_validation / invoices_train (katanaml invoices),
+or photos_indian (unlabelled Indian invoice photos: only the checks are measured).
 The katanaml invoices are US format, so 'issue_date with vendor order' re-reads printed dates as MDY,
 like a user confirming the vendor's date format once in the app.
 Raw model responses are cached in data/llm_cache/<model>/<prompt version>/ so a rerun costs no quota
@@ -111,7 +112,9 @@ def main(name, split='test', limit=None, prompt_version=None):
     date_order = 'MDY' if split.startswith('invoices_') else None  # katanaml invoices are US format
     cache_dir = ROOT / 'data' / 'llm_cache' / name.replace('/', '_') / prompt_version
     cache_dir.mkdir(parents=True, exist_ok=True)
-    if split.startswith('invoices_'):
+    if split == 'photos_indian':
+        docs = list(invoices.load_photos())
+    elif split.startswith('invoices_'):
         docs = list(invoices.load(split.removeprefix('invoices_')))
     else:
         docs = [(i, img, cord.to_document(p)) for i, img, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
@@ -127,8 +130,14 @@ def main(name, split='test', limit=None, prompt_version=None):
         if rec['error'] is None:
             try:
                 pred = providers.parse(rec['text'])
-                row['score'] = score(pred, gold)
                 row['flagged'] = [i['check'] for i in validate(pred)]
+                if gold is None:  # unlabelled: keep the key fields for a manual spot check
+                    row['extracted'] = {k: str(getattr(pred, k)) for k in ('vendor', 'doc_number', 'issue_date_text', 'currency', 'subtotal', 'tax', 'total')}
+                    row['items'] = len(pred.items)
+                    rows.append(row)
+                    print(doc_id, 'passed' if not row['flagged'] else row['flagged'], flush=True)
+                    continue
+                row['score'] = score(pred, gold)
                 if gold.issue_date is not None and date_order:
                     row['date_ok_with_vendor_order'] = apply_date_order(pred, date_order).issue_date == gold.issue_date
                     row['date_flagged_ambiguous'] = 'date_ambiguous' in row['flagged']
@@ -139,6 +148,17 @@ def main(name, split='test', limit=None, prompt_version=None):
         print(doc_id, row.get('error') or ('ok' if row['score']['all_correct'] else 'wrong'), flush=True)
 
     ok = [r for r in rows if not r['error']]
+    if docs[0][2] is None:  # unlabelled set: report the checks only
+        summary = {'model': name, 'prompt_version': prompt_version, 'split': split, 'docs': len(rows),
+                   'failed_calls_or_invalid_json': len(rows) - len(ok),
+                   'passed_all_checks': f"{sum(not r['flagged'] for r in ok)} / {len(ok)}",
+                   'checks_failed': sorted(Counter(c for r in ok for c in r['flagged']).items()),
+                   'median_seconds': statistics.median([r['seconds'] for r in rows]),
+                   'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items())}
+        out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}_p{prompt_version}.json'
+        out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
+        print(json.dumps(summary, indent=1, default=str))
+        return
     field = {}
     for f in HEADER + TEXT + ('item_amounts_f1', 'item_names_f1', 'all_correct'):
         vals = [r['score'][f] for r in ok if f in r['score']]
