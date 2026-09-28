@@ -1,0 +1,218 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "903ae630",
+  "split": "test",
+  "docs": 10,
+  "failed_calls_or_invalid_json": 0,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 0.875,
+    "n": 8
+   },
+   "tax": {
+    "rate": 0.75,
+    "n": 4
+   },
+   "discount": {
+    "rate": 1,
+    "n": 2
+   },
+   "total": {
+    "rate": 0.8889,
+    "n": 9
+   },
+   "item_amounts_f1": {
+    "rate": 0.9,
+    "n": 10
+   },
+   "item_names_f1": {
+    "rate": 1.0,
+    "n": 10
+   },
+   "all_correct": {
+    "rate": 0.9,
+    "n": 10
+   }
+  },
+  "wrong_docs_flagged_by_validation": "0 / 1",
+  "correct_docs_flagged_by_validation": "1 / 9",
+  "median_seconds": 4.92,
+  "calls_with_retries": 0,
+  "median_tokens_in_out": [
+   1290.0,
+   234.0
+  ],
+  "issue_date_with_vendor_order": null,
+  "wrong_dates_flagged_ambiguous": "0 / 0",
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 4.57,
+   "in": 1290,
+   "out": 190,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "discount": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": [
+    "total_math",
+    "line_math"
+   ]
+  },
+  {
+   "id": 1,
+   "seconds": 2.81,
+   "in": 1274,
+   "out": 274,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 2,
+   "seconds": 4.44,
+   "in": 1290,
+   "out": 238,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 3,
+   "seconds": 5.27,
+   "in": 1290,
+   "out": 181,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 4,
+   "seconds": 5.62,
+   "in": 1290,
+   "out": 286,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "discount": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 5,
+   "seconds": 6.69,
+   "in": 1310,
+   "out": 191,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "flagged": []
+  },
+  {
+   "id": 6,
+   "seconds": 5.55,
+   "in": 1290,
+   "out": 294,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 7,
+   "seconds": 2.81,
+   "in": 1290,
+   "out": 230,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 8,
+   "seconds": 4.27,
+   "in": 1290,
+   "out": 284,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  },
+  {
+   "id": 9,
+   "seconds": 9.82,
+   "in": 1290,
+   "out": 179,
+   "attempts": null,
+   "error": null,
+   "score": {
+    "subtotal": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "flagged": []
+  }
+ ]
+}
