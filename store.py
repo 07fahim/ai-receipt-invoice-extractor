@@ -31,7 +31,7 @@ CREATE INDEX IF NOT EXISTS documents_vendor ON documents (user_id, lower(vendor)
 CREATE INDEX IF NOT EXISTS documents_status ON documents (status);
 CREATE TABLE IF NOT EXISTS vendor_date_orders (
     user_id UUID NOT NULL,
-    vendor TEXT NOT NULL,          -- lower-case vendor name
+    vendor TEXT NOT NULL,          -- vendor_key(): lower case, no punctuation or trailing Ltd/Inc/...
     date_order TEXT NOT NULL CHECK (date_order IN ('MDY', 'DMY')),
     PRIMARY KEY (user_id, vendor)
 );
@@ -84,11 +84,23 @@ def conn():
         yield con
 
 
+COMPANY_SUFFIXES = {'ltd', 'limited', 'llc', 'inc', 'co', 'corp', 'corporation', 'company', 'pvt', 'private', 'plc'}
+
+
+def vendor_key(name):
+    """One vendor however it is printed: case, punctuation and trailing company words ignored
+    ('SHWAPNO', 'Shwapno Ltd.' and 'Shwapno Limited' are all 'shwapno')."""
+    words = re.sub(r'[\W_]+', ' ', (name or '').lower()).split()
+    while len(words) > 1 and words[-1] in COMPANY_SUFFIXES:
+        words.pop()
+    return ' '.join(words)
+
+
 def date_order(con, user_id, vendor):
-    if not vendor:
+    if not vendor_key(vendor):
         return None
     r = con.execute('SELECT date_order FROM vendor_date_orders WHERE user_id = %s AND vendor = %s',
-                    (user_id, vendor.strip().lower())).fetchone()
+                    (user_id, vendor_key(vendor))).fetchone()
     return r['date_order'] if r else None
 
 
@@ -102,17 +114,17 @@ def duplicate_of(con, user_id, doc, before_id=None):
     before_id: only documents uploaded before this one, so the first copy stays clean and later copies are flagged.
     ponytail: exact match after clean-up; fuzzy matching would flag INV-1042 against INV-1043."""
     number = same_number(doc.doc_number)
-    if not (number and doc.vendor and doc.total is not None):
+    if not (number and vendor_key(doc.vendor) and doc.total is not None):
         return None
-    return con.execute(
-        "SELECT id, document->>'doc_number' AS doc_number FROM documents "
-        "WHERE user_id = %s AND lower(trim(vendor)) = lower(trim(%s)) AND total = %s AND id < %s "
-        "AND status IN ('passed', 'needs_review', 'reviewed') "
-        "AND regexp_replace(lower(document->>'doc_number'), '[^[:alnum:]]', '', 'g') = %s ORDER BY id LIMIT 1",
-        (user_id, doc.vendor, doc.total, before_id or 2 ** 62, number)).fetchone()
+    rows = con.execute(
+        "SELECT id, vendor, document->>'doc_number' AS doc_number FROM documents "
+        "WHERE user_id = %s AND total = %s AND id < %s AND status IN ('passed', 'needs_review', 'reviewed') "
+        "AND regexp_replace(lower(document->>'doc_number'), '[^[:alnum:]]', '', 'g') = %s ORDER BY id",
+        (user_id, doc.total, before_id or 2 ** 62, number)).fetchall()
+    return next((r for r in rows if vendor_key(r['vendor']) == vendor_key(doc.vendor)), None)
 
 
 def set_date_order(con, user_id, vendor, order):
     con.execute('INSERT INTO vendor_date_orders (user_id, vendor, date_order) VALUES (%s, %s, %s) '
                 'ON CONFLICT (user_id, vendor) DO UPDATE SET date_order = excluded.date_order',
-                (user_id, vendor.strip().lower(), order))
+                (user_id, vendor_key(vendor), order))

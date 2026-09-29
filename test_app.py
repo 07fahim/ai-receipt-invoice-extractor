@@ -45,7 +45,7 @@ ANSWERS = {
                   ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
     # the same invoice twice (number printed differently), and the vendor's next invoice
     'inv1042': '{"vendor": "ABC Ltd", "doc_number": "INV-1042", "total": 20, "items": [{"amount": 20}]}',
-    'inv1042b': '{"vendor": "abc ltd ", "doc_number": "#inv 1042", "total": 20, "items": [{"amount": 20}]}',
+    'inv1042b': '{"vendor": "ABC Limited.", "doc_number": "#inv 1042", "total": 20, "items": [{"amount": 20}]}',
     'inv1043': '{"vendor": "ABC Ltd", "doc_number": "INV-1043", "total": 20, "items": [{"amount": 20}]}',
 }
 calls = []
@@ -113,11 +113,15 @@ try:
     amb_id = upload(('inv.jpg', JPG + b'ambiguous')).json()[0]['id']
     d = c.get(f'/documents/{amb_id}').json()
     assert d['status'] == 'needs_review' and d['checks'][0]['check'] == 'date_ambiguous'
-    r = c.put('/vendors/Nguyen-Roach/date-order', json={'date_order': 'MDY'}).json()
+    r = c.put('/vendors/nguyen roach ltd/date-order', json={'date_order': 'MDY'}).json()
     assert r['rechecked'] == 1
     d = c.get(f'/documents/{amb_id}').json()
     assert d['status'] == 'passed' and d['issue_date'] == '2021-05-11'
     assert c.put('/vendors/x/date-order', json={'date_order': 'YMD'}).status_code == 422
+    # one vendor however it is printed (date memory and duplicates use this)
+    vk = app.store.vendor_key
+    assert vk('SHWAPNO') == vk('Shwapno Ltd.') == vk('Shwapno Limited') == vk('Shwapno Pvt. Ltd.') == 'shwapno'
+    assert vk('Co') == 'co' and vk('Chapman, Kim and Green') == 'chapman kim and green' and vk(None) == ''
     # live checks without saving; a date format chosen for one document only resolves that document
     dave = as_user(str(uuid.uuid4()))  # own user, so Alice's counts below stay the same
     amb2 = c.post('/documents', files=[('files', ('inv2.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=dave).json()[0]['id']
