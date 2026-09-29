@@ -28,7 +28,9 @@ MODELS = {
 
 PROMPT = """Extract the data from this receipt or invoice image.
 Return only one JSON object with exactly these keys:
-doc_type ("invoice" or "receipt"), vendor (the business name only),
+doc_type ("invoice" or "receipt"),
+document_count (how many separate receipts or invoices the image shows; the pages of one invoice count as 1),
+vendor (the business name only),
 branch (the store number or branch name printed with the business name, e.g. "#017314" or "Gulshan branch"; never the street address),
 buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
 issue_date_text and due_date_text (each date exactly as printed, character for character),
@@ -141,6 +143,8 @@ def parse(text):
     numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
     if any(isinstance(v, str) for v in numbers):
         raise ValueError('amount given as text, not a number')
+    if not isinstance(data.get('document_count'), int) or isinstance(data.get('document_count'), bool):
+        data['document_count'] = None  # a hint only: "two" or "1-2" must not fail the whole document
     if isinstance(data.get('doc_type'), str):
         dt = data['doc_type'].strip().lower()
         data['doc_type'] = dt if dt in ('invoice', 'receipt') else None
