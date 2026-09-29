@@ -23,6 +23,7 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Currency is valid", ["currency_code"]],
   ["Total and line items present", ["total_present", "items_missing"]],
   ["Not a duplicate", ["duplicate"]],
+  ["One document per file", ["one_document"]],
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
