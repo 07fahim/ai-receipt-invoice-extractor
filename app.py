@@ -403,8 +403,9 @@ def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, 
         raise HTTPException(422, 'date_order must be MDY or DMY')
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
-        rows = con.execute("SELECT id, document FROM documents WHERE user_id = %s AND lower(vendor) = %s "
-                           "AND status = 'needs_review'", (uid, vendor.strip().lower())).fetchall()
+        rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
+                                       "AND status = 'needs_review'", (uid,)).fetchall()
+                if store.vendor_key(r['vendor']) == store.vendor_key(vendor)]
         for r in rows:
             save(con, r['id'], Document.model_validate(r['document']), None, uid)
             if row_by_id(con, r['id'])['status'] == 'passed':
