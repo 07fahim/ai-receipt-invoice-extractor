@@ -10,6 +10,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+from decimal import Decimal
 from pathlib import Path
 
 from schema import Document
@@ -123,6 +124,7 @@ def call(name, image):
 
 
 MONEY = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
+QUANTITY = re.compile(r'\s*(\d+(?:\.\d+)?)\s*\D*')  # a number, then an optional unit; money stays strict
 ITEM_NUMBERS = ('quantity', 'unit_price', 'amount', 'discount')
 
 
@@ -140,6 +142,10 @@ def parse(text):
         data['items'] = []  # "null when not printed" also applies to the list
     if not all(isinstance(i, dict) for i in data['items']):
         raise ValueError('items must be objects')
+    for i in data['items']:  # "২ কেজি", "1 dozen": the quantity is the number before the unit (any script's digits)
+        if isinstance(i.get('quantity'), str):
+            m = QUANTITY.fullmatch(i['quantity'])
+            i['quantity'] = Decimal(m[1]) if m else None
     numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
     if any(isinstance(v, str) for v in numbers):
         raise ValueError('amount given as text, not a number')
