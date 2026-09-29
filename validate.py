@@ -96,6 +96,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             if ambiguous(getattr(doc, field + '_text')):
                 fail('date_ambiguous', [field], f'{getattr(doc, field + "_text")} could be day/month or month/day')
 
+    if (doc.document_count or 1) > 1:
+        fail('one_document', [], f'This file seems to contain {doc.document_count} documents; upload one per file')
+
     if doc.total is None:
         fail('total_present', ['total'], 'No total found')
 

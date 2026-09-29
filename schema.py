@@ -16,6 +16,7 @@ class Item(BaseModel):
 
 class Document(BaseModel):
     doc_type: Optional[Literal['invoice', 'receipt']] = None
+    document_count: Optional[int] = None  # separate receipts/invoices in the image; more than 1 goes to review
     vendor: Optional[str] = None  # business name only, so date formats and totals group by vendor
     branch: Optional[str] = None  # store number or location, e.g. "017314"
     buyer: Optional[str] = None

@@ -39,6 +39,8 @@ assert not score(Document(total=D(-100)), Document(total=D(100)))['total']
 assert not text_match('vendor', 'B', 'Bradley-Andrade 9879') and not text_match('vendor', 'Bradley-Andrade 9879 and more', 'Bradley-Andrade 9879')
 assert parse('{"items": null, "total": 1}').items == []
 assert parse('{"doc_type": "Invoice ", "total": 1}').doc_type == 'invoice' and parse('{"doc_type": "bill", "total": 1}').doc_type is None
+assert parse('{"document_count": 2, "total": 1}').document_count == 2
+assert parse('{"document_count": "two", "total": 1}').document_count is None and parse('{"document_count": true}').document_count is None
 from providers import mime
 assert mime(b'%PDF-1.7') == 'application/pdf' and mime(b'\x89PNG\r\n') == 'image/png'
 assert mime(b'\xff\xd8\xff\xe0') == 'image/jpeg' and mime(b'RIFF1234WEBPVP8 ') == 'image/webp' and mime(b'MZ\x90') is None
