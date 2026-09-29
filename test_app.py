@@ -234,12 +234,19 @@ try:
     ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 1000,'
                           ' "total": 1000.40, "items": [{"description": "Rice", "amount": 1000}]}')
     upload(('r.jpg', JPG + b'rounded'))
+    # "VAT included": passes the checks, and the bill keeps its item lines without adding the VAT again
+    ANSWERS['vatincl'] = ('{"vendor": "Green Basket", "doc_number": "GB1", "issue_date": "2026-09-18", "currency": "BDT",'
+                          ' "subtotal": 1150, "tax": 150, "tax_included": true, "total": 1150,'
+                          ' "items": [{"description": "Rice", "amount": 1000}, {"description": "Oil", "amount": 150}]}')
+    vat_id = upload(('v.jpg', JPG + b'vatincl')).json()[0]['id']
+    assert c.get(f'/documents/{vat_id}').json()['status'] == 'passed'
     qb_id = upload(('g2.jpg', JPG + b'good')).json()[0]['id']
     r = c.get('/export', params={'format': 'quickbooks'})
     qb = list(csv.reader(r.content.decode('utf-8-sig').splitlines()))
     assert qb[0][:3] == ['Bill no.', 'Supplier', 'Bill Date'] and int(r.headers['x-skipped']) >= 1
     first = [x for x in qb if x[0] == f'CC-{qb_id}']
     assert [(x[5], x[6]) for x in first] == [('Coffee', '3.00'), ('Lunch', '45.90'), ('Coke', '3.00'), ('Tax', '4.68')]
+    assert [(x[5], x[6]) for x in qb if x[0] == 'GB1'] == [('Rice', '1000.00'), ('Oil', '150.00')]
     # the reviewed document whose total no longer matches its lines becomes a single line
     assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
     assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']

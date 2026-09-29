@@ -515,11 +515,11 @@ def quickbooks_rows(uid):
             if d.issue_date is None or d.total is None:
                 skipped += 1
                 continue
-            lines = [(i.description, i.amount - (i.discount or 0)) for i in d.items if i.amount is not None]
-            lines += [(name, v) for name, v in (('Service charge', d.service_charge), ('Tax', d.tax),
-                                                ('Discount', -d.discount if d.discount else None)) if v]
-            if not lines or sum(v for _, v in lines) != d.total:
-                lines = [('Total', d.total)]
+            items = [(i.description, i.amount - (i.discount or 0)) for i in d.items if i.amount is not None]
+            extra = [(name, v) for name, v in (('Service charge', d.service_charge), ('Discount', -d.discount if d.discount else None)) if v]
+            # tax added on top gets its own line; "VAT included" is already inside the items. Whichever adds up wins.
+            lines = next((ls for ls in (items + extra + ([('Tax', d.tax)] if d.tax else []), items + extra)
+                          if items and sum(v for _, v in ls) == d.total), [('Total', d.total)])
             # ponytail: US date order; QuickBooks asks for the file's date format on import
             bill = [cell('text', d.doc_number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
                     f'{d.issue_date:%m/%d/%Y}', f'{(d.due_date or d.issue_date):%m/%d/%Y}', 'Uncategorized Expense']
