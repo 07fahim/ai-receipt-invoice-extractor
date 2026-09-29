@@ -28,7 +28,8 @@ class Document(BaseModel):
     currency: Optional[str] = None  # ISO 4217, e.g. USD
     subtotal: Optional[Decimal] = None
     discount: Optional[Decimal] = None  # positive number = money taken off
-    tax: Optional[Decimal] = None
+    tax: Optional[Decimal] = None  # all taxes and duties together (VAT + supplementary duty)
+    tax_included: Optional[bool] = None  # True: prices already include the tax ("VAT included"); None: unknown
     service_charge: Optional[Decimal] = None
     total: Optional[Decimal] = None
     total_text: Optional[str] = None  # total exactly as printed, e.g. 22.000 (thousands or decimals can be ambiguous)

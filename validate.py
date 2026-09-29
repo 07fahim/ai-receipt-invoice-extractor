@@ -118,17 +118,21 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if not (close(net, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
+    # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so:
+    # the arithmetic decides, so a wrong tax_included=True on an invoice whose tax is added on top does no harm.
     if doc.subtotal is not None and doc.total is not None:
         expected = doc.subtotal + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        if not close(expected, doc.total, TOTAL_ROUNDING):
+        included = doc.tax_included and tax and close(expected - tax, doc.total, TOTAL_ROUNDING)
+        if not (close(expected, doc.total, TOTAL_ROUNDING) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
     elif doc.total is not None and amounts and None not in amounts:
-        # no subtotal printed: the lines themselves must add up to the total.
-        # ponytail: also accepts "tax already included", so a wrong tax is not caught here; tax_included field later
+        # no subtotal printed: the lines themselves must add up to the total. Unless the model says the tax is
+        # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
         net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
         expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        if not (close(expected, doc.total, TOTAL_ROUNDING) or (tax and close(expected - tax, doc.total, TOTAL_ROUNDING))):
+        included = doc.tax_included is not False and tax and close(expected - tax, doc.total, TOTAL_ROUNDING)
+        if not (close(expected, doc.total, TOTAL_ROUNDING) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):

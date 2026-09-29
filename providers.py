@@ -35,11 +35,15 @@ vendor (the business name only),
 branch (the store number or branch name printed with the business name, e.g. "#017314" or "Gulshan branch"; never the street address),
 buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
 issue_date_text and due_date_text (each date exactly as printed, character for character),
-currency (ISO 4217 code), subtotal, discount, tax, service_charge, total,
+currency (ISO 4217 code), subtotal, discount,
+tax (all taxes and duties together, e.g. VAT plus supplementary duty),
+tax_included (true if the printed prices already include the tax, e.g. "VAT included"; false if it is added on top),
+service_charge, total,
 total_text (the total exactly as printed, character for character),
 items: list of {description, quantity, unit_price, amount, discount}.
 Rules:
-- Use null for anything not printed on the document. Never guess or calculate a missing value.
+- Use null for anything not printed on the document. Never guess or calculate a missing value;
+  the only sum you make is tax when several taxes or duties are printed separately.
 - Amounts are plain JSON numbers without currency symbols or thousands separators.
   Use the document's own number format to decide whether "." or "," separates thousands.
 - amount is the line total as printed, before any line discount. Discounts are positive numbers.
@@ -151,6 +155,8 @@ def parse(text):
         raise ValueError('amount given as text, not a number')
     if not isinstance(data.get('document_count'), int) or isinstance(data.get('document_count'), bool):
         data['document_count'] = None  # a hint only: "two" or "1-2" must not fail the whole document
+    if not isinstance(data.get('tax_included'), bool):
+        data['tax_included'] = None  # unknown: the checks accept tax either added or included
     if isinstance(data.get('doc_type'), str):
         dt = data['doc_type'].strip().lower()
         data['doc_type'] = dt if dt in ('invoice', 'receipt') else None
