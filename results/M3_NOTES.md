@@ -160,6 +160,18 @@ The 0.05% cash-rounding allowance hid misread cents on USD invoices (978.12 read
 ### Consistency: 30 US receipt photos read 3 times with the same prompt
 All 30 raw answers were identical character for character in all 3 runs (the repeats were real calls, 3–85 s each). With temperature 0 the model is deterministic here. The differences seen earlier between runs (CORD test 0, 32, 79) came from prompt changes, not randomness: a new prompt reshuffles which borderline documents come out right. So reading a document twice and comparing would find nothing.
 
+### Re-read on a failed check (`eval_reread.py`, `results/reread_*_p9edae16b.json`): not built
+Every document from the three runs above that failed an arithmetic or format check (14; the clean run's flags were all ambiguous dates, which a re-read cannot settle) got one more call with the failed checks as a hint and the instruction "never change a value just to make the numbers add up".
+
+| Outcome | Documents |
+|---|---|
+| fixed (was wrong, now fully correct) | 1 |
+| still wrong, still flagged | 10 |
+| still wrong, now passes every check | 2 |
+| was correct, now wrong | 1 |
+
+The model makes the numbers fit despite the instruction: on doc 5 it corrected the flagged line but also changed tax and total (4,436.46 → 4,438.46, 48,801.10 → 48,803.10) so everything agrees; on doc 6 the blurred 9s stay 8s and become consistent; on doc 10 correct lines became 380 / 135 instead of 360 / 155 (+20 / −20). Telling the model which sum failed teaches it to make the sum work, not to read better, so a failed check keeps going to a person.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
