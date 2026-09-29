@@ -22,7 +22,9 @@ from datetime import date
 from typing import Literal
 
 import jwt
+import pillow_heif
 import pypdfium2
+from PIL import Image, ImageOps
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -35,6 +37,7 @@ from schema import Document
 from validate import apply_date_order, validate
 
 providers.load_env()
+pillow_heif.register_heif_opener()   # lets Pillow open iPhone HEIC photos
 MODEL = os.environ.get('EXTRACT_MODEL', 'gemini-3.1-flash-lite')
 MAX_BYTES = 10 * 1024 * 1024
 MAX_FILES = 20
@@ -210,9 +213,27 @@ async def limit_upload_size(request, call_next):
     return await call_next(request)
 
 
+HEIF_BRANDS = (b'heic', b'heix', b'hevc', b'hevx', b'heim', b'heis', b'mif1', b'msf1')
+
+
+def heic_to_jpeg(data):
+    """iPhone photos (HEIC/HEIF) become JPEG on upload, so the model, the review screen and every browser can show
+    them. Anything else, or a HEIC that can't be decoded, is returned unchanged (and then rejected as unsupported)."""
+    if data[4:8] != b'ftyp' or data[8:12] not in HEIF_BRANDS:
+        return data
+    try:
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert('RGB')  # keep the phone's rotation
+        buf = io.BytesIO()
+        img.save(buf, 'JPEG', quality=90)
+        return buf.getvalue()
+    except Exception as e:
+        print(f'HEIC conversion failed: {e!r}')
+        return data
+
+
 @app.post('/documents', status_code=202)
 def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(current_user)):
-    """Upload up to 20 files (PDF, JPG, PNG, WebP; max 10 MB each). Extraction runs in the background.
+    """Upload up to 20 files (PDF, JPG, PNG, WebP, HEIC; max 10 MB each). Extraction runs in the background.
     A plain def: FastAPI runs it in a thread, so the database writes don't block other requests."""
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'send 1 to {MAX_FILES} files')
@@ -228,10 +249,10 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
         if left <= 0:
             created.append({'file_name': f.filename, 'error': f'daily limit of {DAILY_UPLOAD_LIMIT} files reached'})
             continue
-        data = f.file.read(MAX_BYTES + 1)
+        data = heic_to_jpeg(f.file.read(MAX_BYTES + 1))
         kind = providers.mime(data)  # type from the file's bytes, never from its name
         if len(data) > MAX_BYTES or kind is None:
-            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP file under 10 MB'})
+            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP/HEIC file under 10 MB'})
             continue
         if kind == 'application/pdf':
             pages = pdf_pages(data)

@@ -2,6 +2,7 @@ rapidocr==3.9.2
 onnxruntime==1.30.0
 pyarrow
 pillow
+pillow-heif==1.8.0  # iPhone HEIC photos are converted to JPEG on upload
 pydantic==2.13.5
 fastapi==0.141.1
 uvicorn==0.54.0
