@@ -309,6 +309,18 @@ try:
     assert c.post('/check', json=first['document'], params={'doc_id': ids[0]}, headers=george).json()['checks'] == []
     assert c.post('/check', json=copy['document'], headers=as_user(str(uuid.uuid4()))).json()['checks'] == []
 
+    # iPhone HEIC photos are stored as JPEG (model, viewer and browsers can read them); a fake HEIC is refused
+    from PIL import Image
+    heic = io.BytesIO()
+    Image.new('RGB', (60, 40), 'white').save(heic, 'HEIF')
+    ivy = as_user(str(uuid.uuid4()))
+    r = c.post('/documents', headers=ivy, files=[('files', ('IMG_0001.HEIC', io.BytesIO(heic.getvalue()), 'image/heic')),
+                                                  ('files', ('fake.heic', io.BytesIO(b'\x00\x00\x00\x18ftypheic' + b'x' * 50), 'image/heic'))]).json()
+    assert heic.getvalue()[4:12] == b'ftypheic' and 'id' in r[0] and 'error' in r[1], r
+    f = c.get(f'/documents/{r[0]["id"]}/file', headers=ivy)
+    assert f.headers['content-type'] == 'image/jpeg' and f.content[:3] == b'\xff\xd8\xff'
+    assert Image.open(io.BytesIO(f.content)).size == (60, 40)
+
     # delete removes the record and the file
     assert c.delete(f'/documents/{good_id}').status_code == 204
     assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
