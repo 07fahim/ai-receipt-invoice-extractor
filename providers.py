@@ -99,7 +99,7 @@ def post(url, headers, body, retries=3, timeout=60):
             raise RuntimeError(f'no answer from the model service: {e}') from None
 
 
-def call(name, image):
+def call(name, image, prompt=PROMPT):
     """Return (raw_text, input_tokens, output_tokens, attempts). attempts > 1 means retry waits are in the time."""
     style, base, model, key_var, _ = MODELS[name]
     key = os.environ[key_var]
@@ -110,7 +110,7 @@ def call(name, image):
             config['responseMimeType'] = 'application/json'
         r, attempts = post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
                  {'x-goog-api-key': key},
-                 {'contents': [{'parts': [{'inline_data': {'mime_type': mime(image), 'data': b64}}, {'text': PROMPT}]}],
+                 {'contents': [{'parts': [{'inline_data': {'mime_type': mime(image), 'data': b64}}, {'text': prompt}]}],
                   'generationConfig': config})
         parts = r['candidates'][0]['content']['parts']
         text = ''.join(p.get('text', '') for p in parts if not p.get('thought'))
@@ -121,7 +121,7 @@ def call(name, image):
     r, attempts = post(f'{base}/chat/completions', {'Authorization': f'Bearer {key}'},
              {'model': model, 'temperature': 0, 'response_format': {'type': 'json_object'},
               'messages': [{'role': 'user', 'content': [
-                  {'type': 'text', 'text': PROMPT},
+                  {'type': 'text', 'text': prompt},
                   {'type': 'image_url', 'image_url': {'url': f'data:{mime(image)};base64,{b64}'}}]}]})
     u = r.get('usage', {})
     return r['choices'][0]['message']['content'], u.get('prompt_tokens'), u.get('completion_tokens'), attempts
