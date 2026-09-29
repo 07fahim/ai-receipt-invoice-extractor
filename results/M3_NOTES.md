@@ -110,6 +110,12 @@ Run on the 6 receipts that ever had this error (test 5, 32, 78, 79; validation 6
 - No new false alarms: the correct receipts and the US invoices ("$ 212,09", "$ 1 054,10") pass as before; validation 2 (items_sum) and train invoice 1 (ambiguous date, one line) were flagged or wrong in the same way under 4f6fccfb.
 - This is a problem set, not a full run: the headline numbers come from one full run once the prompt is final.
 
+### Several documents in one file, prompt a949a76b (problem set, 2026-09-30)
+The model also returns `document_count`; more than 1 sends the file to review (check `one_document`). There is no public image with several receipts, so the test images were made by pasting documents side by side (CORD test 1 and 2, US receipt 1000, katanaml train 0, the landing-page Taco Bell receipt):
+- 2 receipts → 2, receipt + invoice → 2, 3 receipts → 3
+- the same five documents alone → 1 each (8 / 8 correct; the Taco Bell call hit Google's 503 once and was repeated)
+- Pasted composites are cleaner than a real photo of receipts lying on a table; real photos come with the labelling round.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
