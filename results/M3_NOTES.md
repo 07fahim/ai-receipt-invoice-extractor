@@ -182,6 +182,10 @@ The model makes the numbers fit despite the instruction: on doc 5 it corrected t
 
 Two injections resisted is not a guarantee. A second layer exists: a total overwritten by an injected value would break the arithmetic checks unless every amount were changed. Not-a-document files are caught, but the message could say so more plainly.
 
+Follow-up, prompt 3bf68706: the model now reports `is_document`, and a clear `false` gives one message, "This doesn't look like a receipt or invoice", instead of "No total found". Anything else (true, missing, malformed) counts as a document, so it can never block a real one. On the 4 stress files, the 5 synthetic Bangladeshi documents and the 13 sample images: 22 / 22 decisions right (menu and logo false, every receipt, invoice and bill true). Same run: the printed Bangla memo came out fully correct (240 read right), another prompt reshuffle, this time for the better.
+
+Also fixed on the way: the whole-number-only rounding rule flagged a legitimately cash-rounded total with cents. Rounding now follows the printed total: whole numbers up to 0.05%, totals in 5 cents (CHF, AUD, CAD cash rounding) up to 2.5 cents, anything else to the cent (d4dbd31). Planted-mistake rates and the 324 saved answers are unchanged by it.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
