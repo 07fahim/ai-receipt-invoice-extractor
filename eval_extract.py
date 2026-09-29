@@ -90,18 +90,22 @@ def rate(vals):
 
 def damage(image, variant):
     """A worse copy of the image for the robustness test: 'bad_photo' = half resolution, blurred, darker, heavy JPEG
-    (a quick phone snap in a dim shop); 'rot90' = turned sideways. Any other variant leaves the image as it is."""
-    if variant not in ('bad_photo', 'rot90'):
+    (a quick phone snap in a dim shop); 'very_bad_photo' = 640 px wide, more blur, darker, heavier JPEG (a hurried
+    snap from a distance); 'rot90' = turned sideways. Any other variant leaves the image as it is."""
+    if variant not in ('bad_photo', 'very_bad_photo', 'rot90'):
         return image
     from PIL import Image, ImageEnhance, ImageFilter
     img = Image.open(io.BytesIO(image)).convert('RGB')
     if variant == 'rot90':
         img = img.rotate(90, expand=True)
-    else:
+    elif variant == 'bad_photo':
         img = img.resize((img.width // 2, img.height // 2)).filter(ImageFilter.GaussianBlur(1.2))
         img = ImageEnhance.Brightness(img).enhance(0.65)
+    else:
+        img = img.resize((640, round(img.height * 640 / img.width))).filter(ImageFilter.GaussianBlur(1.0))
+        img = ImageEnhance.Brightness(img).enhance(0.5)
     buf = io.BytesIO()
-    img.save(buf, 'JPEG', quality=35 if variant == 'bad_photo' else 90)
+    img.save(buf, 'JPEG', quality={'bad_photo': 35, 'very_bad_photo': 20}.get(variant, 90))
     return buf.getvalue()
 
 
