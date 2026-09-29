@@ -133,6 +133,33 @@ Private sample set (the user's 13 images, not in git; 6 generated US receipts, a
 - Bangla memo: totals, subtotal and discount right on all three versions. The Bangla digit ৪ (4) was read as 8 (240 → 280), caught by the line check. The only silent error: on the crumpled photo the handwritten ৫ was read as ৬ (date 20/06 instead of 20/05).
 - 13 + 3 re-runs are a small set: it shows what works, not an accuracy rate.
 
+## Experiments on trust (2026-09-30, prompt 9edae16b)
+
+### Planted mistakes (`eval_validation.py`, answer keys only, no model calls)
+One realistic mistake is planted into each correct answer key; the rate is how often the checks flag it.
+
+| Set | Before the cents fix | After |
+|---|---|---|
+| CORD receipts test / validation | 93.0% / 95.0% | 93.0% / 95.2% |
+| USD invoices test / validation | 91.4% / 91.4% | 98.9% / 95.8% |
+| … of which "one digit of the total misread" (invoices) | 44% / 62.5% | 96% / 93.8% |
+
+The 0.05% cash-rounding allowance hid misread cents on USD invoices (978.12 read as 978.16): 127 of 153 missed cases in a quick test were differences under $1. Cash rounding always gives a whole number, so the allowance now applies only to whole-number totals (576440e). Re-checking all 324 saved answers of the 4f6fccfb full run under the new rule: 0 newly flagged, 0 no longer flagged. CORD's remaining weak spot, a misread total digit (67% / 77%), is mostly receipts with no subtotal where the lines also accept a tax-included reading.
+
+### Robustness: the same 26 USD test invoices, damaged on purpose (`VARIANT=` in eval_extract.py)
+| Image | Fully correct | Total | Line amounts | Wrong | Wrong and not flagged |
+|---|---|---|---|---|---|
+| clean | 69% | 96% | 100% | 8 | 2 (13, 22: the answer-key errors noted above, the model was right) |
+| bad_photo (half size, blur, darker, JPEG 35) | 69% | 96% | 100% | 8 | same 2 |
+| very_bad_photo (640 px wide, blur, darker, JPEG 20) | 35% | 88% | 78% | 17 | 4: 13, 22, 12 (vendor name), 20 (two lines misread +20 / −20, so every sum still matched) |
+| rot90 (turned sideways) | 62% | 96% | 96% | 10 | 3: 13, 22, 7 (invoice number) |
+
+- These invoices are large clean renders (2481 × 3508 px) and the model scales every image to the same size (1,476 input tokens either way), so halving them changes nothing; the break comes when the text itself is barely legible.
+- New silent errors are names and numbers (no arithmetic to check) or, on an unreadable image, errors that cancel out. A warning for very small or dark photos would help.
+
+### Consistency: 30 US receipt photos read 3 times with the same prompt
+All 30 raw answers were identical character for character in all 3 runs (the repeats were real calls, 3–85 s each). With temperature 0 the model is deterministic here. The differences seen earlier between runs (CORD test 0, 32, 79) came from prompt changes, not randomness: a new prompt reshuffles which borderline documents come out right. So reading a document twice and comparing would find nothing.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
