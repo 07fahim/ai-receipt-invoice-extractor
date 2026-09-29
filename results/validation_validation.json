@@ -4,7 +4,7 @@
   "docs": 100,
   "flagged_ground_truth": 9,
   "catch_rate_overall": {
-   "rate": 0.9504,
+   "rate": 0.9522,
    "n": 565
   },
   "catch_rate": {
@@ -33,7 +33,7 @@
     "n": 38
    },
    "total_digit_misread": {
-    "rate": 0.7582,
+    "rate": 0.7692,
     "n": 91
    },
    "total_off_by_1000x": {

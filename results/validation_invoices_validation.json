@@ -1,0 +1,64 @@
+{
+ "summary": {
+  "dataset": "katanaml invoices_validation ground truth",
+  "docs": 48,
+  "flagged_ground_truth": 0,
+  "catch_rate_overall": {
+   "rate": 0.9583,
+   "n": 336
+  },
+  "catch_rate": {
+   "line_amount_misread": {
+    "rate": 0.8958,
+    "n": 48
+   },
+   "line_item_dropped": {
+    "rate": 0.9375,
+    "n": 48
+   },
+   "line_item_duplicated": {
+    "rate": 0.9375,
+    "n": 48
+   },
+   "subtotal_taken_as_total": {
+    "rate": 1.0,
+    "n": 48
+   },
+   "tax_missed": {
+    "rate": 1.0,
+    "n": 48
+   },
+   "total_digit_misread": {
+    "rate": 0.9375,
+    "n": 48
+   },
+   "total_off_by_1000x": {
+    "rate": 1.0,
+    "n": 48
+   }
+  }
+ },
+ "flagged_ground_truth": {},
+ "missed_examples": {
+  "total_digit_misread": [
+   3,
+   41,
+   48
+  ],
+  "line_item_dropped": [
+   6,
+   11,
+   47
+  ],
+  "line_item_duplicated": [
+   6,
+   11,
+   47
+  ],
+  "line_amount_misread": [
+   14,
+   34,
+   39
+  ]
+ }
+}
