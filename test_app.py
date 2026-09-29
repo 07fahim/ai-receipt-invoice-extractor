@@ -130,6 +130,7 @@ try:
     assert c.post('/check', json=doc2, params={'date_order': 'YMD'}).status_code == 422
 
     # failed call is stored as failed with a short public message
+    assert 'limit is used up' in app.public_error(RuntimeError('daily quota used up: HTTP 429: {...}'))
     bad_id = upload(('bad.jpg', JPG + b'boom')).json()[0]['id']
     d = c.get(f'/documents/{bad_id}').json()
     assert d['status'] == 'failed' and 'busy' in d['error'] and 'HTTP' not in d['error']  # no raw provider text
