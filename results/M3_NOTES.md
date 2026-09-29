@@ -116,6 +116,23 @@ The model also returns `document_count`; more than 1 sends the file to review (c
 - the same five documents alone → 1 each (8 / 8 correct; the Taco Bell call hit Google's 503 once and was repeated)
 - Pasted composites are cleaner than a real photo of receipts lying on a table; real photos come with the labelling round.
 
+### Bangladeshi VAT (synthetic Mushak-6.3 set + a private sample set, 2026-09-30)
+Synthetic set: `make_bd_invoices.py` makes 5 documents with answer keys (Mushak-6.3 VAT 15%, Mushak-6.3 with supplementary duty + VAT and lakh grouping "1,48,925.00", a supershop receipt with "VAT 15% (included)", a Bangla Mushak-6.3 with Bangla digits, a restaurant bill with service charge + VAT). Clean rendered images, not photos.
+
+| | prompt a949a76b | prompt 9edae16b + check change |
+|---|---|---|
+| Documents fully correct | 4 / 5 (SD+VAT invoice: tax = VAT only) | 5 / 5 |
+| Correct documents flagged anyway | 1 (VAT included: 1,150 + 150 ≠ 1,150) | 0 (only the genuinely ambiguous date 05/09) |
+
+- Fix A: the prompt defines tax as all taxes and duties together (VAT + supplementary duty).
+- Fix B: the model reports `tax_included`. First version trusted it: the English Mushak invoices then came back `tax_included: true` (their last column reads "Total incl. all duties and taxes") and were falsely flagged. Final version lets the arithmetic decide: tax added on top is always accepted; "included" only when the model says so. The QuickBooks export likewise keeps whichever line set (with or without a tax line) adds up to the total.
+
+Private sample set (the user's 13 images, not in git; 6 generated US receipts, a museum ticket, one Bangla cash memo printed / handwritten / crumpled photo, two electricity bills, a real Mushak-6.3 invoice): the first run found a parser bug (a quantity with a unit, "২ কেজি", failed the whole document; fixed in 1e7fa2e). After the fix, under both prompts:
+- US receipts: all key fields correct; one flagged for the ambiguous date 3/12.
+- Documents that do not add up themselves (a generated ShopRite receipt, the real Mushak-6.3 invoice) were flagged.
+- Bangla memo: totals, subtotal and discount right on all three versions. The Bangla digit ৪ (4) was read as 8 (240 → 280), caught by the line check. The only silent error: on the crumpled photo the handwritten ৫ was read as ৬ (date 20/06 instead of 20/05).
+- 13 + 3 re-runs are a small set: it shows what works, not an accuracy rate.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
