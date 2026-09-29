@@ -71,6 +71,14 @@ assert small('1250', 'Rp 1.250.000') == ['total_format'] and small('22000', '22.
 assert small('7.61', '$7.61') == [] and small('1250', '1,250.00') == [] and small('22', None) == []
 assert small('22', '22.000', currency='KWD') == []  # dinars really have 3 decimals
 assert tr('TOTAL 22.000', D('22')) == '22.000' and tr('22.000', D('22000')) is None and tr('0.500', D('0.5')) is None
+# "VAT included" (Bangladeshi supershops): subtotal = total and the VAT is inside the prices
+incl = dict(subtotal=D('1150'), tax=D('150'), total=D('1150'), items=[Item(amount=D('1000')), Item(amount=D('150'))])
+assert checks(**incl, tax_included=True) == [] and checks(**incl) == ['total_math'] and checks(**incl, tax_included=False) == ['total_math']
+no_sub = {**incl, 'subtotal': None}
+assert checks(**no_sub, tax_included=True) == [] and checks(**no_sub) == []  # unknown: either reading is accepted
+assert checks(**no_sub, tax_included=False) == ['items_total']  # tax said to be on top, but the lines already reach the total
+assert checks(**good, tax_included=True) == []  # tax added on top but marked included (Mushak 'incl.' column): numbers still agree
+
 # several receipts in one photo go to review; one (or unknown) does not
 assert checks(**good, document_count=2) == ['one_document'] and checks(**good, document_count=1) == []
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
