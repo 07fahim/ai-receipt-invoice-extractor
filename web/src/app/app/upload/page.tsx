@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 type Entry = { key: string; file_name: string; id?: number; status?: Status; error?: string; vendor?: string | null; total?: string | null; currency?: string | null };
 
-const ACCEPT = ".jpg,.jpeg,.png,.webp,.pdf";
+const ACCEPT = ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf";
 
 export default function UploadPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -108,7 +108,7 @@ export default function UploadPage() {
           <span className="hidden pointer-fine:inline">Drop files here</span>
           <span className="pointer-fine:hidden">Choose files</span>
         </span>
-        <span className="mt-1 mb-4 text-sm text-muted-foreground">JPG, PNG, WebP or PDF · up to 10 MB each</span>
+        <span className="mt-1 mb-4 text-sm text-muted-foreground">JPG, PNG, WebP, HEIC or PDF · up to 10 MB each</span>
         <Button asChild className="h-10 px-4" disabled={busy}>
           <span>{busy ? "Uploading…" : "Choose files"}</span>
         </Button>
