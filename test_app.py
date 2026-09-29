@@ -231,8 +231,8 @@ try:
 
     # QuickBooks bills: one row per line, lines add up to the total; a cash-rounded total becomes one line;
     # documents without a date are skipped and counted
-    ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 1000,'
-                          ' "total": 1000.40, "items": [{"description": "Rice", "amount": 1000}]}')
+    ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 999.60,'
+                          ' "total": 1000, "items": [{"description": "Rice", "amount": 999.60}]}')
     upload(('r.jpg', JPG + b'rounded'))
     # "VAT included": passes the checks, and the bill keeps its item lines without adding the VAT again
     ANSWERS['vatincl'] = ('{"vendor": "Green Basket", "doc_number": "GB1", "issue_date": "2026-09-18", "currency": "BDT",'
@@ -250,7 +250,7 @@ try:
     # the reviewed document whose total no longer matches its lines becomes a single line
     assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
     assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']
-    assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.40')]
+    assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.00')]
 
     # any-language file names download fine
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
