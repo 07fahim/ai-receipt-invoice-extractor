@@ -40,6 +40,17 @@ assert not text_match('vendor', 'B', 'Bradley-Andrade 9879') and not text_match(
 assert parse('{"items": null, "total": 1}').items == []
 assert parse('{"doc_type": "Invoice ", "total": 1}').doc_type == 'invoice' and parse('{"doc_type": "bill", "total": 1}').doc_type is None
 assert parse('{"document_count": 2, "total": 1}').document_count == 2
+# a quantity with its unit keeps the number (Bangla digits too); an unreadable quantity is dropped, not fatal;
+# money written as text still fails the document
+q = lambda s: parse('{"total": 1, "items": [{"quantity": %s, "amount": 1}]}' % json.dumps(s)).items[0].quantity
+import json
+assert q('২ কেজি') == 2 and q('1 dozen') == 1 and q('0.5 kg') == D('0.5') and q('১২.৫') == D('12.5')
+assert q('a few') is None and q(3) == 3
+try:
+    parse('{"total": "60.000"}')
+    raise AssertionError('should raise')
+except ValueError:
+    pass
 assert parse('{"document_count": "two", "total": 1}').document_count is None and parse('{"document_count": true}').document_count is None
 from providers import mime
 assert mime(b'%PDF-1.7') == 'application/pdf' and mime(b'\x89PNG\r\n') == 'image/png'
