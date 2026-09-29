@@ -152,6 +152,8 @@ def public_error(e):
     """Short message for the review screen; the full error goes to the server log only."""
     print(f'extraction failed: {e!r}')
     text = str(e)
+    if 'daily quota used up' in text:
+        return "Today's AI reading limit is used up. Use Read again tomorrow."
     if 'HTTP 503' in text or 'HTTP 429' in text:
         return 'The AI service is busy. Please retry in a few minutes.'
     if 'no answer from the model service' in text:

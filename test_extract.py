@@ -59,5 +59,21 @@ try:
     raise AssertionError('should raise')
 except RuntimeError as e:
     assert 'no answer' in str(e)
+# a per-minute 429 is retried; a used-up daily quota is not (waiting can't help), and says so
+def quota(window):
+    def refuse(req, timeout):
+        calls.append(window)
+        body = '{"error": {"code": 429, "details": [{"violations": [{"quotaId": "GenerateRequests%sPerProjectPerModel-FreeTier"}]}]}}' % window
+        raise urllib.error.HTTPError('http://x', 429, 'Too Many Requests', {}, io.BytesIO(body.encode()))
+    return refuse
+import io
+for window, tries in (('PerMinute', 4), ('PerDay', 1)):
+    calls.clear()
+    providers.urllib.request.urlopen = quota(window)
+    try:
+        providers.post('http://x', {}, {})
+        raise AssertionError('should raise')
+    except RuntimeError as e:
+        assert len(calls) == tries and (('daily quota used up' in str(e)) == (window == 'PerDay')), (window, calls, e)
 providers.urllib.request.urlopen, providers.time.sleep = real_open, real_sleep
 print('ok')
