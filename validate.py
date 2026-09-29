@@ -18,6 +18,8 @@ XOF XPF YER ZAR ZMW ZWG
 
 # Line sums must match to the cent. Only the final total may be rounded (cash rounding, e.g. IDR
 # 334,011 printed as 334,000): up to 0.05% of the total. Measured on CORD, see results/M2_NOTES.md.
+# Cash rounding gives a whole number, so a total with cents must match exactly: on a $978.12 invoice,
+# 0.05% would hide a misread cents digit (978.12 read as 978.16). Measured on the USD invoices, see M3_NOTES.
 TOTAL_ROUNDING = Decimal('0.0005')
 
 
@@ -118,12 +120,14 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if not (close(net, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
+    rounding = TOTAL_ROUNDING if doc.total is not None and doc.total == doc.total.to_integral_value() else Decimal(0)
+
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so:
     # the arithmetic decides, so a wrong tax_included=True on an invoice whose tax is added on top does no harm.
     if doc.subtotal is not None and doc.total is not None:
         expected = doc.subtotal + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        included = doc.tax_included and tax and close(expected - tax, doc.total, TOTAL_ROUNDING)
-        if not (close(expected, doc.total, TOTAL_ROUNDING) or included):
+        included = doc.tax_included and tax and close(expected - tax, doc.total, rounding)
+        if not (close(expected, doc.total, rounding) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
     elif doc.total is not None and amounts and None not in amounts:
@@ -131,8 +135,8 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
         net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
         expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        included = doc.tax_included is not False and tax and close(expected - tax, doc.total, TOTAL_ROUNDING)
-        if not (close(expected, doc.total, TOTAL_ROUNDING) or included):
+        included = doc.tax_included is not False and tax and close(expected - tax, doc.total, rounding)
+        if not (close(expected, doc.total, rounding) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):

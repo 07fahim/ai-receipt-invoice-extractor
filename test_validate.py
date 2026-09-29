@@ -37,6 +37,8 @@ assert checks(**{**good, 'service_charge': D('10'), 'total': D('987.50')}) == []
 assert checks(subtotal=D('334011'), total=D('334000')) == []
 assert checks(subtotal=D('334011'), total=D('334500')) == ['total_math']
 assert checks(subtotal=D('91000'), total=D('91000'), items=[Item(amount=D('91070'))]) == ['items_sum']
+# ...but a total with cents is never cash-rounded: one misread cents digit is caught
+assert checks(**{**good, 'total': D('977.55')}) == ['total_math'] and checks(**{**good, 'total': D('977.51')}) == []
 # missing inputs skip checks instead of failing them
 assert [i['check'] for i in validate(Document(total=D('10')))] == ['items_missing']
 assert [i['check'] for i in validate(Document())] == ['total_present']
