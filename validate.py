@@ -100,6 +100,10 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     def fail(check, fields, message):
         issues.append({'check': check, 'fields': fields, 'message': message})
 
+    if doc.is_document is False:  # one clear message instead of "No total found" and friends
+        fail('is_document', [], "This doesn't look like a receipt or invoice")
+        return issues
+
     if date_order is None:
         for field in ('issue_date', 'due_date'):
             if ambiguous(getattr(doc, field + '_text')):

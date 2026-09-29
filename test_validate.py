@@ -83,6 +83,10 @@ assert checks(**no_sub, tax_included=True) == [] and checks(**no_sub) == []  # u
 assert checks(**no_sub, tax_included=False) == ['items_total']  # tax said to be on top, but the lines already reach the total
 assert checks(**good, tax_included=True) == []  # tax added on top but marked included (Mushak 'incl.' column): numbers still agree
 
+# not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
+assert [i['check'] for i in validate(Document(is_document=False))] == ['is_document']
+assert checks(**good, is_document=True) == [] and checks(**good, is_document=None) == []
+
 # several receipts in one photo go to review; one (or unknown) does not
 assert checks(**good, document_count=2) == ['one_document'] and checks(**good, document_count=1) == []
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
