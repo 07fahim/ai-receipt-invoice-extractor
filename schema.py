@@ -15,6 +15,7 @@ class Item(BaseModel):
 
 
 class Document(BaseModel):
+    is_document: Optional[bool] = None  # False: not a receipt/invoice at all (menu, photo, logo); None: unknown
     doc_type: Optional[Literal['invoice', 'receipt']] = None
     document_count: Optional[int] = None  # separate receipts/invoices in the image; more than 1 goes to review
     vendor: Optional[str] = None  # business name only, so date formats and totals group by vendor
