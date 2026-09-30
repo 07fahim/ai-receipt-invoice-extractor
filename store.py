@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS vendor_date_orders (
     date_order TEXT NOT NULL CHECK (date_order IN ('MDY', 'DMY')),
     PRIMARY KEY (user_id, vendor)
 );
+CREATE TABLE IF NOT EXISTS reads (   -- one row per model read (upload or retry): the daily limit counts these,
+    user_id UUID NOT NULL,            -- so deleting documents does not give the quota back
+    at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS reads_user ON reads (user_id, at);
 """
 
 _pool = None

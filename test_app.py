@@ -316,6 +316,13 @@ try:
     r = c.post('/documents', files=three, headers=carol).json()
     assert ['id' in x for x in r] == [True, True, False] and 'daily limit' in r[2]['error']
     assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
+    # deleting documents gives no quota back, and a retry counts as a read too
+    for d in c.get('/documents', headers=carol).json():
+        assert c.delete(f"/documents/{d['id']}", headers=carol).status_code == 204
+    assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
+    app.DAILY_UPLOAD_LIMIT = 3
+    flagged = c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=carol).json()[0]['id']
+    assert c.post(f'/documents/{flagged}/retry', headers=carol).status_code == 429
     app.DAILY_UPLOAD_LIMIT = 50
 
     # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
