@@ -45,7 +45,11 @@ MAX_FILES = 20
 MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 DateOrderValue = Literal['MDY', 'DMY']
-DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # protects the model quota
+DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # model reads (uploads + retries) per day: protects the quota
+
+
+def reads_today(con, uid):
+    return con.execute("SELECT count(*) AS n FROM reads WHERE user_id = %s AND at > now() - interval '1 day'", (uid,)).fetchone()['n']
 
 @contextlib.asynccontextmanager
 async def lifespan(_):
@@ -243,8 +247,7 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'send 1 to {MAX_FILES} files')
     with store.conn() as con:
-        used = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND created_at > now() - interval '1 day'",
-                           (uid,)).fetchone()['n']
+        used = reads_today(con, uid)
     # ponytail: counted once per request; two parallel uploads can overshoot the limit slightly
     left = DAILY_UPLOAD_LIMIT - used
     if left <= 0:
@@ -268,6 +271,7 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
             doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
                                  "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
                                  (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
+            con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
         left -= 1
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
@@ -333,12 +337,15 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
     """Run extraction again. Only for failed or needs_review documents: a reviewed document keeps the
     user's corrections, and one still processing is not sent to the model twice."""
     with store.conn() as con:  # one statement, so two quick clicks can't both start a read
+        if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
+            raise HTTPException(429, f'daily limit of {DAILY_UPLOAD_LIMIT} reads reached; try again tomorrow')
         claimed = con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() "
                               "WHERE id = %s AND user_id = %s AND status IN ('failed', 'needs_review') RETURNING id",
                               (doc_id, uid)).fetchone()
         if claimed is None:
             get_row(con, doc_id, uid)  # 404 for ids that are not the user's
             raise HTTPException(409, 'only failed or needs_review documents can be retried')
+        con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
 
@@ -442,6 +449,7 @@ def delete_account(uid: str = Depends(current_user)):
     with store.conn() as con:
         con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
+        con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
         try:
             delete_auth_user(uid)
         except HTTPException:
