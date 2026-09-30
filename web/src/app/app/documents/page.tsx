@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export default function DocumentsPage() {
   const [status, setStatus] = useState("");
   const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const filters = useRef(0); // bumped when the filters change: answers for older filters are dropped
 
   function query(offset: number) {
     const p = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
@@ -34,14 +35,17 @@ export default function DocumentsPage() {
   }
 
   useEffect(() => {
+    const current = ++filters.current;
     const timer = setTimeout(
       () =>
         query(0)
           .then((r) => {
+            if (current !== filters.current) return;
+            setError(null);
             setRows(r);
             setMore(r.length === PAGE);
           })
-          .catch((e) => setError(e.message)),
+          .catch((e) => current === filters.current && setError(e.message)),
       250,
     );
     return () => clearTimeout(timer);
@@ -142,14 +146,16 @@ export default function DocumentsPage() {
         <div className="mt-4 text-center">
           <Button
             variant="outline"
-            onClick={() =>
+            onClick={() => {
+              const current = filters.current;
               query(rows.length)
                 .then((r) => {
-                  setRows([...rows, ...r]);
+                  if (current !== filters.current) return;
+                  setRows((prev) => [...(prev ?? []), ...r]);
                   setMore(r.length === PAGE);
                 })
-                .catch((e) => toast.error(e.message))
-            }
+                .catch((e) => toast.error(e.message));
+            }}
           >
             Load more
           </Button>
