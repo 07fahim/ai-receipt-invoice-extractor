@@ -66,6 +66,7 @@ assert checks(**amb) == ['date_ambiguous']
 fixed = validate(Document(**amb), today=TODAY, date_order='MDY')
 assert fixed == []  # re-read as 11 May 2021, not flagged
 assert apply_date_order(Document(**amb), 'MDY').issue_date == date(2021, 5, 11)
+assert apply_date_order(Document(**{**amb, 'issue_date': date(2021, 12, 25)}), 'MDY').issue_date == date(2021, 12, 25)  # typed by the user: kept
 
 # printed total: thousands read as decimals ("22.000" -> 22) is flagged; the right reading and real cents are not
 from validate import thousands_read_as_decimals as tr

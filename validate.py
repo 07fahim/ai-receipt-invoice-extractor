@@ -95,13 +95,15 @@ def read_date(text, order):
 
 
 def apply_date_order(doc: Document, order: str | None) -> Document:
-    """Re-read the printed dates with the date order the user confirmed for this vendor or country."""
+    """Re-read the printed dates with the date order the user confirmed for this vendor or country. A date the user
+    typed (not one of the two readings of the printed text) is kept."""
     if order is None:
         return doc
     update = {}
     for field in ('issue_date', 'due_date'):
-        d = read_date(getattr(doc, field + '_text'), order)
-        if d is not None:
+        text, current = getattr(doc, field + '_text'), getattr(doc, field)
+        d = read_date(text, order)
+        if d is not None and current in (None, read_date(text, 'MDY'), read_date(text, 'DMY')):
             update[field] = d
     return doc.model_copy(update=update)
 
