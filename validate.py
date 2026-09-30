@@ -20,6 +20,7 @@ XOF XPF YER ZAR ZMW ZWG
 # allows: a whole-number total (IDR 334,011 printed as 334,000) up to 0.05%, measured on CORD (results/M2_NOTES.md);
 # a total in 5 cents (12.37 printed as 12.35, as in CHF, AUD, CAD) up to 2.5 cents; any other total to the cent.
 # A flat 0.05% hid misread cents on USD invoices (978.12 read as 978.16), see results/M3_NOTES.md.
+# Rounding to the nearest whole unit (404.36 taka printed as 404) always passes.
 TOTAL_ROUNDING = Decimal('0.0005')
 
 
@@ -30,7 +31,7 @@ def close(a, b, rel=Decimal(0)):
 def total_close(expected, total):
     """expected (from the lines or the subtotal) matches the printed total, allowing only the total's own rounding."""
     if total == total.to_integral_value():
-        return close(expected, total, TOTAL_ROUNDING)
+        return abs(expected - total) <= max(Decimal('0.5'), abs(total) * TOTAL_ROUNDING)
     return abs(expected - total) <= (Decimal('0.025') if total * 20 == (total * 20).to_integral_value() else Decimal('0.01'))
 
 
