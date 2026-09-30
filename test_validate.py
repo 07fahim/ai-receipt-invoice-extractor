@@ -118,6 +118,14 @@ assert suggest(Document(subtotal=D('100'), total=D('180'))) is None  # one faile
 assert suggest(Document(subtotal=D('21'), total=D('21'), items=[Item(amount=D('10')), Item(amount=D('10'))])) is None  # items_sum alone: one check, no guess
 k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
 assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
+# oversized input is refused before any check runs
+import pydantic
+for bad in ({'items': [{}] * 201}, {'total': '1e100000'}):
+    try:
+        Document(**bad)
+        raise AssertionError(bad)
+    except pydantic.ValidationError:
+        pass
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
 assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')
