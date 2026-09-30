@@ -59,13 +59,17 @@ export async function api(path: string, init: RequestInit = {}): Promise<Respons
     headers: { ...init.headers, Authorization: `Bearer ${data.session?.access_token ?? ""}` },
   });
   if (res.status === 401) {
+    await createClient().auth.signOut({ scope: "local" }); // else a session the API rejects loops login -> app -> login
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- expired session: full reload to the login page on purpose
     location.href = "/login";
     throw new Error("Please log in again.");
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(typeof body?.detail === "string" ? body.detail : `Request failed (${res.status}). Please try again.`);
+    const detail = body?.detail;
+    // a 422 lists the fields it rejected, e.g. a total typed as "12,50"
+    const field = Array.isArray(detail) && detail[0] ? `${String(detail[0].loc?.at(-1) ?? "a field")}: ${detail[0].msg}` : null;
+    throw new Error(typeof detail === "string" ? detail : field ? `Check ${field}` : `Request failed (${res.status}). Please try again.`);
   }
   return res;
 }
@@ -90,7 +94,7 @@ export async function download(path: string, fallbackName: string) {
   const url = URL.createObjectURL(await res.blob());
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000); // some browsers cancel a download revoked at once
   return res;
 }
 
