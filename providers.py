@@ -131,6 +131,7 @@ def call(name, image, prompt=PROMPT):
 MONEY = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
 QUANTITY = re.compile(r'\s*(\d+(?:\.\d+)?)\s*\D*')  # a number, then an optional unit; money stays strict
 ITEM_NUMBERS = ('quantity', 'unit_price', 'amount', 'discount')
+VAT_FORM = re.compile(r'mushak|মূসক', re.I)  # Bangladeshi VAT form names (Mushak-6.3) printed near the branch
 
 
 def parse(text):
@@ -160,6 +161,8 @@ def parse(text):
         data['tax_included'] = None  # unknown: the checks accept tax either added or included
     if not isinstance(data.get('is_document'), bool):
         data['is_document'] = None  # unknown counts as a document: only a clear false triggers the message
+    if isinstance(data.get('branch'), str) and VAT_FORM.search(data['branch']):
+        data['branch'] = None  # the form's name, not a branch
     if isinstance(data.get('doc_type'), str):
         dt = data['doc_type'].strip().lower()
         data['doc_type'] = dt if dt in ('invoice', 'receipt') else None

@@ -38,6 +38,7 @@ assert not score(Document(total=D(-100)), Document(total=D(100)))['total']
 # 1-3 character names and longer wrong names do not match
 assert not text_match('vendor', 'B', 'Bradley-Andrade 9879') and not text_match('vendor', 'Bradley-Andrade 9879 and more', 'Bradley-Andrade 9879')
 assert parse('{"items": null, "total": 1}').items == []
+assert parse('{"branch": "MUSHAK-6.3", "total": 1}').branch is None and parse('{"branch": "Gulshan-1", "total": 1}').branch == 'Gulshan-1'
 assert parse('{"doc_type": "Invoice ", "total": 1}').doc_type == 'invoice' and parse('{"doc_type": "bill", "total": 1}').doc_type is None
 assert parse('{"document_count": 2, "total": 1}').document_count == 2
 assert parse('{"is_document": false}').is_document is False and parse('{"is_document": "no", "total": 1}').is_document is None
