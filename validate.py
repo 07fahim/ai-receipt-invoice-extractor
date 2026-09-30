@@ -20,8 +20,12 @@ XOF XPF YER ZAR ZMW ZWG
 # allows: a whole-number total (IDR 334,011 printed as 334,000) up to 0.05%, measured on CORD (results/M2_NOTES.md);
 # a total in 5 cents (12.37 printed as 12.35, as in CHF, AUD, CAD) up to 2.5 cents; any other total to the cent.
 # A flat 0.05% hid misread cents on USD invoices (978.12 read as 978.16), see results/M3_NOTES.md.
-# Rounding to the nearest whole unit (404.36 taka printed as 404) always passes.
+# Rounding to the nearest whole unit (404.36 taka printed as 404) always passes. A total printed with cents ("1,200.00")
+# gets this room only in currencies whose cash is rounded to whole units (Shwapno: 816.15 printed "816.00") or when the
+# currency is unknown (CORD test 41: 364,999.68 printed "365000.00", no currency on the receipt).
 TOTAL_ROUNDING = Decimal('0.0005')
+WHOLE_UNIT_CASH = {'BDT', 'INR', 'PKR', 'LKR', 'NPR', 'IDR', 'VND', 'JPY', 'KRW'}
+CENTS_PRINTED = re.compile(r'[.,]\d{2}\s*$')
 
 # VAT rates whose "VAT included" share can be recognised from the numbers alone (Bangladesh: 5, 7.5, 10, 15%).
 # ponytail: Bangladeshi rates only; 20% added on top misread as 25% included would pass, so check before adding rates.
@@ -32,17 +36,17 @@ def close(a, b, rel=Decimal(0)):
     return abs(a - b) <= max(Decimal('0.01'), abs(b) * rel)
 
 
-def included_share(tax, total, lines):
+def included_share(tax, total, lines, whole_rounding=True):
     """True if the lines already add up to the total and tax is exactly the VAT inside it at a known rate (830 at 5%
     holds 39.52), whatever the model said. Without the lines, 10% on top with the subtotal read as the total
     (tax 15,000, total 165,000) would look the same."""
-    return (lines is not None and total_close(lines, total)
+    return (lines is not None and total_close(lines, total, whole_rounding)
             and any(abs(tax - total * r / (100 + r)) <= Decimal('0.01') for r in INCLUDED_VAT_RATES))
 
 
-def total_close(expected, total):
+def total_close(expected, total, whole_rounding=True):
     """expected (from the lines or the subtotal) matches the printed total, allowing only the total's own rounding."""
-    if total == total.to_integral_value():
+    if whole_rounding and total == total.to_integral_value():
         return abs(expected - total) <= max(Decimal('0.5'), abs(total) * TOTAL_ROUNDING)
     return abs(expected - total) <= (Decimal('0.025') if total * 20 == (total * 20).to_integral_value() else Decimal('0.01'))
 
@@ -145,6 +149,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
+    whole = not CENTS_PRINTED.search(doc.total_text or '') or doc.currency is None or doc.currency.upper() in WHOLE_UNIT_CASH
+    near = lambda expected: total_close(expected, doc.total, whole)
+
     # The same discount on an item and on the receipt ("Disc -100% (ITM06)" then SUBTTL): the lines already hold it
     twice = bool(doc.discount) and net is not None and close(sum(abs(i.discount or 0) for i in doc.items), abs(doc.discount))
 
@@ -154,16 +161,16 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     if doc.subtotal is not None and doc.total is not None:
         discount = 0 if twice and close(net, doc.subtotal) else abs(doc.discount or 0)
         expected = doc.subtotal + tax + (doc.service_charge or 0) - discount
-        included = tax and total_close(expected - tax, doc.total) and (doc.tax_included or included_share(tax, doc.total, net))
-        if not (total_close(expected, doc.total) or included):
+        included = tax and near(expected - tax) and (doc.tax_included or included_share(tax, doc.total, net, whole))
+        if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
     elif doc.total is not None and net is not None:
         # no subtotal printed: the lines themselves must add up to the total. Unless the model says the tax is
         # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
         expected = net + tax + (doc.service_charge or 0) - (0 if twice else abs(doc.discount or 0))
-        included = tax and total_close(expected - tax, doc.total) and (doc.tax_included is not False or included_share(tax, doc.total, net))
-        if not (total_close(expected, doc.total) or included):
+        included = tax and near(expected - tax) and (doc.tax_included is not False or included_share(tax, doc.total, net, whole))
+        if not (near(expected) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):
