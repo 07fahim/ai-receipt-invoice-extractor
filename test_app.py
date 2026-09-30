@@ -1,7 +1,10 @@
 """Self-check for the API with a fake model (no model calls, no quota). Run: python test_app.py
-Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end."""
+Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end.
+Sign-in tokens are signed with a local test key instead of Supabase's."""
+import csv
 import io
 import os
+import time
 import uuid
 
 os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
@@ -9,17 +12,41 @@ os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
 import pypdfium2
 from fastapi.testclient import TestClient
 
+import jwt
+from cryptography.hazmat.primitives.asymmetric import ec
+
 import app
 import providers
 
+# sign-in: tokens like Supabase's (ES256, audience 'authenticated'), verified with a local test key
+os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
+KEY, OTHER_KEY = ec.generate_private_key(ec.SECP256R1()), ec.generate_private_key(ec.SECP256R1())
+app.signing_key = lambda token: KEY.public_key()
+ALICE, BOB, CAROL = (str(uuid.uuid4()) for _ in range(3))
+
+
+def token(sub, key=KEY, **claims):
+    body = {'sub': sub, 'aud': 'authenticated', 'iss': 'https://test.supabase.co/auth/v1', 'exp': int(time.time()) + 3600}
+    return jwt.encode({**body, **claims}, key, algorithm='ES256')
+
+
+def as_user(sub, **kw):
+    return {'Authorization': f'Bearer {token(sub, **kw)}'}
+
 ANSWERS = {
-    'good': '{"doc_type": "receipt", "vendor": "Green Field", "issue_date": "2016-05-26", "issue_date_text": "5/26/2016",'
+    'good': '{"doc_type": "receipt", "vendor": "Green Field", "branch": "017314", "issue_date": "2016-05-26", "issue_date_text": "5/26/2016",'
             ' "currency": "USD", "subtotal": 51.90, "tax": 4.68, "total": 56.58,'
             ' "items": [{"description": "Coffee", "amount": 3.00}, {"description": "Lunch", "amount": 45.90},'
             ' {"description": "Coke", "amount": 3.00}]}',
     # 05/11/2021 is ambiguous; the model read it as 5 November
     'ambiguous': '{"vendor": "Nguyen-Roach", "issue_date": "2021-11-05", "issue_date_text": "05/11/2021",'
                  ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
+    'ambiguous2': '{"vendor": "Other Co", "issue_date": "2021-05-11", "issue_date_text": "05/11/2021",'
+                  ' "subtotal": 10, "total": 10, "items": [{"amount": 10}]}',
+    # the same invoice twice (number printed differently), and the vendor's next invoice
+    'inv1042': '{"vendor": "ABC Ltd", "doc_number": "INV-1042", "total": 20, "items": [{"amount": 20}]}',
+    'inv1042b': '{"vendor": "ABC Limited.", "doc_number": "#inv 1042", "total": 20, "items": [{"amount": 20}]}',
+    'inv1043': '{"vendor": "ABC Ltd", "doc_number": "INV-1043", "total": 20, "items": [{"amount": 20}]}',
 }
 calls = []
 
@@ -54,6 +81,7 @@ hook = HTTPServer(('127.0.0.1', 0), Hook)
 threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
+os.environ['WEBHOOK_USER_ID'] = ALICE  # only Alice's documents go to the webhook
 _send = app.send_event
 
 
@@ -64,7 +92,7 @@ def send_and_wait(doc_id):  # the app delivers on a side thread; tests wait so e
 
 
 app.send_event = send_and_wait
-c = TestClient(app.app)
+c = TestClient(app.app, headers=as_user(ALICE))
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
@@ -86,19 +114,49 @@ try:
     amb_id = upload(('inv.jpg', JPG + b'ambiguous')).json()[0]['id']
     d = c.get(f'/documents/{amb_id}').json()
     assert d['status'] == 'needs_review' and d['checks'][0]['check'] == 'date_ambiguous'
-    r = c.put('/vendors/Nguyen-Roach/date-order', json={'date_order': 'MDY'}).json()
+    r = c.put('/vendors/nguyen roach ltd/date-order', json={'date_order': 'MDY'}).json()
     assert r['rechecked'] == 1
     d = c.get(f'/documents/{amb_id}').json()
     assert d['status'] == 'passed' and d['issue_date'] == '2021-05-11'
     assert c.put('/vendors/x/date-order', json={'date_order': 'YMD'}).status_code == 422
+    # one vendor however it is printed (date memory and duplicates use this)
+    vk = app.store.vendor_key
+    assert vk('SHWAPNO') == vk('Shwapno Ltd.') == vk('Shwapno Limited') == vk('Shwapno Pvt. Ltd.') == 'shwapno'
+    assert vk('Co') == 'co' and vk('Chapman, Kim and Green') == 'chapman kim and green' and vk(None) == ''
+    # live checks without saving; a date format chosen for one document only resolves that document
+    dave = as_user(str(uuid.uuid4()))  # own user, so Alice's counts below stay the same
+    amb2 = c.post('/documents', files=[('files', ('inv2.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=dave).json()[0]['id']
+    doc2 = c.get(f'/documents/{amb2}', headers=dave).json()['document']
+    assert [x['check'] for x in c.post('/check', json=doc2, headers=dave).json()['checks']] == ['date_ambiguous']
+    live = c.post('/check', json=doc2, params={'date_order': 'DMY'}, headers=dave).json()
+    assert live['checks'] == [] and live['document']['issue_date'] == '2021-11-05'
+    d = c.put(f'/documents/{amb2}', json=live['document'], params={'date_order': 'DMY'}, headers=dave).json()
+    assert d['status'] == 'reviewed' and d['checks'] == [] and d['issue_date'] == '2021-11-05'
+    assert c.post('/check', json=doc2, params={'date_order': 'YMD'}).status_code == 422
+    # a misread digit that breaks two checks comes with a suggested fix; a clean document with none
+    memo = {'subtotal': '1230', 'total': '1230', 'items': [{'quantity': '2', 'unit_price': '140', 'amount': '280'},
+            {'quantity': '2', 'unit_price': '120', 'amount': '280'}, {'quantity': '1', 'unit_price': '710', 'amount': '710'}]}
+    assert c.post('/check', json=memo, headers=dave).json()['suggestion']['changes'] == [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]
+    assert c.post('/check', json=live['document'], headers=dave).json()['suggestion'] is None
+    assert c.get(f'/documents/{amb2}', headers=dave).json()['suggestion'] is None  # reviewed: nothing to suggest
 
     # failed call is stored as failed with a short public message
+    assert 'limit is used up' in app.public_error(RuntimeError('daily quota used up: HTTP 429: {...}'))
     bad_id = upload(('bad.jpg', JPG + b'boom')).json()[0]['id']
     d = c.get(f'/documents/{bad_id}').json()
     assert d['status'] == 'failed' and 'busy' in d['error'] and 'HTTP' not in d['error']  # no raw provider text
 
     # retry: a failed document can be retried; it is extracted again
     assert c.post(f'/documents/{bad_id}/retry').status_code == 202 and c.get(f'/documents/{bad_id}').json()['status'] == 'failed'
+
+    # a restart while a document was being read: at startup it is read again instead of staying 'processing'
+    hank = str(uuid.uuid4())
+    import store
+    with store.conn() as con:
+        stuck = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                            "VALUES (%s, 's.jpg', 'image/jpeg', %s, 'processing') RETURNING id", (hank, JPG + b'good')).fetchone()['id']
+    assert app.resume_stuck() == [stuck] and c.get(f'/documents/{stuck}', headers=as_user(hank)).json()['status'] == 'passed'
+    assert app.resume_stuck() == []
 
     # review: user corrects the total -> reviewed, checks run again
     doc = c.get(f'/documents/{good_id}').json()['document']
@@ -108,6 +166,7 @@ try:
 
     # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
     kinds = [(e['event'], e['id']) for e, _, _ in events]
+    # Dave's reviewed document and the resumed one belong to other users: not sent
     assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
@@ -115,6 +174,15 @@ try:
     # a reviewed document cannot be retried (the user's corrections would be lost)
     assert c.post(f'/documents/{good_id}/retry').status_code == 409
     assert c.get(f'/documents/{good_id}').json()['total'] == 60.0
+    # while a document is being read: no second read, no save; a late read never replaces saved corrections
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'processing' WHERE id = %s", (good_id,))
+    assert c.post(f'/documents/{good_id}/retry').status_code == 409
+    assert c.put(f'/documents/{good_id}', json=c.get(f'/documents/{good_id}').json()['document']).status_code == 409
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'reviewed' WHERE id = %s", (good_id,))
+    app.process(good_id)  # the fake model answers again, but the document is no longer 'processing'
+    assert c.get(f'/documents/{good_id}').json()['status'] == 'reviewed'
 
     # bad query values are 422, not server errors
     for bad_q in ({'date_from': 'nope'}, {'limit': -1}, {'offset': -1}, {'limit': 0}):
@@ -125,10 +193,14 @@ try:
     assert [x['id'] for x in c.get('/documents', params={'status': 'failed'}).json()] == [bad_id]
     assert [x['id'] for x in c.get('/documents', params={'date_from': '2021-01-01'}).json()] == [amb_id]
 
-    # stats: failed documents are not counted in spend
+    # stats: spend counts only checked documents (passed or reviewed), never failed or waiting ones
     s = c.get('/stats').json()
     assert s['documents'] == 3 and s['by_status'] == {'reviewed': 1, 'passed': 1, 'failed': 1}
     assert {x['currency']: x['total'] for x in s['spend_by_currency']} == {'USD': 60.0, None: 10.0}
+    erin = as_user(str(uuid.uuid4()))  # a document waiting for review is not spend yet
+    c.post('/documents', files=[('files', ('w.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=erin)
+    s = c.get('/stats', headers=erin).json()
+    assert s['by_status'] == {'needs_review': 1} and s['spend_by_currency'] == [] and s['top_vendors'] == [] and s['by_month'] == []
 
     # pages: image = 1 page; PDF pages are rendered
     assert c.get(f'/documents/{good_id}/pages').json() == {'pages': 1}
@@ -157,6 +229,7 @@ try:
     from openpyxl import load_workbook
     csv_text = c.get('/export', params={'format': 'csv'}).content.decode('utf-8-sig')
     assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_text.splitlines()) == 3
+    assert 'vendor,branch,buyer' in csv_text.splitlines()[0] and ',Green Field,017314,' in csv_text
     wb = load_workbook(io.BytesIO(c.get('/export').content))
     assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
@@ -172,10 +245,121 @@ try:
     assert items.cell(items.max_row, 2).value == '2023'
     assert "'=HYPERLINK" in c.get('/export', params={'format': 'csv', 'status': 'passed'}).content.decode('utf-8-sig')
 
+    # QuickBooks bills: one row per line, lines add up to the total; a cash-rounded total becomes one line;
+    # documents without a date are skipped and counted
+    ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 999.60,'
+                          ' "total": 1000, "items": [{"description": "Rice", "amount": 999.60}]}')
+    upload(('r.jpg', JPG + b'rounded'))
+    # "VAT included": passes the checks, and the bill keeps its item lines without adding the VAT again
+    ANSWERS['vatincl'] = ('{"vendor": "Green Basket", "doc_number": "GB1", "issue_date": "2026-09-18", "currency": "BDT",'
+                          ' "subtotal": 1150, "tax": 150, "tax_included": true, "total": 1150,'
+                          ' "items": [{"description": "Rice", "amount": 1000}, {"description": "Oil", "amount": 150}]}')
+    vat_id = upload(('v.jpg', JPG + b'vatincl')).json()[0]['id']
+    assert c.get(f'/documents/{vat_id}').json()['status'] == 'passed'
+    qb_id = upload(('g2.jpg', JPG + b'good')).json()[0]['id']
+    r = c.get('/export', params={'format': 'quickbooks'})
+    qb = list(csv.reader(r.content.decode('utf-8-sig').splitlines()))
+    assert qb[0][:3] == ['Bill no.', 'Supplier', 'Bill Date'] and int(r.headers['x-skipped']) >= 1
+    first = [x for x in qb if x[0] == f'CC-{qb_id}']
+    assert [(x[5], x[6]) for x in first] == [('Coffee', '3.00'), ('Lunch', '45.90'), ('Coke', '3.00'), ('Tax', '4.68')]
+    assert [(x[5], x[6]) for x in qb if x[0] == 'GB1'] == [('Rice', '1000.00'), ('Oil', '150.00')]
+    # the reviewed document whose total no longer matches its lines becomes a single line
+    assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
+    assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']
+    assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.00')]
+
     # any-language file names download fine
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
     r = c.get(f'/documents/{uni_id}/file')
     assert r.status_code == 200 and "filename*=UTF-8''" in r.headers['content-disposition'] and r.content.startswith(JPG)
+
+    # sign-in required on every endpoint; expired, wrong-audience and forged tokens are refused
+    routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
+              for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
+              for m in rt.methods - {'HEAD'}]
+    assert len(routes) == 14, routes
+    anon = TestClient(app.app)
+    for m, path in routes:
+        assert anon.request(m, path).status_code == 401, (m, path)
+    for bad in ({'exp': int(time.time()) - 10}, {'aud': 'anon'}, {'key': OTHER_KEY}):
+        assert c.get('/documents', headers=as_user(ALICE, **bad)).status_code == 401, bad
+    assert c.get('/documents', headers={'Authorization': 'Basic abc'}).status_code == 401
+
+    # the web app's origin may call the API from the browser; other sites may not
+    pre = {'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization'}
+    assert anon.options('/documents', headers={'Origin': 'http://localhost:3000', **pre}).headers['access-control-allow-origin'] == 'http://localhost:3000'
+    assert 'access-control-allow-origin' not in anon.options('/documents', headers={'Origin': 'https://evil.example', **pre}).headers
+
+    # another user sees none of Alice's documents and cannot change them
+    bob = as_user(BOB)
+    assert c.get('/documents', headers=bob).json() == [] and c.get('/stats', headers=bob).json()['documents'] == 0
+    doc = c.get(f'/documents/{good_id}').json()['document']
+    for m, path, body in (('GET', '', None), ('PUT', '', doc), ('DELETE', '', None), ('POST', '/retry', None),
+                          ('GET', '/file', None), ('GET', '/pages', None), ('GET', '/pages/0', None)):
+        assert c.request(m, f'/documents/{good_id}{path}', json=body, headers=bob).status_code == 404, (m, path)
+    assert c.get('/export', params={'format': 'csv'}, headers=bob).content.decode('utf-8-sig').count('\n') == 1
+    assert c.get('/export', params={'format': 'quickbooks'}, headers=bob).content.decode('utf-8-sig').count('\n') == 1
+    # Bob's date format for a vendor re-checks only his own documents
+    assert c.put('/vendors/Green Field/date-order', json={'date_order': 'DMY'}, headers=bob).json()['rechecked'] == 0
+    assert c.get(f'/documents/{good_id}').status_code == 200
+
+    # the webhook belongs to one account: another user's passed document is never sent
+    sent = len(events)
+    erin = as_user(str(uuid.uuid4()))
+    passed = c.post('/documents', files=[('files', ('e.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]
+    assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed' and len(events) == sent
+
+    # daily upload limit per user: files over the limit are refused, then the whole request
+    app.DAILY_UPLOAD_LIMIT = 2
+    carol = as_user(CAROL)
+    three = [('files', (f'{k}.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg')) for k in range(3)]
+    r = c.post('/documents', files=three, headers=carol).json()
+    assert ['id' in x for x in r] == [True, True, False] and 'daily limit' in r[2]['error']
+    assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
+    # deleting documents gives no quota back, and a retry counts as a read too
+    for d in c.get('/documents', headers=carol).json():
+        assert c.delete(f"/documents/{d['id']}", headers=carol).status_code == 204
+    assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
+    app.DAILY_UPLOAD_LIMIT = 3
+    flagged = c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=carol).json()[0]['id']
+    assert c.post(f'/documents/{flagged}/retry', headers=carol).status_code == 429
+    app.DAILY_UPLOAD_LIMIT = 50
+
+    # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
+    frank = as_user(FRANK := str(uuid.uuid4()))
+    c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
+    removed = []
+    app.delete_auth_user = lambda uid: (_ for _ in ()).throw(RuntimeError('supabase down'))
+    assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 1
+    app.delete_auth_user = removed.append
+    assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
+    assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
+
+    # duplicates: a later copy of the same invoice (same vendor, number and total) is flagged and links to the first;
+    # the first copy, the next invoice number and other users' copies are not
+    george = as_user(str(uuid.uuid4()))
+    ids = [x['id'] for x in c.post('/documents', headers=george, files=[
+        ('files', (f'{k}.jpg', io.BytesIO(JPG + k.encode()), 'image/jpeg')) for k in ('inv1042', 'inv1042b', 'inv1043')]).json()]
+    first, copy, other = (c.get(f'/documents/{i}', headers=george).json() for i in ids)
+    assert first['status'] == 'passed' and other['status'] == 'passed', (first['checks'], other['checks'])
+    assert copy['status'] == 'needs_review' and [x['check'] for x in copy['checks']] == ['duplicate']
+    assert copy['checks'][0]['duplicate_of'] == ids[0] and 'INV-1042' in copy['checks'][0]['message']
+    live = c.post('/check', json=copy['document'], params={'doc_id': ids[1]}, headers=george).json()['checks']
+    assert [x['check'] for x in live] == ['duplicate']
+    assert c.post('/check', json=first['document'], params={'doc_id': ids[0]}, headers=george).json()['checks'] == []
+    assert c.post('/check', json=copy['document'], headers=as_user(str(uuid.uuid4()))).json()['checks'] == []
+
+    # iPhone HEIC photos are stored as JPEG (model, viewer and browsers can read them); a fake HEIC is refused
+    from PIL import Image
+    heic = io.BytesIO()
+    Image.new('RGB', (60, 40), 'white').save(heic, 'HEIF')
+    ivy = as_user(str(uuid.uuid4()))
+    r = c.post('/documents', headers=ivy, files=[('files', ('IMG_0001.HEIC', io.BytesIO(heic.getvalue()), 'image/heic')),
+                                                  ('files', ('fake.heic', io.BytesIO(b'\x00\x00\x00\x18ftypheic' + b'x' * 50), 'image/heic'))]).json()
+    assert heic.getvalue()[4:12] == b'ftypheic' and 'id' in r[0] and 'error' in r[1], r
+    f = c.get(f'/documents/{r[0]["id"]}/file', headers=ivy)
+    assert f.headers['content-type'] == 'image/jpeg' and f.content[:3] == b'\xff\xd8\xff'
+    assert Image.open(io.BytesIO(f.content)).size == (60, 40)
 
     # delete removes the record and the file
     assert c.delete(f'/documents/{good_id}').status_code == 204

@@ -1,0 +1,190 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "ea5f2dfd",
+  "split": "test",
+  "docs": 8,
+  "failed_calls_or_invalid_json": 0,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 0.4,
+    "n": 5
+   },
+   "tax": {
+    "rate": 0,
+    "n": 2
+   },
+   "discount": {
+    "rate": 0,
+    "n": 1
+   },
+   "total": {
+    "rate": 0.5,
+    "n": 8
+   },
+   "item_amounts_f1": {
+    "rate": 0.5,
+    "n": 8
+   },
+   "item_names_f1": {
+    "rate": 1.0,
+    "n": 8
+   },
+   "all_correct": {
+    "rate": 0.5,
+    "n": 8
+   }
+  },
+  "wrong_docs_flagged_by_validation": "4 / 4",
+  "correct_docs_flagged_by_validation": "0 / 4",
+  "median_seconds": 7.875,
+  "calls_with_retries": 1,
+  "median_tokens_in_out": [
+   1372.0,
+   252.0
+  ],
+  "issue_date_with_vendor_order": null,
+  "wrong_dates_flagged_ambiguous": "0 / 0",
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 5.71,
+   "in": 1372,
+   "out": 240,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format",
+    "total_math",
+    "line_math"
+   ],
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "discount": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   }
+  },
+  {
+   "id": 1,
+   "seconds": 4.66,
+   "in": 1356,
+   "out": 317,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 2,
+   "seconds": 5.31,
+   "in": 1372,
+   "out": 281,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 3,
+   "seconds": 6.97,
+   "in": 1372,
+   "out": 222,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 5,
+   "seconds": 9.77,
+   "in": 1392,
+   "out": 236,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format"
+   ],
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   }
+  },
+  {
+   "id": 32,
+   "seconds": 9.92,
+   "in": 1392,
+   "out": 221,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format"
+   ],
+   "score": {
+    "subtotal": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   }
+  },
+  {
+   "id": 78,
+   "seconds": 8.78,
+   "in": 1392,
+   "out": 264,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format"
+   ],
+   "score": {
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   }
+  },
+  {
+   "id": 79,
+   "seconds": 37.38,
+   "in": 1372,
+   "out": 273,
+   "attempts": 2,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  }
+ ]
+}

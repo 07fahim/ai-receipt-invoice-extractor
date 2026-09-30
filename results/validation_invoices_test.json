@@ -1,0 +1,54 @@
+{
+ "summary": {
+  "dataset": "katanaml invoices_test ground truth",
+  "docs": 26,
+  "flagged_ground_truth": 1,
+  "catch_rate_overall": {
+   "rate": 0.9886,
+   "n": 175
+  },
+  "catch_rate": {
+   "line_amount_misread": {
+    "rate": 0.96,
+    "n": 25
+   },
+   "line_item_dropped": {
+    "rate": 1.0,
+    "n": 25
+   },
+   "line_item_duplicated": {
+    "rate": 1.0,
+    "n": 25
+   },
+   "subtotal_taken_as_total": {
+    "rate": 1.0,
+    "n": 25
+   },
+   "tax_missed": {
+    "rate": 1.0,
+    "n": 25
+   },
+   "total_digit_misread": {
+    "rate": 0.96,
+    "n": 25
+   },
+   "total_off_by_1000x": {
+    "rate": 1.0,
+    "n": 25
+   }
+  }
+ },
+ "flagged_ground_truth": {
+  "13": [
+   "subtotal + tax + service - discount = 157929.37, total is 1579929.37"
+  ]
+ },
+ "missed_examples": {
+  "line_amount_misread": [
+   7
+  ],
+  "total_digit_misread": [
+   20
+  ]
+ }
+}

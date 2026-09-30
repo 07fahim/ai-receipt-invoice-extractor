@@ -38,8 +38,58 @@ assert not score(Document(total=D(-100)), Document(total=D(100)))['total']
 # 1-3 character names and longer wrong names do not match
 assert not text_match('vendor', 'B', 'Bradley-Andrade 9879') and not text_match('vendor', 'Bradley-Andrade 9879 and more', 'Bradley-Andrade 9879')
 assert parse('{"items": null, "total": 1}').items == []
+assert parse('{"branch": "MUSHAK-6.3", "total": 1}').branch is None and parse('{"branch": "Gulshan-1", "total": 1}').branch == 'Gulshan-1'
 assert parse('{"doc_type": "Invoice ", "total": 1}').doc_type == 'invoice' and parse('{"doc_type": "bill", "total": 1}').doc_type is None
+assert parse('{"document_count": 2, "total": 1}').document_count == 2
+assert parse('{"is_document": false}').is_document is False and parse('{"is_document": "no", "total": 1}').is_document is None
+assert parse('{"tax_included": true, "total": 1}').tax_included is True and parse('{"tax_included": "yes", "total": 1}').tax_included is None
+# a quantity with its unit keeps the number (Bangla digits too); an unreadable quantity is dropped, not fatal;
+# money written as text still fails the document
+q = lambda s: parse('{"total": 1, "items": [{"quantity": %s, "amount": 1}]}' % json.dumps(s)).items[0].quantity
+import json
+assert q('২ কেজি') == 2 and q('1 dozen') == 1 and q('0.5 kg') == D('0.5') and q('১২.৫') == D('12.5')
+assert q('a few') is None and q(3) == 3
+try:
+    parse('{"total": "60.000"}')
+    raise AssertionError('should raise')
+except ValueError:
+    pass
+assert parse('{"document_count": "two", "total": 1}').document_count is None and parse('{"document_count": true}').document_count is None
 from providers import mime
 assert mime(b'%PDF-1.7') == 'application/pdf' and mime(b'\x89PNG\r\n') == 'image/png'
 assert mime(b'\xff\xd8\xff\xe0') == 'image/jpeg' and mime(b'RIFF1234WEBPVP8 ') == 'image/webp' and mime(b'MZ\x90') is None
+# timeouts and dropped connections are retried, then reported plainly
+import providers, urllib.error
+calls, real_open, real_sleep = [], providers.urllib.request.urlopen, providers.time.sleep
+def flaky(req, timeout):
+    calls.append(timeout)
+    if len(calls) < 3:
+        raise TimeoutError('The read operation timed out') if len(calls) == 1 else urllib.error.URLError('getaddrinfo failed')
+    import io
+    return io.BytesIO(b'{"ok": 1}')
+providers.urllib.request.urlopen, providers.time.sleep = flaky, lambda s: None
+assert providers.post('http://x', {}, {}) == ({'ok': 1}, 3) and calls == [60, 60, 60]
+providers.urllib.request.urlopen = lambda req, timeout: (_ for _ in ()).throw(TimeoutError('slow'))
+try:
+    providers.post('http://x', {}, {})
+    raise AssertionError('should raise')
+except RuntimeError as e:
+    assert 'no answer' in str(e)
+# a per-minute 429 is retried; a used-up daily quota is not (waiting can't help), and says so
+def quota(window):
+    def refuse(req, timeout):
+        calls.append(window)
+        body = '{"error": {"code": 429, "details": [{"violations": [{"quotaId": "GenerateRequests%sPerProjectPerModel-FreeTier"}]}]}}' % window
+        raise urllib.error.HTTPError('http://x', 429, 'Too Many Requests', {}, io.BytesIO(body.encode()))
+    return refuse
+import io
+for window, tries in (('PerMinute', 4), ('PerDay', 1)):
+    calls.clear()
+    providers.urllib.request.urlopen = quota(window)
+    try:
+        providers.post('http://x', {}, {})
+        raise AssertionError('should raise')
+    except RuntimeError as e:
+        assert len(calls) == tries and (('daily quota used up' in str(e)) == (window == 'PerDay')), (window, calls, e)
+providers.urllib.request.urlopen, providers.time.sleep = real_open, real_sleep
 print('ok')

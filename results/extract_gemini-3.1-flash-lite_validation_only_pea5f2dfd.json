@@ -1,0 +1,129 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "ea5f2dfd",
+  "split": "validation",
+  "docs": 5,
+  "failed_calls_or_invalid_json": 0,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 1,
+    "n": 1
+   },
+   "tax": {
+    "rate": 1,
+    "n": 1
+   },
+   "total": {
+    "rate": 0.8,
+    "n": 5
+   },
+   "item_amounts_f1": {
+    "rate": 0.9,
+    "n": 5
+   },
+   "item_names_f1": {
+    "rate": 1.0,
+    "n": 5
+   },
+   "all_correct": {
+    "rate": 0.8,
+    "n": 5
+   }
+  },
+  "wrong_docs_flagged_by_validation": "1 / 1",
+  "correct_docs_flagged_by_validation": "1 / 4",
+  "median_seconds": 4.96,
+  "calls_with_retries": 1,
+  "median_tokens_in_out": [
+   1372,
+   232
+  ],
+  "issue_date_with_vendor_order": null,
+  "wrong_dates_flagged_ambiguous": "0 / 0",
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 3.16,
+   "in": 1372,
+   "out": 329,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 1,
+   "seconds": 4.96,
+   "in": 1356,
+   "out": 227,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 2,
+   "seconds": 104.14,
+   "in": 1392,
+   "out": 232,
+   "attempts": 3,
+   "error": null,
+   "flagged": [
+    "items_sum"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 66,
+   "seconds": 9.89,
+   "in": 1372,
+   "out": 205,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "total": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   }
+  },
+  {
+   "id": 89,
+   "seconds": 3.5,
+   "in": 1372,
+   "out": 261,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format"
+   ],
+   "score": {
+    "total": false,
+    "item_amounts_f1": 0.5,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   }
+  }
+ ]
+}
