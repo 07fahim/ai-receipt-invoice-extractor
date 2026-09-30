@@ -25,6 +25,7 @@ assert checks(**{**good, 'subtotal': D('800'), 'total': D('927.50')}) == ['items
 assert checks(**{**good, 'items': [good['items'][0]]}) == ['items_sum']  # a dropped line item
 assert checks(**{**good, 'items': [Item(quantity=3, unit_price=D('350'), amount=D('700')), good['items'][1]]}) == ['line_math']
 assert checks(**{**good, 'issue_date': date(2027, 1, 1), 'due_date': None}) == ['date_future']
+assert checks(**{**good, 'issue_date': date(2026, 9, 29), 'due_date': None}) == []  # tomorrow in UTC can be today in Dhaka
 assert checks(**{**good, 'due_date': date(2026, 9, 1)}) == ['due_before_issue']
 assert checks(**{**good, 'currency': 'RP'}) == ['currency_code']
 assert checks(**{**good, 'currency': 'bdt'}) == []

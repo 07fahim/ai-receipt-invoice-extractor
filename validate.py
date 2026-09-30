@@ -1,6 +1,6 @@
 """Deterministic checks on an extracted Document. No AI: a failed check sends the document to review."""
 import re
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from schema import Document
@@ -183,7 +183,8 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if abs(i.quantity * i.unit_price - i.amount) > max(Decimal('0.01'), room):
             fail('line_math', [f'items[{n}]'], f'{i.quantity} x {i.unit_price} = {i.quantity * i.unit_price}, line amount is {i.amount}')
 
-    if doc.issue_date is not None and doc.issue_date > today:  # due dates are allowed in the future
+    # one day of room: the server's date (UTC) is behind Dhaka until 06:00; due dates may be in the future
+    if doc.issue_date is not None and doc.issue_date > today + timedelta(days=1):
         fail('date_future', ['issue_date'], f'Issue date {doc.issue_date} is in the future')
     if doc.issue_date and doc.due_date and doc.due_date < doc.issue_date:
         fail('due_before_issue', ['issue_date', 'due_date'], 'Due date is before issue date')
