@@ -321,7 +321,7 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
-        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc, order)}
+        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc)}
 
 
 @app.put('/documents/{doc_id}')
