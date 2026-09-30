@@ -77,10 +77,13 @@ assert small('22', '22.000', currency='KWD') == []  # dinars really have 3 decim
 assert tr('TOTAL 22.000', D('22')) == '22.000' and tr('22.000', D('22000')) is None and tr('0.500', D('0.5')) is None
 # "VAT included" (Bangladeshi supershops): subtotal = total and the VAT is inside the prices
 incl = dict(subtotal=D('1150'), tax=D('150'), total=D('1150'), items=[Item(amount=D('1000')), Item(amount=D('150'))])
-assert checks(**incl, tax_included=True) == [] and checks(**incl) == ['total_math'] and checks(**incl, tax_included=False) == ['total_math']
+assert checks(**incl, tax_included=True) == [] and checks(**incl) == [] and checks(**incl, tax_included=False) == []  # 150 is exactly the 15% inside 1150
+odd = {**incl, 'tax': D('140')}  # not the share of any known rate: only the model's word counts
+assert checks(**odd, tax_included=True) == [] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
 no_sub = {**incl, 'subtotal': None}
 assert checks(**no_sub, tax_included=True) == [] and checks(**no_sub) == []  # unknown: either reading is accepted
-assert checks(**no_sub, tax_included=False) == ['items_total']  # tax said to be on top, but the lines already reach the total
+assert checks(**no_sub, tax_included=False) == []  # said to be on top, but 150 is exactly the 15% inside 1150
+assert checks(**{**no_sub, 'tax': D('100')}, tax_included=False) == ['items_total']  # on top, lines already reach the total
 assert checks(**good, tax_included=True) == []  # tax added on top but marked included (Mushak 'incl.' column): numbers still agree
 
 # not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
@@ -97,6 +100,10 @@ assert checks(total=D('10.6'), items=[Item(quantity=3, unit_price=D('3.5'), amou
 assert checks(subtotal=D('434.80'), discount=D('30.44'), total=D('404'),
               items=[Item(amount=D('139.80'), discount=D('9.79')), Item(amount=D('295'), discount=D('20.65'))]) == []
 assert checks(subtotal=D('434.80'), discount=D('30.44'), total=D('403')) == ['total_math']
+star = dict(subtotal=D('830'), total=D('830'), items=[Item(amount=D('790')), Item(amount=D('40'))], tax_included=False)
+assert checks(**star, tax=D('39.52')) == [] and checks(**star, tax=D('41.50')) == ['total_math']
+# ...but never without lines that reach the total: 10% on top with the subtotal read as the total looks the same
+assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000'), items=[Item(amount=D('150000'))]) == ['items_sum', 'total_math']
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
 assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')

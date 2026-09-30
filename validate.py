@@ -23,9 +23,21 @@ XOF XPF YER ZAR ZMW ZWG
 # Rounding to the nearest whole unit (404.36 taka printed as 404) always passes.
 TOTAL_ROUNDING = Decimal('0.0005')
 
+# VAT rates whose "VAT included" share can be recognised from the numbers alone (Bangladesh: 5, 7.5, 10, 15%).
+# ponytail: Bangladeshi rates only; 20% added on top misread as 25% included would pass, so check before adding rates.
+INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
+
 
 def close(a, b, rel=Decimal(0)):
     return abs(a - b) <= max(Decimal('0.01'), abs(b) * rel)
+
+
+def included_share(tax, total, lines):
+    """True if the lines already add up to the total and tax is exactly the VAT inside it at a known rate (830 at 5%
+    holds 39.52), whatever the model said. Without the lines, 10% on top with the subtotal read as the total
+    (tax 15,000, total 165,000) would look the same."""
+    return (lines is not None and total_close(lines, total)
+            and any(abs(tax - total * r / (100 + r)) <= Decimal('0.01') for r in INCLUDED_VAT_RATES))
 
 
 def total_close(expected, total):
@@ -126,27 +138,27 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
 
     tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
-    if doc.subtotal is not None and amounts and None not in amounts:
-        net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
+    net = sum(i.amount - abs(i.discount or 0) for i in doc.items) if amounts and None not in amounts else None
+    if doc.subtotal is not None and net is not None:
         # tax-inclusive prices: lines add up to subtotal + tax
         gross = sum(amounts)  # item discounts listed apart, already inside the discount line
         if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
-    # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so:
-    # the arithmetic decides, so a wrong tax_included=True on an invoice whose tax is added on top does no harm.
+    # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so
+    # or the numbers prove it (included_share): the arithmetic decides, so a wrong tax_included=True on an invoice
+    # whose tax is added on top does no harm.
     if doc.subtotal is not None and doc.total is not None:
         expected = doc.subtotal + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        included = doc.tax_included and tax and total_close(expected - tax, doc.total)
+        included = tax and total_close(expected - tax, doc.total) and (doc.tax_included or included_share(tax, doc.total, net))
         if not (total_close(expected, doc.total) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
-    elif doc.total is not None and amounts and None not in amounts:
+    elif doc.total is not None and net is not None:
         # no subtotal printed: the lines themselves must add up to the total. Unless the model says the tax is
         # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
-        net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
         expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
-        included = doc.tax_included is not False and tax and total_close(expected - tax, doc.total)
+        included = tax and total_close(expected - tax, doc.total) and (doc.tax_included is not False or included_share(tax, doc.total, net))
         if not (total_close(expected, doc.total) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
