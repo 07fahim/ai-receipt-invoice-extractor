@@ -129,7 +129,8 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     if doc.subtotal is not None and amounts and None not in amounts:
         net = sum(i.amount - abs(i.discount or 0) for i in doc.items)
         # tax-inclusive prices: lines add up to subtotal + tax
-        if not (close(net, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
+        gross = sum(amounts)  # item discounts listed apart, already inside the discount line
+        if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so:
