@@ -78,7 +78,7 @@ def current_user(authorization: str | None = Header(None)) -> str:
         raise HTTPException(401, 'sign in required')
     token = authorization.removeprefix('Bearer ')
     try:
-        claims = jwt.decode(token, signing_key(token), algorithms=['ES256', 'RS256'], audience='authenticated',
+        claims = jwt.decode(token, signing_key(token), algorithms=['ES256', 'RS256'], audience='authenticated', options={'require': ['exp', 'sub']},
                             issuer=f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1')
     except jwt.PyJWTError:
         raise HTTPException(401, 'sign in again')
