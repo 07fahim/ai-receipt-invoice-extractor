@@ -95,13 +95,13 @@ def post(url, headers, body, retries=3, timeout=60):
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r), attempt + 1
         except urllib.error.HTTPError as e:
-            body = e.read().decode(errors='replace')
+            reply = e.read().decode(errors='replace')
             # Gemini names the quota window in quotaId; waiting cannot help a used-up daily quota until it resets
-            daily = e.code == 429 and ('PerDay' in body or 'Daily' in body)
+            daily = e.code == 429 and ('PerDay' in reply or 'Daily' in reply)
             if e.code in (429, 500, 502, 503) and attempt < retries and not daily:
                 time.sleep(30 * (attempt + 1))
                 continue
-            raise RuntimeError(f'{"daily quota used up: " if daily else ""}HTTP {e.code}: {body[:300]}') from None
+            raise RuntimeError(f'{"daily quota used up: " if daily else ""}HTTP {e.code}: {reply[:300]}') from None
         except (urllib.error.URLError, TimeoutError, ConnectionError) as e:  # no answer, DNS failure, reset
             if attempt < retries:
                 time.sleep(5 * (attempt + 1))
