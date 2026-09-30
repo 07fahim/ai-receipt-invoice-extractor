@@ -238,6 +238,11 @@ Flags are the checks as shipped at each run. "Unflagged" = wrong and no check fi
 - One Google 503 ("high demand") on validation doc 53, retried from the cache run.
 - Trade-off: the vendor, VAT and tax prompt changes cost some thousands-separator reads on Indonesian receipts, all caught by the thousands check, while halving the unflagged errors on CORD.
 
+### Flagged documents: false alarms and suggested fixes (2026-09-30)
+The 11 correct-but-flagged CORD receipts of the full run, each checked: 7 have answer keys that fail the same checks (the receipt or its label does not add up); test 14 read a "Coupon 100,000" payment as a discount (a real error the answer key does not score); validation 55 prints one item twice with total 60,000; test 33 and validation 8 were a rule gap: a discount recorded on the item and again on the receipt, already inside the subtotal, was subtracted twice (fixed, dd32e8f; planted mistakes 4,508: no catch lost; saved answers: exactly these 2 change).
+
+Suggested fixes (validate.suggest, shown in review with an Apply button, never applied by themselves): thousands read as decimals -> every amount x1,000; or the one single-digit change that makes every sum check pass. On planted mistakes a digit suggestion with only one failed check was wrong 52 of 333 times (a dropped line "repaired" by changing another), with two different failed checks 384 right and 0 wrong, so digit suggestions need two failed checks. Real cases: CORD thousands 9 / 9 right; memo 280 -> 240 (two sample memos) and Spanish 8.50 -> 6.50 right; the crumpled memo with two misreads gets none. Live-tested: upload, suggestion, Apply, all checks pass, save.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
