@@ -40,7 +40,7 @@
    }
   },
   "wrong_docs_flagged_by_validation": "4 / 6",
-  "correct_docs_flagged_by_validation": "6 / 94",
+  "correct_docs_flagged_by_validation": "5 / 94",
   "median_seconds": 5.86,
   "calls_with_retries": 16,
   "median_tokens_in_out": [
@@ -191,9 +191,7 @@
    "out": 306,
    "attempts": 2,
    "error": null,
-   "flagged": [
-    "total_math"
-   ],
+   "flagged": [],
    "score": {
     "subtotal": true,
     "total": true,
