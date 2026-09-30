@@ -503,12 +503,12 @@ NUMERIC = {'subtotal', 'discount', 'tax', 'service_charge', 'total', 'quantity',
 
 def cell(column, v):
     """One export cell. Money and quantities become numbers; all other text stays text (invoice number 00123
-    keeps its zeros). Text starting with = + - @ gets a leading ' so a spreadsheet never runs it as a formula."""
+    keeps its zeros). Text starting with = + - @ tab or CR gets a leading ' so a spreadsheet never runs it as a formula."""
     if v is None:
         return None
     if column in NUMERIC:
         return float(v)
-    if isinstance(v, str) and v[:1] in ('=', '+', '-', '@'):
+    if isinstance(v, str) and v[:1] in ('=', '+', '-', '@', '\t', '\r'):
         return "'" + v
     return v
 
