@@ -89,6 +89,11 @@ assert checks(**good, is_document=True) == [] and checks(**good, is_document=Non
 
 # several receipts in one photo go to review; one (or unknown) does not
 assert checks(**good, document_count=2) == ['one_document'] and checks(**good, document_count=1) == []
+# Bangladeshi receipts (data/sample images): weighed items, rounding to whole taka, item discounts listed apart,
+# VAT included that the model called "added on top"
+assert checks(total=D('41.36'), items=[Item(quantity=D('1.03'), unit_price=D('40'), amount=D('41.36'))]) == []
+assert checks(total=D('47.36'), items=[Item(quantity=D('1.03'), unit_price=D('40'), amount=D('47.36'))]) == ['line_math']
+assert checks(total=D('10.6'), items=[Item(quantity=3, unit_price=D('3.5'), amount=D('10.6'))]) == ['line_math']
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
 assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')
