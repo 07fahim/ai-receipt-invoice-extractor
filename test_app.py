@@ -190,6 +190,7 @@ try:
 
     # history search and filters
     assert [x['id'] for x in c.get('/documents', params={'q': 'green'}).json()] == [good_id]
+    assert c.get('/documents', params={'q': '%'}).json() == [] and c.get('/documents', params={'q': '_'}).json() == []  # literal, not wildcards
     assert [x['id'] for x in c.get('/documents', params={'status': 'failed'}).json()] == [bad_id]
     ids_newest = [x['id'] for x in c.get('/documents').json()]
     assert [x['id'] for x in c.get('/documents', params={'oldest': 'true'}).json()] == ids_newest[::-1]  # review queue order
