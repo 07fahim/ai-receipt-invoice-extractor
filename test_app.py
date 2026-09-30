@@ -81,6 +81,7 @@ hook = HTTPServer(('127.0.0.1', 0), Hook)
 threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
+os.environ['WEBHOOK_USER_ID'] = ALICE  # only Alice's documents go to the webhook
 _send = app.send_event
 
 
@@ -165,8 +166,8 @@ try:
 
     # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
     kinds = [(e['event'], e['id']) for e, _, _ in events]
-    assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', amb2),
-                     ('document.passed', stuck), ('document.reviewed', good_id)], kinds
+    # Dave's reviewed document and the resumed one belong to other users: not sent
+    assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
 
@@ -301,6 +302,12 @@ try:
     # Bob's date format for a vendor re-checks only his own documents
     assert c.put('/vendors/Green Field/date-order', json={'date_order': 'DMY'}, headers=bob).json()['rechecked'] == 0
     assert c.get(f'/documents/{good_id}').status_code == 200
+
+    # the webhook belongs to one account: another user's passed document is never sent
+    sent = len(events)
+    erin = as_user(str(uuid.uuid4()))
+    passed = c.post('/documents', files=[('files', ('e.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]
+    assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed' and len(events) == sent
 
     # daily upload limit per user: files over the limit are refused, then the whole request
     app.DAILY_UPLOAD_LIMIT = 2
