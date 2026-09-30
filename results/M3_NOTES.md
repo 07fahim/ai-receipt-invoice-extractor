@@ -222,6 +222,22 @@ Not usable: Inkling (OpenRouter allows it only in agent apps), Qwen 3.8 Flash on
 
 USD invoices test (26, answer keys): Gemini 3.1 fully correct 77% (totals 25/26, 2 wrong unflagged); Gemini 3.5 40% (totals 25/25, but currency empty on 5/24 and more dates read the other way; 1 wrong unflagged, 1 invalid answer). Decision: keep Gemini 3.1 Flash-Lite. dots is the one to revisit for handwritten Bangla (free preview, ~50 calls/day).
 
+### Full run with the final prompt be0376e0 (2026-09-30), against the last full run 4f6fccfb
+Flags are the checks as shipped at each run. "Unflagged" = wrong and no check fired except the day/month question.
+
+| Set | Fully correct | Total correct | Wrong and unflagged |
+|---|---|---|---|
+| CORD test (100) | 94% → 91% | 96.9% → 93.8% | 5 → 2 |
+| CORD validation (100, unseen) | 95% → 94% | 98.0% → 96.9% | 4 → 2 |
+| USD invoices test (26) | 65% → 77% | 96.2% → 96.2% | 2 → 2 |
+| USD invoices validation (48) | 64.6% → 64.6% | 100% → 100% | 3 → 3 |
+| USD invoices train, first 50 | 36 → 36 docs | unchanged | unchanged |
+
+- CORD: the new errors are the thousands-separator misreading ("22.000" read as 22) on 4 more receipts (test 32, 64, 81, 85; validation 32) and one tax (test 31); every one is flagged (total_format / total_math). The remaining unflagged CORD errors (test 26, 58; validation 86, 96) are item-level only: totals, subtotals and tax right. Test 58, checked on the image: the tax line "PB1 5,500" is also listed as an item, and the lines still add up to subtotal + tax.
+- Invoices: every change is a day/month reading of an ambiguous date, which the vendor's confirmed date format fixes (dates 100% with the vendor order in both runs). Totals unchanged.
+- One Google 503 ("high demand") on validation doc 53, retried from the cache run.
+- Trade-off: the vendor, VAT and tax prompt changes cost some thousands-separator reads on Indonesian receipts, all caught by the thousands check, while halving the unflagged errors on CORD.
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
