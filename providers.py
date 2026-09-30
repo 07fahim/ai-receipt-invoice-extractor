@@ -25,6 +25,15 @@ MODELS = {
     'gemma-4-31b': ('gemini', None, 'gemma-4-31b-it', 'GEMINI_API_KEY', 10),
     'groq-qwen3.8-27b': ('openai', 'https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY', 20),
     'glm-4.6v-flash': ('openai', 'https://api.z.ai/api/paas/v4', 'glm-4.6v-flash', 'ZAI_API_KEY', 3),
+    'deepseek-flash': ('openai', 'https://api.deepseek.com', 'deepseek-flash', 'DEEPSEEK_API_KEY', 1),  # paid only
+    # Token Harbor free models: limits not published, so a slow pace
+    'th-deepseek-v4.1-flash': ('openai', 'https://tokenharbor.ai/v1', 'deepseek-v4.1-flash:free', 'TOKENHARBOR_API_KEY', 6),
+    'th-qwen3.8-flash': ('openai', 'https://tokenharbor.ai/v1', 'qwen3.8-flash:free', 'TOKENHARBOR_API_KEY', 6),
+    'th-mimo-v2.6-flash': ('openai', 'https://tokenharbor.ai/v1', 'mimo-v2.6-flash:free', 'TOKENHARBOR_API_KEY', 6),
+    # OpenRouter free models: 20 requests/min
+    'or-inkling': ('openai', 'https://openrouter.ai/api/v1', 'thinkingmachines/inkling:free', 'OPENROUTER_API_KEY', 3.5),
+    'or-dots-3-note': ('openai', 'https://openrouter.ai/api/v1', 'dots-studio/dots-3-note-preview:free', 'OPENROUTER_API_KEY', 3.5),
+    'or-nemotron-omni': ('openai', 'https://openrouter.ai/api/v1', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'OPENROUTER_API_KEY', 3.5),
 }
 
 PROMPT = """Extract the data from this receipt or invoice image.
