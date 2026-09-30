@@ -200,7 +200,7 @@ DOC_AMOUNTS = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
 ITEM_AMOUNTS = ('unit_price', 'amount', 'discount')
 
 
-def suggest(doc: Document, date_order: str | None = None) -> dict | None:
+def suggest(doc: Document) -> dict | None:
     """A correction for the review screen, never applied by itself: all amounts x1000 when thousands were read as
     decimals, or one misread digit. Only when exactly one such change makes every sum check pass, and for a digit only
     when two different sum checks failed: on planted mistakes that gave 384 right suggestions and 0 wrong, while
@@ -208,7 +208,7 @@ def suggest(doc: Document, date_order: str | None = None) -> dict | None:
     None otherwise.
     Returns {'message', 'changes': [{'field', 'from', 'to'}]} with fields like 'total' or 'items[2].amount'."""
     def sums_fail(d):
-        return {i['check'] for i in validate(d, date_order=date_order)} & SUM_CHECKS
+        return {i['check'] for i in validate(d)} & SUM_CHECKS  # dates play no part in the sums
 
     failing = sums_fail(doc)
     if not failing:
