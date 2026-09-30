@@ -118,6 +118,10 @@ assert suggest(Document(subtotal=D('100'), total=D('180'))) is None  # one faile
 assert suggest(Document(subtotal=D('21'), total=D('21'), items=[Item(amount=D('10')), Item(amount=D('10'))])) is None  # items_sum alone: one check, no guess
 k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
 assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
+# a total printed with cents gets no whole-unit rounding room, except where cash is rounded to whole units
+cents = dict(subtotal=D('1199.60'), total=D('1200.00'), total_text='1,200.00', items=[Item(amount=D('1199.60'))])
+assert checks(**cents, currency='USD') == ['total_math'] and checks(**cents) == []  # unknown currency: lenient
+assert checks(**cents, currency='BDT') == [] and checks(**{**cents, 'total_text': '1,200'}, currency='USD') == []
 # oversized input is refused before any check runs
 import pydantic
 for bad in ({'items': [{}] * 201}, {'total': '1e100000'}):
