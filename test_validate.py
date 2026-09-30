@@ -104,6 +104,10 @@ star = dict(subtotal=D('830'), total=D('830'), items=[Item(amount=D('790')), Ite
 assert checks(**star, tax=D('39.52')) == [] and checks(**star, tax=D('41.50')) == ['total_math']
 # ...but never without lines that reach the total: 10% on top with the subtotal read as the total looks the same
 assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000'), items=[Item(amount=D('150000'))]) == ['items_sum', 'total_math']
+# a discount recorded on the item and again on the receipt, printed before SUBTTL (CORD test 33): not subtracted twice
+itm = dict(subtotal=D('117500'), discount=D('67000'), items=[Item(amount=D('50500')), Item(amount=D('67000')), Item(amount=D('67000'), discount=D('67000'))])
+assert checks(**itm, total=D('117500')) == [] and checks(**itm, total=D('50500')) == ['total_math']
+assert checks(total=D('11700'), discount=D('7800'), items=[Item(amount=D('19500'), discount=D('7800'))]) == []
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
 assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')

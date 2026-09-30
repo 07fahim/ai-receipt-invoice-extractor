@@ -145,11 +145,15 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
             fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
 
+    # The same discount on an item and on the receipt ("Disc -100% (ITM06)" then SUBTTL): the lines already hold it
+    twice = bool(doc.discount) and net is not None and close(sum(abs(i.discount or 0) for i in doc.items), abs(doc.discount))
+
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so
     # or the numbers prove it (included_share): the arithmetic decides, so a wrong tax_included=True on an invoice
     # whose tax is added on top does no harm.
     if doc.subtotal is not None and doc.total is not None:
-        expected = doc.subtotal + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
+        discount = 0 if twice and close(net, doc.subtotal) else abs(doc.discount or 0)
+        expected = doc.subtotal + tax + (doc.service_charge or 0) - discount
         included = tax and total_close(expected - tax, doc.total) and (doc.tax_included or included_share(tax, doc.total, net))
         if not (total_close(expected, doc.total) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
@@ -157,7 +161,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     elif doc.total is not None and net is not None:
         # no subtotal printed: the lines themselves must add up to the total. Unless the model says the tax is
         # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
-        expected = net + tax + (doc.service_charge or 0) - abs(doc.discount or 0)
+        expected = net + tax + (doc.service_charge or 0) - (0 if twice else abs(doc.discount or 0))
         included = tax and total_close(expected - tax, doc.total) and (doc.tax_included is not False or included_share(tax, doc.total, net))
         if not (total_close(expected, doc.total) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
