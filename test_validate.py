@@ -108,6 +108,16 @@ assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000'), items=[It
 itm = dict(subtotal=D('117500'), discount=D('67000'), items=[Item(amount=D('50500')), Item(amount=D('67000')), Item(amount=D('67000'), discount=D('67000'))])
 assert checks(**itm, total=D('117500')) == [] and checks(**itm, total=D('50500')) == ['total_math']
 assert checks(total=D('11700'), discount=D('7800'), items=[Item(amount=D('19500'), discount=D('7800'))]) == []
+# suggestions for the review screen: one misread digit that breaks two checks, or thousands read as decimals
+from validate import suggest
+memo = dict(subtotal=D('1230'), total=D('1230'), items=[Item(quantity=2, unit_price=D('140'), amount=D('280')),
+            Item(quantity=2, unit_price=D('120'), amount=D('280')), Item(quantity=1, unit_price=D('710'), amount=D('710'))])
+assert suggest(Document(**memo))['changes'] == [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]
+assert suggest(Document(**{**memo, 'total': D('1270'), 'subtotal': D('1270')})) is None  # nothing fails
+assert suggest(Document(subtotal=D('100'), total=D('180'))) is None  # one failed check: never guess
+assert suggest(Document(subtotal=D('21'), total=D('21'), items=[Item(amount=D('10')), Item(amount=D('10'))])) is None  # items_sum alone: one check, no guess
+k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
+assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
 assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')
