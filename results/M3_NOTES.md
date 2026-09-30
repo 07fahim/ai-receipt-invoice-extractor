@@ -205,6 +205,23 @@ Same planted mistakes under old and new checks (eval_validation mutations, rng 0
 
 The earlier 3bf68706 answers under the new checks: the 3 false-alarm receipts pass, the Spanish misread is still caught, nothing else changed. Prompt be0376e0 on 8 images: the Malibag and Vietnamese vendors are null instead of wrong, the rest unchanged; the intermediate prompt 32e70dd0 had taken the Vietnamese title "TẠM TÍNH" (provisional bill) as the vendor. Still open: the café whose name is faded past reading gets a different guessed name after every prompt change (Jelly / Daily / Jolly Bean), and Star Hotel's branch is read as "MUSHAK-6.3" (the form name).
 
+### Model comparison (2026-09-30, prompt be0376e0)
+Same prompt and checks for every model; the prompt was tuned on Gemini 3.1, which favours it slightly. Small sets: 27 sample images + 5 synthetic Bangladeshi + 4 stress; the two images with personal data went to Google models only. The reference is the Gemini 3.1 answers checked by eye with its known misreads corrected (synthetic: answer key); every disagreement counted below was checked. "Unflagged" = wrong and no check fired except the day/month question.
+
+| Model (access) | Small-set docs | Wrong | Wrong and unflagged | Median time | Notes |
+|---|---|---|---|---|---|
+| Gemini 3.1 Flash-Lite (Google, current) | 36 | 4 | 0 | ~6 s | Bangla digit and blurred Spanish misreads, all flagged |
+| Gemini 3.5 Flash-Lite (Google) | 35 | 4 | 0 | 2.7 s | same Bangla misreads; 1 invalid answer |
+| dots-3-note (OpenRouter free) | 34 | 4 | 3 | 48 s | read all 3 handwritten Bangla memos right; hidden date digit, VAT 59.95 as 60, vendor "ACI Logistics" |
+| Qwen 3.8 27B (Groq free) | 34 | 12 | 5 | 2.3 s | dropped item amounts, wrong year, merged items; daily token limit hit |
+| MiMo V2.6 Flash (Token Harbor free) | 33 | 15 | 6 | 16 s | Bangla invoice total 22,455 for 22,655 and vendor "National Board of Revenue", unflagged; invented a 50 discount so a misread bakery form adds up |
+| DeepSeek V4.1 Flash (Token Harbor free) | 7 | 1 | 1 | 126 s | stopped: 2-4 min per document, timeouts |
+| Nemotron 3 Nano Omni (OpenRouter free) | 6 | 4 | 1 | 179 s | stopped: most calls failed; a Costco receipt called "not a receipt" |
+
+Not usable: Inkling (OpenRouter allows it only in agent apps), Qwen 3.8 Flash on Token Harbor (empty answers, likely no image input).
+
+USD invoices test (26, answer keys): Gemini 3.1 fully correct 77% (totals 25/26, 2 wrong unflagged); Gemini 3.5 40% (totals 25/25, but currency empty on 5/24 and more dates read the other way; 1 wrong unflagged, 1 invalid answer). Decision: keep Gemini 3.1 Flash-Lite. dots is the one to revisit for handwritten Bangla (free preview, ~50 calls/day).
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
