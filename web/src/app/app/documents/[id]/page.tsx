@@ -48,6 +48,7 @@ export default function ReviewPage() {
   const [doc, setDoc] = useState<Doc | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [applyToVendor, setApplyToVendor] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -59,9 +60,11 @@ export default function ReviewPage() {
   // load the document; poll while it is being read
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let left = false; // the page closed while a request was running: don't poll again
     const load = () =>
       getJSON<DocumentDetail>(`/documents/${id}`)
         .then((d) => {
+          if (left) return;
           setDetail(d);
           if (d.status === "processing") timer = setTimeout(load, 2000);
           else if (d.document) {
@@ -77,7 +80,10 @@ export default function ReviewPage() {
     getJSON<DocumentRow[]>("/documents?status=needs_review&limit=200")
       .then((rows) => setQueue(rows.map((r) => r.id).reverse())) // oldest first
       .catch(() => {});
-    return () => clearTimeout(timer);
+    return () => {
+      left = true;
+      clearTimeout(timer);
+    };
   }, [id]);
 
   // live checks while editing (the same checks the API runs on save)
@@ -88,17 +94,40 @@ export default function ReviewPage() {
       firstRun.current = false;
       return;
     }
+    let stale = false; // a newer edit came in: an older answer must not overwrite the newer one
     const timer = setTimeout(() => {
       sendJSON<{ document: Doc; checks: Check[]; suggestion: Suggestion | null }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
         .then((r) => {
+          if (stale) return;
+          setCheckError(null);
           setChecks(r.checks);
           setSuggestion(r.suggestion);
           if (order && r.document.issue_date !== doc.issue_date) setDoc((d) => d && { ...d, issue_date: r.document.issue_date, due_date: r.document.due_date });
         })
-        .catch(() => {});
+        .catch((e) => {
+          if (stale) return;
+          setCheckError(e.message); // never leave old ticks on screen as if they were current
+          setSuggestion(null);
+        });
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [doc, order, id]);
+
+  // closing or reloading the tab with unsaved edits asks first
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    addEventListener("beforeunload", warn);
+    return () => removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  // leaving for another document with unsaved edits asks first
+  function leaveCheck(e: React.MouseEvent) {
+    if (dirty && !window.confirm("Leave without saving your changes?")) e.preventDefault();
+  }
 
   const failed = new Set(checks.map((c) => c.check));
   const flagged = new Set(checks.flatMap((c) => c.fields));
@@ -113,6 +142,16 @@ export default function ReviewPage() {
   }
   // fills in the suggested values; nothing is saved until the user saves
   function applySuggestion(s: Suggestion) {
+    // only onto the values it was worked out from: after an edit it waits for the next check
+    const current = (field: string) => {
+      const m = field.match(ITEM_FIELD);
+      const it = m && doc?.items[Number(m[1])];
+      return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
+    };
+    if (!s.changes.every((c) => current(c.field) === c.from)) {
+      toast.error("The document changed. Wait a moment for the checks to update.");
+      return;
+    }
     setDoc((d) => {
       if (!d) return d;
       const next = { ...d, items: d.items.map((it) => ({ ...it })) };
@@ -195,10 +234,10 @@ export default function ReviewPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {pos + 1} of {queue.length}
               <Button variant="outline" size="icon" aria-label="Previous document" disabled={pos === 0} asChild={pos > 0}>
-                {pos > 0 ? <Link href={`/app/documents/${queue[pos - 1]}`}><ArrowLeft /></Link> : <ArrowLeft />}
+                {pos > 0 ? <Link href={`/app/documents/${queue[pos - 1]}`} onClick={leaveCheck}><ArrowLeft /></Link> : <ArrowLeft />}
               </Button>
               <Button variant="outline" size="icon" aria-label="Next document" disabled={pos === queue.length - 1} asChild={pos < queue.length - 1}>
-                {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`}><ArrowRight /></Link> : <ArrowRight />}
+                {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`} onClick={leaveCheck}><ArrowRight /></Link> : <ArrowRight />}
               </Button>
             </div>
           )}
@@ -345,7 +384,7 @@ export default function ReviewPage() {
                 </button>
                 <span className="tabular-nums">
                   Lines total {itemsTotal.toFixed(2)}
-                  {doc.subtotal !== null && <> · Subtotal {Number(doc.subtotal).toFixed(2)}</>}
+                  {doc.subtotal !== null && !isNaN(Number(doc.subtotal)) && <> · Subtotal {Number(doc.subtotal).toFixed(2)}</>}
                 </span>
               </div>
             </Group>
@@ -368,12 +407,17 @@ export default function ReviewPage() {
           <Panel className="p-4 lg:col-span-2 xl:col-span-1 xl:sticky xl:top-5">
             <h2 className="mb-2.5 flex items-center justify-between text-sm font-semibold">
               Checks
-              {checks.length > 0 && (
+              {checks.length > 0 && !checkError && (
                 <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
                   {checks.length} to fix
                 </span>
               )}
             </h2>
+            {checkError && (
+              <p role="alert" className="mb-3 rounded-md bg-warn-soft p-2.5 text-sm text-warn">
+                Checks could not run: {checkError}
+              </p>
+            )}
             {suggestion && (
               <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p className="font-medium">Suggested fix</p>
@@ -388,7 +432,7 @@ export default function ReviewPage() {
                 <Button size="sm" className="mt-2" onClick={() => applySuggestion(suggestion)}>Apply</Button>
               </div>
             )}
-            <ul className="divide-y text-sm">
+            <ul className={cn("divide-y text-sm", checkError && "hidden")}>
               {CHECK_GROUPS.map(([label, names]) => {
                 const issue = checks.find((c) => names.includes(c.check));
                 return (
