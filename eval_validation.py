@@ -13,6 +13,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import cord
+import invoices
 from validate import validate
 
 ROOT = Path(__file__).parent
@@ -52,7 +53,10 @@ def mutations(doc, gt_parse, rng):
 def main(split='test'):
     rng = random.Random(0)
     out = ROOT / 'results' / ('validation.json' if split == 'test' else f'validation_{split}.json')
-    docs = [(i, p, cord.to_document(p)) for i, _, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
+    if split.startswith('invoices_'):  # katanaml USD invoices (no cash-paid field, so that mistake is skipped)
+        docs = [(i, {}, doc) for i, _, doc in invoices.load(split.removeprefix('invoices_'))]
+    else:
+        docs = [(i, p, cord.to_document(p)) for i, _, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
     false_alarms = {i: [x['message'] for x in validate(doc)] for i, _, doc in docs}
     false_alarms = {i: m for i, m in false_alarms.items() if m}
 
@@ -68,7 +72,7 @@ def main(split='test'):
 
     total = [x for v in caught.values() for x in v]
     summary = {
-        'dataset': f'CORD-v2 {split} ground truth', 'docs': len(docs),
+        'dataset': f'{"katanaml" if split.startswith("invoices_") else "CORD-v2"} {split} ground truth', 'docs': len(docs),
         'flagged_ground_truth': len(false_alarms),
         'catch_rate_overall': {'rate': round(sum(total) / len(total), 4), 'n': len(total)},
         'catch_rate': {k: {'rate': round(sum(v) / len(v), 4), 'n': len(v)} for k, v in sorted(caught.items())},

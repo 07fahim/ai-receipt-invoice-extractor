@@ -1,0 +1,197 @@
+{
+ "prompt_version": "9edae16b",
+ "counts": {
+  "still_flagged": 10,
+  "silenced": 2,
+  "broken": 1,
+  "fixed": 1
+ },
+ "details": [
+  {
+   "variant": "very_bad_photo",
+   "id": 1,
+   "result": "still_flagged",
+   "first_checks": [
+    "items_sum"
+   ],
+   "second_checks": [
+    "items_sum",
+    "line_math"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 4,
+   "result": "still_flagged",
+   "first_checks": [
+    "items_sum"
+   ],
+   "second_checks": [
+    "items_sum"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 5,
+   "result": "silenced",
+   "first_checks": [
+    "items_sum",
+    "line_math"
+   ],
+   "second_checks": []
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 6,
+   "result": "silenced",
+   "first_checks": [
+    "items_sum"
+   ],
+   "second_checks": []
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 8,
+   "result": "still_flagged",
+   "first_checks": [
+    "date_ambiguous",
+    "line_math",
+    "line_math"
+   ],
+   "second_checks": [
+    "date_ambiguous",
+    "line_math",
+    "line_math"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 10,
+   "result": "broken",
+   "first_checks": [
+    "date_ambiguous",
+    "line_math"
+   ],
+   "second_checks": [
+    "date_ambiguous",
+    "line_math"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 16,
+   "result": "still_flagged",
+   "first_checks": [
+    "date_ambiguous",
+    "items_sum"
+   ],
+   "second_checks": [
+    "date_ambiguous",
+    "items_sum"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 17,
+   "result": "still_flagged",
+   "first_checks": [
+    "items_sum",
+    "line_math"
+   ],
+   "second_checks": [
+    "items_sum",
+    "line_math"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 18,
+   "result": "still_flagged",
+   "first_checks": [
+    "date_ambiguous",
+    "items_sum",
+    "line_math",
+    "line_math",
+    "line_math"
+   ],
+   "second_checks": [
+    "date_ambiguous",
+    "items_sum",
+    "line_math",
+    "line_math",
+    "line_math"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 23,
+   "result": "still_flagged",
+   "first_checks": [
+    "items_sum",
+    "line_math"
+   ],
+   "second_checks": [
+    "items_sum"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 24,
+   "result": "still_flagged",
+   "first_checks": [
+    "date_ambiguous",
+    "items_sum"
+   ],
+   "second_checks": [
+    "date_ambiguous",
+    "items_sum"
+   ]
+  },
+  {
+   "variant": "very_bad_photo",
+   "id": 25,
+   "result": "still_flagged",
+   "first_checks": [
+    "date_ambiguous",
+    "line_math"
+   ],
+   "second_checks": [
+    "date_ambiguous",
+    "line_math",
+    "line_math"
+   ]
+  },
+  {
+   "variant": "rot90",
+   "id": 16,
+   "result": "fixed",
+   "first_checks": [
+    "date_ambiguous",
+    "items_sum",
+    "total_math"
+   ],
+   "second_checks": [
+    "date_ambiguous"
+   ]
+  },
+  {
+   "variant": "rot90",
+   "id": 22,
+   "result": "still_flagged",
+   "first_checks": [
+    "line_math",
+    "line_math",
+    "line_math",
+    "line_math",
+    "line_math"
+   ],
+   "second_checks": [
+    "line_math",
+    "line_math",
+    "line_math",
+    "line_math",
+    "line_math"
+   ]
+  }
+ ]
+}

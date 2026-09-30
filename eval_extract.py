@@ -11,7 +11,9 @@ and a changed prompt never reuses old answers.
 Writes results/extract_<model>_<split>[_first<N>]_p<prompt version>.json.
 """
 import hashlib
+import io
 import json
+import os
 import statistics
 import sys
 import time
@@ -86,6 +88,27 @@ def rate(vals):
     return {'rate': round(statistics.mean(vals), 4), 'n': len(vals)} if vals else None
 
 
+def damage(image, variant):
+    """A worse copy of the image for the robustness test: 'bad_photo' = half resolution, blurred, darker, heavy JPEG
+    (a quick phone snap in a dim shop); 'very_bad_photo' = 640 px wide, more blur, darker, heavier JPEG (a hurried
+    snap from a distance); 'rot90' = turned sideways. Any other variant leaves the image as it is."""
+    if variant not in ('bad_photo', 'very_bad_photo', 'rot90'):
+        return image
+    from PIL import Image, ImageEnhance, ImageFilter
+    img = Image.open(io.BytesIO(image)).convert('RGB')
+    if variant == 'rot90':
+        img = img.rotate(90, expand=True)
+    elif variant == 'bad_photo':
+        img = img.resize((img.width // 2, img.height // 2)).filter(ImageFilter.GaussianBlur(1.2))
+        img = ImageEnhance.Brightness(img).enhance(0.65)
+    else:
+        img = img.resize((640, round(img.height * 640 / img.width))).filter(ImageFilter.GaussianBlur(1.0))
+        img = ImageEnhance.Brightness(img).enhance(0.5)
+    buf = io.BytesIO()
+    img.save(buf, 'JPEG', quality={'bad_photo': 35, 'very_bad_photo': 20}.get(variant, 90))
+    return buf.getvalue()
+
+
 def run_model(name, image, cache, cache_only=False):
     if cache.exists():
         return json.loads(cache.read_text(encoding='utf8'))
@@ -119,12 +142,18 @@ def main(name, split='test', limit=None, prompt_version=None):
     else:
         docs = [(i, img, cord.to_document(p)) for i, img, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
     docs = docs[:limit]
+    only = os.environ.get('ONLY')  # e.g. ONLY=5,32,78: just the problem documents while iterating on a prompt
+    if only:
+        docs = [d for d in docs if str(d[0]) in only.split(',')]
+    # VARIANT=bad_photo / rot90 damages the images (robustness); repeat2, repeat3 re-run unchanged (consistency).
+    # Each variant has its own cached answers and results file.
+    variant = os.environ.get('VARIANT', '')
     if not docs:
         raise SystemExit('no documents to evaluate')
 
     rows = []
     for doc_id, image, gold in docs:
-        rec = run_model(name, image, cache_dir / f'{split}_{doc_id}.json', cache_only)
+        rec = run_model(name, damage(image, variant), cache_dir / f'{split}_{doc_id}{"_" + variant if variant else ""}.json', cache_only)
         row = {'id': doc_id, 'seconds': rec['seconds'], 'in': rec['in'], 'out': rec['out'],
                'attempts': rec.get('attempts'), 'error': rec['error']}
         if rec['error'] is None:
@@ -155,7 +184,7 @@ def main(name, split='test', limit=None, prompt_version=None):
                    'checks_failed': sorted(Counter(c for r in ok for c in r['flagged']).items()),
                    'median_seconds': statistics.median([r['seconds'] for r in rows]),
                    'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items())}
-        out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}_p{prompt_version}.json'
+        out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}{"_only" if only else ""}{"_" + variant if variant else ""}_p{prompt_version}.json'
         out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
         print(json.dumps(summary, indent=1, default=str))
         return
@@ -180,7 +209,7 @@ def main(name, split='test', limit=None, prompt_version=None):
         'wrong_dates_flagged_ambiguous': f"{sum(r['date_flagged_ambiguous'] for r in ok if r.get('date_wrong_raw'))} / {sum(bool(r.get('date_wrong_raw')) for r in ok)}",
         'errors': sorted(Counter((r['error'] or '')[:80] for r in rows if r['error']).items()),
     }
-    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}_p{prompt_version}.json'
+    out = ROOT / 'results' / f'extract_{name.replace("/", "_")}_{split}{f"_first{limit}" if limit else ""}{"_only" if only else ""}{"_" + variant if variant else ""}_p{prompt_version}.json'
     out.write_text(json.dumps({'summary': summary, 'docs': rows}, indent=1, ensure_ascii=False, default=str), encoding='utf8')
     print(json.dumps(summary, indent=1, default=str))
 

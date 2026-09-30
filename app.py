@@ -1,10 +1,14 @@
 """Receipt & Invoice Extractor API.
 
 Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
-Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler) and GEMINI_API_KEY in .env.
-Optional WEBHOOK_URL (+ WEBHOOK_SECRET): each passed or reviewed document is sent there, e.g. to n8n.
+Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler), SUPABASE_URL and GEMINI_API_KEY in .env.
+Every request except the docs needs a Supabase Auth access token ('Authorization: Bearer ...'); users only
+ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 50 files per user per 24 hours).
+Optional WEBHOOK_URL (+ WEBHOOK_SECRET, WEBHOOK_USER_ID): each passed or reviewed document of that one account is sent
+there, e.g. to n8n; other users' documents never are.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
 """
+import contextlib
 import csv
 import hashlib
 import hmac
@@ -16,9 +20,14 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import date
+from typing import Literal
 
+import jwt
+import pillow_heif
 import pypdfium2
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, UploadFile
+from PIL import Image, ImageOps
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel
@@ -26,38 +35,97 @@ from pydantic import BaseModel
 import providers
 import store
 from schema import Document
-from validate import apply_date_order, validate
+from validate import apply_date_order, suggest, validate
 
 providers.load_env()
+pillow_heif.register_heif_opener()   # lets Pillow open iPhone HEIC photos
 MODEL = os.environ.get('EXTRACT_MODEL', 'gemini-3.1-flash-lite')
 MAX_BYTES = 10 * 1024 * 1024
 MAX_FILES = 20
 MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
+DateOrderValue = Literal['MDY', 'DMY']
+DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # model reads (uploads + retries) per day: protects the quota
 
-app = FastAPI(title='Receipt & Invoice Extractor')
+
+def reads_today(con, uid):
+    return con.execute("SELECT count(*) AS n FROM reads WHERE user_id = %s AND at > now() - interval '1 day'", (uid,)).fetchone()['n']
+
+@contextlib.asynccontextmanager
+async def lifespan(_):
+    threading.Thread(target=resume_stuck, daemon=True).start()
+    yield
 
 
-def get_row(con, doc_id, with_file=False):
-    cols = '*' if with_file else 'id, file_name, mime, status, document, checks, error, vendor, currency, issue_date, ' \
-                                 'total, model, prompt_version, tokens_in, tokens_out, created_at, updated_at'
-    r = con.execute(f'SELECT {cols} FROM documents WHERE id = %s', (doc_id,)).fetchone()
-    if r is None:
+app = FastAPI(title='Crosscheck API', lifespan=lifespan)
+# the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
+app.add_middleware(CORSMiddleware, allow_origins=os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(','),
+                   allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped'])
+_jwks = None
+
+
+def signing_key(token):
+    """Supabase's public key for this token, from the project's JWKS endpoint (cached)."""
+    global _jwks
+    if _jwks is None:
+        _jwks = jwt.PyJWKClient(f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1/.well-known/jwks.json')
+    return _jwks.get_signing_key_from_jwt(token).key
+
+
+def current_user(authorization: str | None = Header(None)) -> str:
+    """The signed-in user's id, from a Supabase Auth access token. 401 unless the token is valid and unexpired."""
+    if not authorization or not authorization.startswith('Bearer '):
+        raise HTTPException(401, 'sign in required')
+    token = authorization.removeprefix('Bearer ')
+    try:
+        claims = jwt.decode(token, signing_key(token), algorithms=['ES256', 'RS256'], audience='authenticated', options={'require': ['exp', 'sub']},
+                            issuer=f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1')
+    except jwt.PyJWTError:
+        raise HTTPException(401, 'sign in again')
+    return claims['sub']
+
+
+COLUMNS = 'id, user_id, file_name, mime, status, document, checks, error, vendor, currency, issue_date, total, model, ' \
+          'prompt_version, tokens_in, tokens_out, created_at, updated_at'
+
+
+def row_by_id(con, doc_id, with_file=False):
+    """Internal read without an owner check (background jobs). Endpoints use get_row."""
+    return con.execute(f'SELECT {COLUMNS}{", file" if with_file else ""} FROM documents WHERE id = %s', (doc_id,)).fetchone()
+
+
+def get_row(con, doc_id, uid, with_file=False):
+    """The document if it belongs to user uid; 404 otherwise, so other users' ids reveal nothing."""
+    r = row_by_id(con, doc_id, with_file)
+    if r is None or str(r['user_id']) != uid:
         raise HTTPException(404, 'document not found')
     return r
 
 
-def save(con, doc_id, doc: Document, status, extra=None):
-    """Store a document with its checks. The vendor's confirmed date order is applied first."""
-    order = store.date_order(con, doc.vendor)
-    doc = apply_date_order(doc, order)
+def run_checks(con, uid, doc: Document, order, doc_id=None):
+    """validate() plus the one check that needs the user's other documents: an earlier copy of the same invoice."""
     checks = validate(doc, date_order=order)
+    dup = store.duplicate_of(con, uid, doc, before_id=doc_id)
+    if dup:
+        checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
+                       'message': f'Same vendor, number and total as {dup["doc_number"]}, uploaded earlier'})
+    return checks
+
+
+def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, only_if_processing=False):
+    """Store a document with its checks. The date order (the user's choice for this document, else the one
+    confirmed for the vendor) is applied first. only_if_processing: the background reader writes only while the
+    document is still 'processing', so it never replaces corrections saved in the meantime."""
+    order = date_order or store.date_order(con, uid, doc.vendor)
+    doc = apply_date_order(doc, order)
+    checks = run_checks(con, uid, doc, order, doc_id)
     if status is None:
         status = 'needs_review' if checks else 'passed'
     fields = {'document': Jsonb(doc.model_dump(mode='json')), 'checks': Jsonb(checks), 'status': status,
               'error': None, 'vendor': doc.vendor, 'currency': doc.currency, 'issue_date': doc.issue_date,
               'total': doc.total, **(extra or {})}
-    con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s',
+    only = " AND status = 'processing'" if only_if_processing else ''
+    con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
                 (*fields.values(), doc_id))
 
 
@@ -68,7 +136,9 @@ def send_event(doc_id):
     if not url:
         return
     with store.conn() as con:
-        r = get_row(con, doc_id)
+        r = row_by_id(con, doc_id)
+    if r is None or str(r['user_id']) != os.environ.get('WEBHOOK_USER_ID'):
+        return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
     body = json.dumps({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
                        'status': r['status'], 'document': r['document'], 'checks': r['checks']}).encode()
     headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
@@ -94,8 +164,12 @@ def public_error(e):
     """Short message for the review screen; the full error goes to the server log only."""
     print(f'extraction failed: {e!r}')
     text = str(e)
+    if 'daily quota used up' in text:
+        return "Today's AI reading limit is used up. Use Read again tomorrow."
     if 'HTTP 503' in text or 'HTTP 429' in text:
         return 'The AI service is busy. Please retry in a few minutes.'
+    if 'no answer from the model service' in text:
+        return 'The AI service did not answer. Please retry.'
     if isinstance(e, ValueError):
         return 'The AI answer could not be read as a document. Please retry.'
     return 'Extraction failed. Please retry.'
@@ -105,23 +179,38 @@ def process(doc_id):
     """Background job: send the file to the model, parse, check, store. Failures are stored, never raised."""
     try:
         with store.conn() as con:
-            data = get_row(con, doc_id, with_file=True)['file']
-        text, tin, tout, _ = providers.call(MODEL, bytes(data))
+            row = row_by_id(con, doc_id, with_file=True)
+        if row is None:
+            return  # deleted before extraction started
+        text, tin, tout, _ = providers.call(MODEL, bytes(row['file']))
         doc = providers.parse(text)
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
                  'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
-            save(con, doc_id, doc, None, extra)
-            passed = get_row(con, doc_id)['status'] == 'passed'
-    except HTTPException:
-        return  # the document was deleted meanwhile
+            save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
+            done = row_by_id(con, doc_id)
+        passed = done is not None and done['status'] == 'passed'   # None: deleted meanwhile
     except Exception as e:
         with store.conn() as con:
-            con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() WHERE id = %s",
-                        (public_error(e), doc_id))
+            con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
+                        "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id))
         return
     if passed:
         send_event(doc_id)  # outside the try: a webhook problem never marks a good document failed
+
+
+def resume_stuck():
+    """At startup: documents still 'processing' lost their background job when the server stopped; read them again.
+    ponytail: assumes one API process; with several, claim rows first (UPDATE ... RETURNING) so none is read twice."""
+    try:
+        with store.conn() as con:
+            ids = [r['id'] for r in con.execute("SELECT id FROM documents WHERE status = 'processing' ORDER BY id")]
+    except Exception as e:
+        print(f'resuming stuck documents failed: {e!r}')
+        return []
+    for doc_id in ids:
+        process(doc_id)   # never raises; failures are stored on the document
+    return ids
 
 
 @app.middleware('http')
@@ -133,18 +222,45 @@ async def limit_upload_size(request, call_next):
     return await call_next(request)
 
 
+HEIF_BRANDS = (b'heic', b'heix', b'hevc', b'hevx', b'heim', b'heis', b'mif1', b'msf1')
+
+
+def heic_to_jpeg(data):
+    """iPhone photos (HEIC/HEIF) become JPEG on upload, so the model, the review screen and every browser can show
+    them. Anything else, or a HEIC that can't be decoded, is returned unchanged (and then rejected as unsupported)."""
+    if data[4:8] != b'ftyp' or data[8:12] not in HEIF_BRANDS:
+        return data
+    try:
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert('RGB')  # keep the phone's rotation
+        buf = io.BytesIO()
+        img.save(buf, 'JPEG', quality=90)
+        return buf.getvalue()
+    except Exception as e:
+        print(f'HEIC conversion failed: {e!r}')
+        return data
+
+
 @app.post('/documents', status_code=202)
-def upload(files: list[UploadFile], tasks: BackgroundTasks):
-    """Upload up to 20 files (PDF, JPG, PNG, WebP; max 10 MB each). Extraction runs in the background.
+def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(current_user)):
+    """Upload up to 20 files (PDF, JPG, PNG, WebP, HEIC; max 10 MB each). Extraction runs in the background.
     A plain def: FastAPI runs it in a thread, so the database writes don't block other requests."""
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'send 1 to {MAX_FILES} files')
+    with store.conn() as con:
+        used = reads_today(con, uid)
+    # ponytail: counted once per request; two parallel uploads can overshoot the limit slightly
+    left = DAILY_UPLOAD_LIMIT - used
+    if left <= 0:
+        raise HTTPException(429, f'daily limit of {DAILY_UPLOAD_LIMIT} files reached; try again tomorrow')
     created = []
     for f in files:
-        data = f.file.read(MAX_BYTES + 1)
+        if left <= 0:
+            created.append({'file_name': f.filename, 'error': f'daily limit of {DAILY_UPLOAD_LIMIT} files reached'})
+            continue
+        data = heic_to_jpeg(f.file.read(MAX_BYTES + 1))
         kind = providers.mime(data)  # type from the file's bytes, never from its name
         if len(data) > MAX_BYTES or kind is None:
-            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP file under 10 MB'})
+            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP/HEIC file under 10 MB'})
             continue
         if kind == 'application/pdf':
             pages = pdf_pages(data)
@@ -152,8 +268,11 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks):
                 created.append({'file_name': f.filename, 'error': f'PDF must be readable with 1 to {MAX_PDF_PAGES} pages'})
                 continue
         with store.conn() as con:
-            doc_id = con.execute("INSERT INTO documents (file_name, mime, file, status) VALUES (%s, %s, %s, 'processing') "
-                                 'RETURNING id', (os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
+            doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                                 "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
+                                 (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
+            con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
+        left -= 1
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
     return created
@@ -161,9 +280,11 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks):
 
 @app.get('/documents')
 def list_documents(status: str | None = None, q: str | None = None, date_from: date | None = None,
-                   date_to: date | None = None, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+                   date_to: date | None = None, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+                   uid: str = Depends(current_user)):
     """History: newest first. q searches vendor and file name; dates filter on the document's issue date."""
-    sql, args = 'SELECT id, file_name, status, vendor, currency, issue_date, total, created_at FROM documents WHERE true', []
+    sql = 'SELECT id, file_name, status, vendor, currency, issue_date, total, created_at FROM documents WHERE user_id = %s'
+    args = [uid]
     if status:
         sql += ' AND status = %s'; args.append(status)
     if q:
@@ -178,45 +299,69 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
 
 
 @app.get('/documents/{doc_id}')
-def get_document(doc_id: int):
+def get_document(doc_id: int, uid: str = Depends(current_user)):
+    """The document; a flagged one also gets a suggested fix for the review screen (None when there is none)."""
     with store.conn() as con:
-        return get_row(con, doc_id)
+        r = get_row(con, doc_id, uid)
+    r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
+    return r
+
+
+@app.post('/check')
+def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int | None = None,
+          uid: str = Depends(current_user)):
+    """Run the checks without saving, so the review screen can show them while the user edits.
+    doc_id: the document being edited, so it is compared only with documents uploaded before it.
+    Returns the document with printed dates re-read in the date order, the failed checks and a suggested fix."""
+    with store.conn() as con:
+        order = date_order or store.date_order(con, uid, doc.vendor)
+        doc = apply_date_order(doc, order)
+        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc, order)}
 
 
 @app.put('/documents/{doc_id}')
-def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks):
-    """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook."""
+def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_order: DateOrderValue | None = None,
+                    uid: str = Depends(current_user)):
+    """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook.
+    date_order: the user's reading of this document's printed dates (MDY/DMY), when only this one is confirmed."""
     with store.conn() as con:
-        get_row(con, doc_id)
-        save(con, doc_id, doc, 'reviewed')
+        if get_row(con, doc_id, uid)['status'] == 'processing':
+            raise HTTPException(409, 'still being read; save again when it is done')
+        save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
     tasks.add_task(send_event, doc_id)
-    return get_document(doc_id)
+    return get_document(doc_id, uid)
 
 
 @app.post('/documents/{doc_id}/retry', status_code=202)
-def retry(doc_id: int, tasks: BackgroundTasks):
+def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     """Run extraction again. Only for failed or needs_review documents: a reviewed document keeps the
     user's corrections, and one still processing is not sent to the model twice."""
-    with store.conn() as con:
-        if get_row(con, doc_id)['status'] not in ('failed', 'needs_review'):
+    with store.conn() as con:  # one statement, so two quick clicks can't both start a read
+        if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
+            raise HTTPException(429, f'daily limit of {DAILY_UPLOAD_LIMIT} reads reached; try again tomorrow')
+        claimed = con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() "
+                              "WHERE id = %s AND user_id = %s AND status IN ('failed', 'needs_review') RETURNING id",
+                              (doc_id, uid)).fetchone()
+        if claimed is None:
+            get_row(con, doc_id, uid)  # 404 for ids that are not the user's
             raise HTTPException(409, 'only failed or needs_review documents can be retried')
-        con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() WHERE id = %s", (doc_id,))
+        con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
 
 
 @app.delete('/documents/{doc_id}', status_code=204)
-def delete_document(doc_id: int):
+def delete_document(doc_id: int, uid: str = Depends(current_user)):
     """Delete the record together with the uploaded file."""
     with store.conn() as con:
-        if con.execute('DELETE FROM documents WHERE id = %s', (doc_id,)).rowcount == 0:
+        if con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).rowcount == 0:
             raise HTTPException(404, 'document not found')
 
 
 @app.get('/documents/{doc_id}/file')
-def get_file(doc_id: int):
+def get_file(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
-        r = get_row(con, doc_id, with_file=True)
+        r = get_row(con, doc_id, uid, with_file=True)
     # RFC 5987 form: any language in the name, and no quotes or line breaks can reach the header
     return Response(bytes(r['file']), media_type=r['mime'],
                     headers={'Content-Disposition': f"inline; filename*=UTF-8''{urllib.parse.quote(r['file_name'])}"})
@@ -236,17 +381,17 @@ def pdf_pages(data):
 
 
 @app.get('/documents/{doc_id}/pages')
-def page_count(doc_id: int):
+def page_count(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
-        r = get_row(con, doc_id, with_file=True)
+        r = get_row(con, doc_id, uid, with_file=True)
     return {'pages': pdf_pages(r['file']) if r['mime'] == 'application/pdf' else 1}
 
 
 @app.get('/documents/{doc_id}/pages/{n}')
-def page_image(doc_id: int, n: int):
+def page_image(doc_id: int, n: int, uid: str = Depends(current_user)):
     """Page n (from 0) as an image for the review screen. PDFs are rendered; images are returned as is."""
     with store.conn() as con:
-        r = get_row(con, doc_id, with_file=True)
+        r = get_row(con, doc_id, uid, with_file=True)
     if r['mime'] != 'application/pdf':
         if n != 0:
             raise HTTPException(404, 'page not found')
@@ -270,49 +415,78 @@ class DateOrder(BaseModel):
 
 
 @app.put('/vendors/{vendor}/date-order')
-def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks):
+def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     """Confirm how this vendor prints dates (MDY or DMY). Unreviewed documents of the vendor are re-checked;
     those that now pass are sent to the webhook."""
     if body.date_order not in ('MDY', 'DMY'):
         raise HTTPException(422, 'date_order must be MDY or DMY')
     with store.conn() as con:
-        store.set_date_order(con, vendor, body.date_order)
-        rows = con.execute("SELECT id, document FROM documents WHERE lower(vendor) = %s "
-                           "AND status = 'needs_review'", (vendor.strip().lower(),)).fetchall()
+        store.set_date_order(con, uid, vendor, body.date_order)
+        rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
+                                       "AND status = 'needs_review'", (uid,)).fetchall()
+                if store.vendor_key(r['vendor']) == store.vendor_key(vendor)]
         for r in rows:
-            save(con, r['id'], Document.model_validate(r['document']), None)
-            if get_row(con, r['id'])['status'] == 'passed':
+            save(con, r['id'], Document.model_validate(r['document']), None, uid)
+            if row_by_id(con, r['id'])['status'] == 'passed':
                 tasks.add_task(send_event, r['id'])
     return {'vendor': vendor, 'date_order': body.date_order, 'rechecked': len(rows)}
 
 
-@app.get('/stats')
-def stats():
-    """Dashboard numbers. Money is summed per currency (never converted)."""
+def delete_auth_user(uid):
+    """Remove the sign-in account with Supabase's Admin API (SUPABASE_SECRET_KEY, backend only). Raises on failure."""
+    key = os.environ.get('SUPABASE_SECRET_KEY')
+    if not key:
+        raise HTTPException(503, 'account deletion is not set up on this server')
+    url = f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1/admin/users/{uid}'
+    urllib.request.urlopen(urllib.request.Request(url, method='DELETE', headers={'apikey': key, 'Authorization': f'Bearer {key}'}),
+                           timeout=15)
+
+
+@app.delete('/account', status_code=204)
+def delete_account(uid: str = Depends(current_user)):
+    """Delete the user's documents, files and settings, then the sign-in account. If the account can't be
+    removed, nothing is deleted (the database changes roll back)."""
     with store.conn() as con:
-        q = lambda sql: con.execute(sql).fetchall()
+        con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
+        con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
+        con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
+        try:
+            delete_auth_user(uid)
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f'deleting auth user {uid} failed: {e!r}')
+            raise HTTPException(502, 'Could not delete the account. Please try again.')
+
+
+@app.get('/stats')
+def stats(uid: str = Depends(current_user)):
+    """Dashboard numbers for the user. Money is summed per currency (never converted), and only from checked
+    documents (passed or reviewed): amounts still waiting for review are not counted as spend."""
+    with store.conn() as con:
+        q = lambda cols, rest='': con.execute(f'SELECT {cols} FROM documents WHERE user_id = %s {rest}', (uid,)).fetchall()
         return {
-            'documents': q('SELECT count(*) AS n FROM documents')[0]['n'],
-            'by_status': {r['status']: r['n'] for r in q('SELECT status, count(*) AS n FROM documents GROUP BY status')},
-            'spend_by_currency': q("SELECT currency, sum(total) AS total, count(*) AS n FROM documents "
-                                   "WHERE total IS NOT NULL AND status != 'failed' GROUP BY currency"),
-            'top_vendors': q("SELECT min(vendor) AS vendor, currency, sum(total) AS total, count(*) AS n FROM documents "
-                             "WHERE vendor IS NOT NULL AND status != 'failed' GROUP BY lower(vendor), currency "
-                             "ORDER BY total DESC NULLS LAST LIMIT 10"),
-            'by_month': q("SELECT to_char(issue_date, 'YYYY-MM') AS month, currency, sum(total) AS total, count(*) AS n "
-                          "FROM documents WHERE issue_date IS NOT NULL AND status != 'failed' "
-                          "GROUP BY month, currency ORDER BY month"),
+            'documents': q('count(*) AS n')[0]['n'],
+            'by_status': {r['status']: r['n'] for r in q('status, count(*) AS n', 'GROUP BY status')},
+            'spend_by_currency': q('currency, sum(total) AS total, count(*) AS n',
+                                   "AND total IS NOT NULL AND status IN ('passed', 'reviewed') GROUP BY currency"),
+            'top_vendors': q('min(vendor) AS vendor, currency, sum(total) AS total, count(*) AS n',
+                             "AND vendor IS NOT NULL AND status IN ('passed', 'reviewed') GROUP BY lower(vendor), currency "
+                             'ORDER BY total DESC NULLS LAST LIMIT 10'),
+            'by_month': q("to_char(issue_date, 'YYYY-MM') AS month, currency, sum(total) AS total, count(*) AS n",
+                          "AND issue_date IS NOT NULL AND status IN ('passed', 'reviewed') GROUP BY month, currency ORDER BY month"),
         }
 
 
-DOC_COLUMNS = ['id', 'file_name', 'status', 'doc_type', 'vendor', 'buyer', 'doc_number', 'issue_date', 'due_date',
+DOC_COLUMNS = ['id', 'file_name', 'status', 'doc_type', 'vendor', 'branch', 'buyer', 'doc_number', 'issue_date', 'due_date',
                'currency', 'subtotal', 'discount', 'tax', 'service_charge', 'total']
 ITEM_COLUMNS = ['document_id', 'description', 'quantity', 'unit_price', 'amount', 'discount']
 
 
-def export_rows(status):
+def export_rows(uid, status):
     """(document rows, item rows) for export; failed documents are left out."""
-    sql, args = "SELECT id, file_name, status, document FROM documents WHERE status != 'failed' AND document IS NOT NULL", []
+    sql = "SELECT id, file_name, status, document FROM documents WHERE user_id = %s AND status != 'failed' AND document IS NOT NULL"
+    args = [uid]
     if status:
         sql += ' AND status = %s'; args.append(status)
     docs, items = [], []
@@ -329,12 +503,12 @@ NUMERIC = {'subtotal', 'discount', 'tax', 'service_charge', 'total', 'quantity',
 
 def cell(column, v):
     """One export cell. Money and quantities become numbers; all other text stays text (invoice number 00123
-    keeps its zeros). Text starting with = + - @ gets a leading ' so a spreadsheet never runs it as a formula."""
+    keeps its zeros). Text starting with = + - @ tab or CR gets a leading ' so a spreadsheet never runs it as a formula."""
     if v is None:
         return None
     if column in NUMERIC:
         return float(v)
-    if isinstance(v, str) and v[:1] in ('=', '+', '-', '@'):
+    if isinstance(v, str) and v[:1] in ('=', '+', '-', '@', '\t', '\r'):
         return "'" + v
     return v
 
@@ -343,12 +517,49 @@ def cells(columns, row_):
     return [cell(c, v) for c, v in zip(columns, row_)]
 
 
+# QuickBooks Online "Import bills" layout; headers are matched to QuickBooks fields during the import.
+QB_COLUMNS = ['Bill no.', 'Supplier', 'Bill Date', 'Due Date', 'Account', 'Line Description', 'Line Amount', 'Line Tax Code']
+
+
+def quickbooks_rows(uid):
+    """(rows, skipped): one row per bill line, only for checked documents (passed or reviewed).
+    Lines are the items plus service charge, tax and discount, so they add up to the total; if they don't
+    (e.g. a cash-rounded total), the bill gets one line with the total. Documents without a date or total
+    are skipped: QuickBooks needs both. Account is a placeholder the user maps to an expense account."""
+    rows, skipped = [], 0
+    with store.conn() as con:
+        found = con.execute("SELECT id, document FROM documents WHERE user_id = %s AND status IN ('passed', 'reviewed') "
+                            'ORDER BY id', (uid,))
+        for r in found:
+            d = Document.model_validate(r['document'])
+            if d.issue_date is None or d.total is None:
+                skipped += 1
+                continue
+            items = [(i.description, i.amount - (i.discount or 0)) for i in d.items if i.amount is not None]
+            extra = [(name, v) for name, v in (('Service charge', d.service_charge), ('Discount', -d.discount if d.discount else None)) if v]
+            # tax added on top gets its own line; "VAT included" is already inside the items. Whichever adds up wins.
+            lines = next((ls for ls in (items + extra + ([('Tax', d.tax)] if d.tax else []), items + extra)
+                          if items and sum(v for _, v in ls) == d.total), [('Total', d.total)])
+            # ponytail: US date order; QuickBooks asks for the file's date format on import
+            bill = [cell('text', d.doc_number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
+                    f'{d.issue_date:%m/%d/%Y}', f'{(d.due_date or d.issue_date):%m/%d/%Y}', 'Uncategorized Expense']
+            rows += [bill + [cell('text', desc), f'{v:.2f}', None] for desc, v in lines]
+    return rows, skipped
+
+
 @app.get('/export')
-def export(format: str = 'xlsx', status: str | None = None):
-    """Download documents as CSV (one row per document) or XLSX (Documents and Items sheets)."""
-    if format not in ('csv', 'xlsx'):
-        raise HTTPException(422, 'format must be csv or xlsx')
-    docs, items = export_rows(status)
+def export(format: str = 'xlsx', status: str | None = None, uid: str = Depends(current_user)):
+    """Download documents as CSV (one row per document), XLSX (Documents and Items sheets) or a QuickBooks
+    Online bill import CSV (X-Skipped header: documents left out for a missing date or total)."""
+    if format not in ('csv', 'xlsx', 'quickbooks'):
+        raise HTTPException(422, 'format must be csv, xlsx or quickbooks')
+    if format == 'quickbooks':
+        rows, skipped = quickbooks_rows(uid)
+        buf = io.StringIO()
+        csv.writer(buf).writerows([QB_COLUMNS] + rows)
+        return Response(buf.getvalue().encode('utf-8-sig'), media_type='text/csv', headers={
+            'Content-Disposition': 'attachment; filename="quickbooks-bills.csv"', 'X-Skipped': str(skipped)})
+    docs, items = export_rows(uid, status)
     if format == 'csv':
         buf = io.StringIO()
         w = csv.writer(buf)

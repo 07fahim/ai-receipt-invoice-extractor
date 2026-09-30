@@ -25,6 +25,7 @@ assert checks(**{**good, 'subtotal': D('800'), 'total': D('927.50')}) == ['items
 assert checks(**{**good, 'items': [good['items'][0]]}) == ['items_sum']  # a dropped line item
 assert checks(**{**good, 'items': [Item(quantity=3, unit_price=D('350'), amount=D('700')), good['items'][1]]}) == ['line_math']
 assert checks(**{**good, 'issue_date': date(2027, 1, 1), 'due_date': None}) == ['date_future']
+assert checks(**{**good, 'issue_date': date(2026, 9, 29), 'due_date': None}) == []  # tomorrow in UTC can be today in Dhaka
 assert checks(**{**good, 'due_date': date(2026, 9, 1)}) == ['due_before_issue']
 assert checks(**{**good, 'currency': 'RP'}) == ['currency_code']
 assert checks(**{**good, 'currency': 'bdt'}) == []
@@ -37,6 +38,10 @@ assert checks(**{**good, 'service_charge': D('10'), 'total': D('987.50')}) == []
 assert checks(subtotal=D('334011'), total=D('334000')) == []
 assert checks(subtotal=D('334011'), total=D('334500')) == ['total_math']
 assert checks(subtotal=D('91000'), total=D('91000'), items=[Item(amount=D('91070'))]) == ['items_sum']
+# ...but a total with cents is never cash-rounded: one misread cents digit is caught
+assert checks(**{**good, 'total': D('977.55')}) == ['total_math'] and checks(**{**good, 'total': D('977.51')}) == []
+# 5-cent cash rounding (CHF, AUD, CAD): 12.37 printed as 12.35 is fine, 12.30 is not
+assert checks(subtotal=D('12.37'), total=D('12.35')) == [] and checks(subtotal=D('12.37'), total=D('12.30')) == ['total_math']
 # missing inputs skip checks instead of failing them
 assert [i['check'] for i in validate(Document(total=D('10')))] == ['items_missing']
 assert [i['check'] for i in validate(Document())] == ['total_present']
@@ -62,4 +67,71 @@ assert checks(**amb) == ['date_ambiguous']
 fixed = validate(Document(**amb), today=TODAY, date_order='MDY')
 assert fixed == []  # re-read as 11 May 2021, not flagged
 assert apply_date_order(Document(**amb), 'MDY').issue_date == date(2021, 5, 11)
+assert apply_date_order(Document(**{**amb, 'issue_date': date(2021, 12, 25)}), 'MDY').issue_date == date(2021, 12, 25)  # typed by the user: kept
+
+# printed total: thousands read as decimals ("22.000" -> 22) is flagged; the right reading and real cents are not
+from validate import thousands_read_as_decimals as tr
+small = lambda total, text, **kw: checks(total=D(total), total_text=text, items=[Item(amount=D(total))], **kw)
+assert small('22', '22.000') == ['total_format'] and small('7', '·7,000') == ['total_format']
+assert small('1250', 'Rp 1.250.000') == ['total_format'] and small('22000', '22.000') == []
+assert small('7.61', '$7.61') == [] and small('1250', '1,250.00') == [] and small('22', None) == []
+assert small('22', '22.000', currency='KWD') == []  # dinars really have 3 decimals
+assert tr('TOTAL 22.000', D('22')) == '22.000' and tr('22.000', D('22000')) is None and tr('0.500', D('0.5')) is None
+# "VAT included" (Bangladeshi supershops): subtotal = total and the VAT is inside the prices
+incl = dict(subtotal=D('1150'), tax=D('150'), total=D('1150'), items=[Item(amount=D('1000')), Item(amount=D('150'))])
+assert checks(**incl, tax_included=True) == [] and checks(**incl) == [] and checks(**incl, tax_included=False) == []  # 150 is exactly the 15% inside 1150
+odd = {**incl, 'tax': D('140')}  # not the share of any known rate: only the model's word counts
+assert checks(**odd, tax_included=True) == [] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
+no_sub = {**incl, 'subtotal': None}
+assert checks(**no_sub, tax_included=True) == [] and checks(**no_sub) == []  # unknown: either reading is accepted
+assert checks(**no_sub, tax_included=False) == []  # said to be on top, but 150 is exactly the 15% inside 1150
+assert checks(**{**no_sub, 'tax': D('100')}, tax_included=False) == ['items_total']  # on top, lines already reach the total
+assert checks(**good, tax_included=True) == []  # tax added on top but marked included (Mushak 'incl.' column): numbers still agree
+
+# not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
+assert [i['check'] for i in validate(Document(is_document=False))] == ['is_document']
+assert checks(**good, is_document=True) == [] and checks(**good, is_document=None) == []
+
+# several receipts in one photo go to review; one (or unknown) does not
+assert checks(**good, document_count=2) == ['one_document'] and checks(**good, document_count=1) == []
+# Bangladeshi receipts (data/sample images): weighed items, rounding to whole taka, item discounts listed apart,
+# VAT included that the model called "added on top"
+assert checks(total=D('41.36'), items=[Item(quantity=D('1.03'), unit_price=D('40'), amount=D('41.36'))]) == []
+assert checks(total=D('47.36'), items=[Item(quantity=D('1.03'), unit_price=D('40'), amount=D('47.36'))]) == ['line_math']
+assert checks(total=D('10.6'), items=[Item(quantity=3, unit_price=D('3.5'), amount=D('10.6'))]) == ['line_math']
+assert checks(subtotal=D('434.80'), discount=D('30.44'), total=D('404'),
+              items=[Item(amount=D('139.80'), discount=D('9.79')), Item(amount=D('295'), discount=D('20.65'))]) == []
+assert checks(subtotal=D('434.80'), discount=D('30.44'), total=D('403')) == ['total_math']
+star = dict(subtotal=D('830'), total=D('830'), items=[Item(amount=D('790')), Item(amount=D('40'))], tax_included=False)
+assert checks(**star, tax=D('39.52')) == [] and checks(**star, tax=D('41.50')) == ['total_math']
+# ...but never without lines that reach the total: 10% on top with the subtotal read as the total looks the same
+assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000'), items=[Item(amount=D('150000'))]) == ['items_sum', 'total_math']
+# a discount recorded on the item and again on the receipt, printed before SUBTTL (CORD test 33): not subtracted twice
+itm = dict(subtotal=D('117500'), discount=D('67000'), items=[Item(amount=D('50500')), Item(amount=D('67000')), Item(amount=D('67000'), discount=D('67000'))])
+assert checks(**itm, total=D('117500')) == [] and checks(**itm, total=D('50500')) == ['total_math']
+assert checks(total=D('11700'), discount=D('7800'), items=[Item(amount=D('19500'), discount=D('7800'))]) == []
+# suggestions for the review screen: one misread digit that breaks two checks, or thousands read as decimals
+from validate import suggest
+memo = dict(subtotal=D('1230'), total=D('1230'), items=[Item(quantity=2, unit_price=D('140'), amount=D('280')),
+            Item(quantity=2, unit_price=D('120'), amount=D('280')), Item(quantity=1, unit_price=D('710'), amount=D('710'))])
+assert suggest(Document(**memo))['changes'] == [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]
+assert suggest(Document(**{**memo, 'total': D('1270'), 'subtotal': D('1270')})) is None  # nothing fails
+assert suggest(Document(subtotal=D('100'), total=D('180'))) is None  # one failed check: never guess
+assert suggest(Document(subtotal=D('21'), total=D('21'), items=[Item(amount=D('10')), Item(amount=D('10'))])) is None  # items_sum alone: one check, no guess
+k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
+assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
+# a total printed with cents gets no whole-unit rounding room, except where cash is rounded to whole units
+cents = dict(subtotal=D('1199.60'), total=D('1200.00'), total_text='1,200.00', items=[Item(amount=D('1199.60'))])
+assert checks(**cents, currency='USD') == ['total_math'] and checks(**cents) == []  # unknown currency: lenient
+assert checks(**cents, currency='BDT') == [] and checks(**{**cents, 'total_text': '1,200'}, currency='USD') == []
+# oversized input is refused before any check runs
+import pydantic
+for bad in ({'items': [{}] * 201}, {'total': '1e100000'}):
+    try:
+        Document(**bad)
+        raise AssertionError(bad)
+    except pydantic.ValidationError:
+        pass
+msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
+assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
 print('ok')
