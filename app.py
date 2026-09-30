@@ -34,7 +34,7 @@ from pydantic import BaseModel
 import providers
 import store
 from schema import Document
-from validate import apply_date_order, validate
+from validate import apply_date_order, suggest, validate
 
 providers.load_env()
 pillow_heif.register_heif_opener()   # lets Pillow open iPhone HEIC photos
@@ -291,8 +291,11 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
 
 @app.get('/documents/{doc_id}')
 def get_document(doc_id: int, uid: str = Depends(current_user)):
+    """The document; a flagged one also gets a suggested fix for the review screen (None when there is none)."""
     with store.conn() as con:
-        return get_row(con, doc_id, uid)
+        r = get_row(con, doc_id, uid)
+    r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
+    return r
 
 
 @app.post('/check')
@@ -300,11 +303,11 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
           uid: str = Depends(current_user)):
     """Run the checks without saving, so the review screen can show them while the user edits.
     doc_id: the document being edited, so it is compared only with documents uploaded before it.
-    Returns the document with printed dates re-read in the date order, and the failed checks."""
+    Returns the document with printed dates re-read in the date order, the failed checks and a suggested fix."""
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
-        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id)}
+        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc, order)}
 
 
 @app.put('/documents/{doc_id}')
