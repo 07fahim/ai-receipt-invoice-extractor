@@ -32,7 +32,7 @@ Return only one JSON object with exactly these keys:
 is_document (false if the image is not a receipt, bill or invoice at all, e.g. a menu, a photo or a logo),
 doc_type ("invoice" or "receipt"),
 document_count (how many separate receipts or invoices the image shows; the pages of one invoice count as 1),
-vendor (the business name only),
+vendor (the seller's business name only, as printed, usually at the top; null if it is cut off or not printed; never a document title such as "Tax invoice" or "Provisional bill", and never a name from an advert or promotion),
 branch (the store number or branch name printed with the business name, e.g. "#017314" or "Gulshan branch"; never the street address),
 buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
 issue_date_text and due_date_text (each date exactly as printed, character for character),
