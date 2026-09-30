@@ -47,7 +47,9 @@ export type DocumentRow = {
   created_at: string;
 };
 
-export type DocumentDetail = DocumentRow & { mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null };
+export type DocumentDetail = DocumentRow & {
+  mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null; updated_at: string;
+};
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 

@@ -174,6 +174,12 @@ try:
     # a reviewed document cannot be retried (the user's corrections would be lost)
     assert c.post(f'/documents/{good_id}/retry').status_code == 409
     assert c.get(f'/documents/{good_id}').json()['total'] == 60.0
+    # two tabs: a save based on an older version is refused, the current version saves
+    opened = c.get(f'/documents/{good_id}').json()
+    newer = c.put(f'/documents/{good_id}', json=opened['document'], params={'if_unchanged_since': opened['updated_at']})
+    assert newer.status_code == 200
+    stale = c.put(f'/documents/{good_id}', json=opened['document'], params={'if_unchanged_since': opened['updated_at']})
+    assert stale.status_code == 409 and 'another tab' in stale.json()['detail']
     # while a document is being read: no second read, no save; a late read never replaces saved corrections
     with store.conn() as con:
         con.execute("UPDATE documents SET status = 'processing' WHERE id = %s", (good_id,))
