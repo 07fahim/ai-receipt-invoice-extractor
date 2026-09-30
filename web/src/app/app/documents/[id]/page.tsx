@@ -437,8 +437,9 @@ export default function ReviewPage() {
                 const issue = checks.find((c) => names.includes(c.check));
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>
-                    <span className={cn("w-4 text-center", !issue && "text-ok")} aria-label={issue ? "Needs attention" : "Passed"}>
-                      {issue ? "!" : "✓"}
+                    <span className={cn("w-4 text-center", !issue && "text-ok")}>
+                      <span aria-hidden>{issue ? "!" : "✓"}</span>
+                      <span className="sr-only">{issue ? "Needs attention:" : "Passed:"}</span>
                     </span>
                     <span>
                       {label}
