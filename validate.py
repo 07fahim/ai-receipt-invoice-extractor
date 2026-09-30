@@ -183,3 +183,58 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         fail('currency_code', ['currency'], f'"{doc.currency}" is not an ISO 4217 currency code')
 
     return issues
+
+
+SUM_CHECKS = {'total_format', 'items_sum', 'total_math', 'items_total', 'line_math'}
+DOC_AMOUNTS = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
+ITEM_AMOUNTS = ('unit_price', 'amount', 'discount')
+
+
+def suggest(doc: Document, date_order: str | None = None) -> dict | None:
+    """A correction for the review screen, never applied by itself: all amounts x1000 when thousands were read as
+    decimals, or one misread digit. Only when exactly one such change makes every sum check pass, and for a digit only
+    when two different sum checks failed: on planted mistakes that gave 384 right suggestions and 0 wrong, while
+    one failed check allowed coincidental fixes (a dropped line 'repaired' by changing another; 52 wrong of 333).
+    None otherwise.
+    Returns {'message', 'changes': [{'field', 'from', 'to'}]} with fields like 'total' or 'items[2].amount'."""
+    def sums_fail(d):
+        return {i['check'] for i in validate(d, date_order=date_order)} & SUM_CHECKS
+
+    failing = sums_fail(doc)
+    if not failing:
+        return None
+    amounts = [(f, getattr(doc, f)) for f in DOC_AMOUNTS if getattr(doc, f) is not None] + [
+        (f'items[{n}].{f}', getattr(i, f)) for n, i in enumerate(doc.items) for f in ITEM_AMOUNTS if getattr(i, f) is not None]
+
+    def changed(updates):
+        top = {f: v for f, v in updates.items() if not f.startswith('items[')}
+        items = [i.model_copy(update={f.split('.')[1]: v for f, v in updates.items() if f.startswith(f'items[{n}].')})
+                 for n, i in enumerate(doc.items)]
+        return doc.model_copy(update={**top, 'items': items})
+
+    if 'total_format' in failing:
+        updates = {f: v * 1000 for f, v in amounts}
+        if sums_fail(changed(updates)):
+            return None
+        return {'message': f'Thousands were read as decimals: every amount x1,000 (total {doc.total} becomes {doc.total * 1000:,})',
+                'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
+
+    if len(failing) < 2:
+        return None
+    found = []
+    for field, value in amounts:
+        text = format(value, 'f')
+        for pos, old in enumerate(text):
+            for new in '0123456789' if old.isdigit() else ():
+                if new == old:
+                    continue
+                candidate = Decimal(text[:pos] + new + text[pos + 1:])
+                if not sums_fail(changed({field: candidate})):
+                    found.append((field, value, candidate))
+                    if len(found) > 1:
+                        return None  # two different fixes both fit: the numbers can't tell which is right
+    if not found:
+        return None
+    field, value, candidate = found[0]
+    return {'message': f'Did you mean {candidate} instead of {value}? It is the only one-digit change that makes every sum add up',
+            'changes': [{'field': field, 'from': str(value), 'to': str(candidate)}]}
