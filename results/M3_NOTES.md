@@ -186,6 +186,25 @@ Follow-up, prompt 3bf68706: the model now reports `is_document`, and a clear `fa
 
 Also fixed on the way: the whole-number-only rounding rule flagged a legitimately cash-rounded total with cents. Rounding now follows the printed total: whole numbers up to 0.05%, totals in 5 cents (CHF, AUD, CAD cash rounding) up to 2.5 cents, anything else to the cent (d4dbd31). Planted-mistake rates and the 324 saved answers are unchanged by it.
 
+### Real Bangladeshi receipts (2026-09-30, 14 web images added to data/sample images/, local only)
+10 Bangladeshi (Shwapno ×3, Aarong, Star Hotel & Kabab, Arax, Java House, Jelly Bean café, an Italian restaurant, Swiss Bakery handwritten order form) and 4 foreign (Spain ×2, Greece, Vietnam; the "Agora" images are not Agora Bangladesh). Every answer was compared with the image by eye; there is no answer file. This set was used to find the problems below, so it is not an unseen test.
+
+Prompt 3bf68706, old checks: 7 correct and passed; 3 correct and flagged only for an ambiguous day/month date; 1 real misread caught (Spanish 6.50 read as 8.50); 3 false alarms and 1 wrong vendor:
+
+| Receipt | Problem | Fix |
+|---|---|---|
+| Shwapno Gulshan | 3 weighed items: 1.03 kg × 40 = 41.20, printed 41.36 (the real weight is about 1.034 kg) | line_math allows half the last printed step of a decimal quantity (98f21be) |
+| Shwapno Malibag | 404.36 taka printed as 404: over the 0.05% rounding allowance | a whole-number total may differ by up to 0.5 (c1f4d2c) |
+| Shwapno Malibag | per-item "DISCOUNT ITEMS" plus the discount line counted twice in items_sum | lines before item discounts may also match the subtotal (6414623) |
+| Star Hotel & Kabab | VAT included (830, VAT 39.52, net 830), model said added on top | included VAT accepted when the lines reach the total and the tax is exactly the share at 5 / 7.5 / 10 / 15% (8e767da) |
+| Shwapno Malibag | vendor "DREAM FACTORY", a footer promotion (the name at the top is cut off) | prompt be0376e0: vendor as printed, null when cut off, never a title or an advert |
+
+The first version of the VAT fix passed a unit test it should fail: 10% on top with the subtotal read as the total leaves the tax exactly 10/110 of that "total". It now also needs the lines to reach the total, which that misreading breaks.
+
+Same planted mistakes under old and new checks (eval_validation mutations, rng 0): no catch lost on CORD test (589) and validation (565) or invoices test (175) and validation (336); 1 of 2,821 lost on invoices train (102.30 misread as 102.00, hidden by the 0.5 allowance). False alarms on correct answer keys: CORD test 7 → 6, validation 9 → 7, invoices unchanged. The rates in results/validation*.json move slightly (CORD validation 95.2% → 94.5%) only because more receipts now pass and receive a different random mistake.
+
+The earlier 3bf68706 answers under the new checks: the 3 false-alarm receipts pass, the Spanish misread is still caught, nothing else changed. Prompt be0376e0 on 8 images: the Malibag and Vietnamese vendors are null instead of wrong, the rest unchanged; the intermediate prompt 32e70dd0 had taken the Vietnamese title "TẠM TÍNH" (provisional bill) as the vendor. Still open: the café whose name is faded past reading gets a different guessed name after every prompt change (Jelly / Daily / Jolly Bean), and Star Hotel's branch is read as "MUSHAK-6.3" (the form name).
+
 ## Cost
 All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - receipts: about 1,290 in / 235 out
