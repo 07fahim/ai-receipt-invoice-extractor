@@ -175,10 +175,14 @@ export default function ReviewPage() {
     setConfirm(null);
     setSaving(true);
     try {
+      // the version this screen loaded: a change made meanwhile in another tab is not overwritten
+      const params = new URLSearchParams({ if_unchanged_since: detail!.updated_at });
+      if (order) params.set("date_order", order);
+      await sendJSON("PUT", `/documents/${id}?${params}`, doc);
+      // after the document: saving the vendor's date format re-checks the vendor's waiting documents
       if (order && applyToVendor && doc.vendor) {
         await sendJSON("PUT", `/vendors/${encodeURIComponent(doc.vendor)}/date-order`, { date_order: order });
       }
-      await sendJSON("PUT", `/documents/${id}${order ? `?date_order=${order}` : ""}`, doc);
       toast.success("Review saved");
       const next = queue.filter((q) => q !== Number(id))[0];
       router.push(next ? `/app/documents/${next}` : "/app/documents");

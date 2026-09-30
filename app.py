@@ -19,7 +19,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 import jwt
@@ -323,12 +323,16 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
 
 @app.put('/documents/{doc_id}')
 def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_order: DateOrderValue | None = None,
-                    uid: str = Depends(current_user)):
+                    if_unchanged_since: datetime | None = None, uid: str = Depends(current_user)):
     """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook.
-    date_order: the user's reading of this document's printed dates (MDY/DMY), when only this one is confirmed."""
+    date_order: the user's reading of this document's printed dates (MDY/DMY), when only this one is confirmed.
+    if_unchanged_since: the updated_at the editor loaded; a later change (another tab) is not overwritten."""
     with store.conn() as con:
-        if get_row(con, doc_id, uid)['status'] == 'processing':
+        row = get_row(con, doc_id, uid)
+        if row['status'] == 'processing':
             raise HTTPException(409, 'still being read; save again when it is done')
+        if if_unchanged_since and row['updated_at'] != if_unchanged_since:
+            raise HTTPException(409, 'This document was changed in another tab or window. Reload to see the latest version.')
         save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
     tasks.add_task(send_event, doc_id)
     return get_document(doc_id, uid)
