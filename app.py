@@ -281,8 +281,9 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
 @app.get('/documents')
 def list_documents(status: str | None = None, q: str | None = None, date_from: date | None = None,
                    date_to: date | None = None, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
-                   uid: str = Depends(current_user)):
-    """History: newest first. q searches vendor and file name; dates filter on the document's issue date."""
+                   oldest: bool = False, uid: str = Depends(current_user)):
+    """History: newest first (oldest first for the review queue). q searches vendor and file name; dates filter on
+    the document's issue date."""
     sql = 'SELECT id, file_name, status, vendor, currency, issue_date, total, created_at FROM documents WHERE user_id = %s'
     args = [uid]
     if status:
@@ -293,7 +294,7 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
         sql += ' AND issue_date >= %s'; args.append(date_from)
     if date_to:
         sql += ' AND issue_date <= %s'; args.append(date_to)
-    sql += ' ORDER BY id DESC LIMIT %s OFFSET %s'
+    sql += f' ORDER BY id {"ASC" if oldest else "DESC"} LIMIT %s OFFSET %s'
     with store.conn() as con:
         return con.execute(sql, (*args, limit, offset)).fetchall()
 

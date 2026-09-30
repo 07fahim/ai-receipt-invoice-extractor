@@ -191,6 +191,8 @@ try:
     # history search and filters
     assert [x['id'] for x in c.get('/documents', params={'q': 'green'}).json()] == [good_id]
     assert [x['id'] for x in c.get('/documents', params={'status': 'failed'}).json()] == [bad_id]
+    ids_newest = [x['id'] for x in c.get('/documents').json()]
+    assert [x['id'] for x in c.get('/documents', params={'oldest': 'true'}).json()] == ids_newest[::-1]  # review queue order
     assert [x['id'] for x in c.get('/documents', params={'date_from': '2021-01-01'}).json()] == [amb_id]
 
     # stats: spend counts only checked documents (passed or reviewed), never failed or waiting ones

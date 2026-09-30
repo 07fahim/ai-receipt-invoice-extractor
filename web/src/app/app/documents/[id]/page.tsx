@@ -77,8 +77,8 @@ export default function ReviewPage() {
         })
         .catch((e) => setLoadError(e.message));
     load();
-    getJSON<DocumentRow[]>("/documents?status=needs_review&limit=200")
-      .then((rows) => setQueue(rows.map((r) => r.id).reverse())) // oldest first
+    getJSON<DocumentRow[]>("/documents?status=needs_review&oldest=true&limit=200")
+      .then((rows) => setQueue(rows.map((r) => r.id))) // the 200 oldest waiting
       .catch(() => {});
     return () => {
       left = true;
