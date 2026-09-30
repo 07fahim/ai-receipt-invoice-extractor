@@ -97,7 +97,7 @@ export default function UploadPage() {
           send([...e.dataTransfer.files]);
         }}
         className={cn(
-          "mt-5 grid cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#C7CDD6] bg-card px-6 py-12 text-center transition-colors hover:border-primary hover:bg-[#F8FAFF]",
+          "mt-5 grid cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#C7CDD6] bg-card px-6 py-12 text-center transition-colors hover:border-primary hover:bg-[#F8FAFF] focus-within:ring-2 focus-within:ring-ring",
           dragging && "border-primary bg-[#F8FAFF]",
         )}
       >
