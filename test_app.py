@@ -318,6 +318,14 @@ try:
     passed = c.post('/documents', files=[('files', ('e.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]
     assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed' and len(events) == sent
 
+    # refused uploads say why: not a supported type, or too large
+    r = c.post('/documents', files=[('files', ('n.txt', io.BytesIO(b'hello'), 'text/plain'))], headers=erin).json()
+    assert r[0]['error'] == 'not a PDF/JPG/PNG/WebP/HEIC file', r
+    app.MAX_BYTES, real_max = 20, app.MAX_BYTES
+    r = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'good' * 10), 'image/jpeg'))], headers=erin).json()
+    app.MAX_BYTES = real_max
+    assert r[0]['error'] == 'over 10 MB', r
+
     # daily upload limit per user: files over the limit are refused, then the whole request
     app.DAILY_UPLOAD_LIMIT = 2
     carol = as_user(CAROL)

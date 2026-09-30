@@ -259,8 +259,11 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
             continue
         data = heic_to_jpeg(f.file.read(MAX_BYTES + 1))
         kind = providers.mime(data)  # type from the file's bytes, never from its name
-        if len(data) > MAX_BYTES or kind is None:
-            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP/HEIC file under 10 MB'})
+        if kind is None:
+            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP/HEIC file'})
+            continue
+        if len(data) > MAX_BYTES:  # also a HEIC photo that grew past the limit when converted to JPEG
+            created.append({'file_name': f.filename, 'error': 'over 10 MB'})
             continue
         if kind == 'application/pdf':
             pages = pdf_pages(data)
