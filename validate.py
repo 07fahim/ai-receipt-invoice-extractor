@@ -219,7 +219,7 @@ def suggest(doc: Document, date_order: str | None = None) -> dict | None:
         return {'message': f'Thousands were read as decimals: every amount x1,000 (total {doc.total} becomes {doc.total * 1000:,})',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
 
-    if len(failing) < 2:
+    if len(failing) < 2 or len(amounts) > 100:  # the search grows with amounts squared: 100 amounts take about a second
         return None
     found = []
     for field, value in amounts:
