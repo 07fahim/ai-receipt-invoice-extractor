@@ -107,9 +107,10 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
     return checks
 
 
-def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None):
+def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, only_if_processing=False):
     """Store a document with its checks. The date order (the user's choice for this document, else the one
-    confirmed for the vendor) is applied first."""
+    confirmed for the vendor) is applied first. only_if_processing: the background reader writes only while the
+    document is still 'processing', so it never replaces corrections saved in the meantime."""
     order = date_order or store.date_order(con, uid, doc.vendor)
     doc = apply_date_order(doc, order)
     checks = run_checks(con, uid, doc, order, doc_id)
@@ -118,7 +119,8 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None):
     fields = {'document': Jsonb(doc.model_dump(mode='json')), 'checks': Jsonb(checks), 'status': status,
               'error': None, 'vendor': doc.vendor, 'currency': doc.currency, 'issue_date': doc.issue_date,
               'total': doc.total, **(extra or {})}
-    con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s',
+    only = " AND status = 'processing'" if only_if_processing else ''
+    con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
                 (*fields.values(), doc_id))
 
 
@@ -130,6 +132,8 @@ def send_event(doc_id):
         return
     with store.conn() as con:
         r = row_by_id(con, doc_id)
+    if r is None:
+        return  # deleted meanwhile
     body = json.dumps({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
                        'status': r['status'], 'document': r['document'], 'checks': r['checks']}).encode()
     headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
@@ -178,13 +182,13 @@ def process(doc_id):
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
                  'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
-            save(con, doc_id, doc, None, str(row['user_id']), extra)
+            save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
             done = row_by_id(con, doc_id)
         passed = done is not None and done['status'] == 'passed'   # None: deleted meanwhile
     except Exception as e:
         with store.conn() as con:
-            con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() WHERE id = %s",
-                        (public_error(e), doc_id))
+            con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
+                        "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id))
         return
     if passed:
         send_event(doc_id)  # outside the try: a webhook problem never marks a good document failed
@@ -316,7 +320,8 @@ def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_ord
     """Save the user's corrections. Checks run again; the document is marked reviewed and sent to the webhook.
     date_order: the user's reading of this document's printed dates (MDY/DMY), when only this one is confirmed."""
     with store.conn() as con:
-        get_row(con, doc_id, uid)
+        if get_row(con, doc_id, uid)['status'] == 'processing':
+            raise HTTPException(409, 'still being read; save again when it is done')
         save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
     tasks.add_task(send_event, doc_id)
     return get_document(doc_id, uid)
@@ -326,10 +331,13 @@ def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_ord
 def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     """Run extraction again. Only for failed or needs_review documents: a reviewed document keeps the
     user's corrections, and one still processing is not sent to the model twice."""
-    with store.conn() as con:
-        if get_row(con, doc_id, uid)['status'] not in ('failed', 'needs_review'):
+    with store.conn() as con:  # one statement, so two quick clicks can't both start a read
+        claimed = con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() "
+                              "WHERE id = %s AND user_id = %s AND status IN ('failed', 'needs_review') RETURNING id",
+                              (doc_id, uid)).fetchone()
+        if claimed is None:
+            get_row(con, doc_id, uid)  # 404 for ids that are not the user's
             raise HTTPException(409, 'only failed or needs_review documents can be retried')
-        con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() WHERE id = %s", (doc_id,))
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
 

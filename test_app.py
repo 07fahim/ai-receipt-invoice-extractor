@@ -173,6 +173,15 @@ try:
     # a reviewed document cannot be retried (the user's corrections would be lost)
     assert c.post(f'/documents/{good_id}/retry').status_code == 409
     assert c.get(f'/documents/{good_id}').json()['total'] == 60.0
+    # while a document is being read: no second read, no save; a late read never replaces saved corrections
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'processing' WHERE id = %s", (good_id,))
+    assert c.post(f'/documents/{good_id}/retry').status_code == 409
+    assert c.put(f'/documents/{good_id}', json=c.get(f'/documents/{good_id}').json()['document']).status_code == 409
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'reviewed' WHERE id = %s", (good_id,))
+    app.process(good_id)  # the fake model answers again, but the document is no longer 'processing'
+    assert c.get(f'/documents/{good_id}').json()['status'] == 'reviewed'
 
     # bad query values are 422, not server errors
     for bad_q in ({'date_from': 'nope'}, {'limit': -1}, {'offset': -1}, {'limit': 0}):
