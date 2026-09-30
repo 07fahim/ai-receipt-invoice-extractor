@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item } from "@/lib/api";
+import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type Suggestion } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
@@ -47,6 +47,7 @@ export default function ReviewPage() {
   const [detail, setDetail] = useState<DocumentDetail | null>(null);
   const [doc, setDoc] = useState<Doc | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [applyToVendor, setApplyToVendor] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -66,6 +67,7 @@ export default function ReviewPage() {
           else if (d.document) {
             setDoc(d.document);
             setChecks(d.checks ?? []);
+            setSuggestion(d.suggestion ?? null);
             setOrder(null);
             setDirty(false);
           }
@@ -87,9 +89,10 @@ export default function ReviewPage() {
       return;
     }
     const timer = setTimeout(() => {
-      sendJSON<{ document: Doc; checks: Check[] }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
+      sendJSON<{ document: Doc; checks: Check[]; suggestion: Suggestion | null }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
         .then((r) => {
           setChecks(r.checks);
+          setSuggestion(r.suggestion);
           if (order && r.document.issue_date !== doc.issue_date) setDoc((d) => d && { ...d, issue_date: r.document.issue_date, due_date: r.document.due_date });
         })
         .catch(() => {});
@@ -108,6 +111,21 @@ export default function ReviewPage() {
     setDoc((d) => d && { ...d, ...patch });
     setDirty(true);
   }
+  // fills in the suggested values; nothing is saved until the user saves
+  function applySuggestion(s: Suggestion) {
+    setDoc((d) => {
+      if (!d) return d;
+      const next = { ...d, items: d.items.map((it) => ({ ...it })) };
+      for (const c of s.changes) {
+        const m = c.field.match(ITEM_FIELD);
+        if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = c.to;
+        else (next as unknown as Record<string, string | null>)[c.field] = c.to;
+      }
+      return next;
+    });
+    setDirty(true);
+  }
+
   function editItem(n: number, patch: Partial<Item>) {
     setDoc((d) => d && { ...d, items: d.items.map((it, i) => (i === n ? { ...it, ...patch } : it)) });
     setDirty(true);
@@ -356,6 +374,20 @@ export default function ReviewPage() {
                 </span>
               )}
             </h2>
+            {suggestion && (
+              <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                <p className="font-medium">Suggested fix</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message}. Compare with the photo before applying.</p>
+                {suggestion.changes.length <= 3 && (
+                  <ul className="mt-1.5 text-xs">
+                    {suggestion.changes.map((c) => (
+                      <li key={c.field}>{fieldLabel(c.field)}: <s>{c.from}</s> → <b>{c.to}</b></li>
+                    ))}
+                  </ul>
+                )}
+                <Button size="sm" className="mt-2" onClick={() => applySuggestion(suggestion)}>Apply</Button>
+              </div>
+            )}
             <ul className="divide-y text-sm">
               {CHECK_GROUPS.map(([label, names]) => {
                 const issue = checks.find((c) => names.includes(c.check));
@@ -436,6 +468,15 @@ export default function ReviewPage() {
 const inputClass =
   "h-9 w-full rounded-md border border-input bg-card px-2.5 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-secondary disabled:text-muted-foreground placeholder:text-muted-foreground";
 const flagClass = "border-warn-line ring-1 ring-warn-line";
+
+const ITEM_FIELD = /^items\[(\d+)\]\.(\w+)$/;
+
+// "items[2].amount" -> "Line 3 amount", "service_charge" -> "Service charge"
+function fieldLabel(field: string) {
+  const m = field.match(ITEM_FIELD);
+  const name = (m ? m[2] : field).replace("_", " ").replace("unit price", "price");
+  return m ? `Line ${Number(m[1]) + 1} ${name}` : name[0].toUpperCase() + name.slice(1);
+}
 
 function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
   return <section className={cn("rounded-xl border bg-card shadow-xs", className)}>{children}</section>;

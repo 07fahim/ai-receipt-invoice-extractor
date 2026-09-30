@@ -33,6 +33,9 @@ export type Doc = {
 
 export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number };
 
+// A fix worked out from the numbers (e.g. 280 read for 240): shown in review, applied only when the user clicks.
+export type Suggestion = { message: string; changes: { field: string; from: string; to: string }[] };
+
 export type DocumentRow = {
   id: number;
   file_name: string;
@@ -44,7 +47,7 @@ export type DocumentRow = {
   created_at: string;
 };
 
-export type DocumentDetail = DocumentRow & { mime: string; document: Doc | null; checks: Check[] | null; error: string | null };
+export type DocumentDetail = DocumentRow & { mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null };
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
