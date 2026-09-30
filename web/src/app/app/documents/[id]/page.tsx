@@ -580,11 +580,15 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
   // images need the access token, so they are fetched and shown from a blob URL
   useEffect(() => {
     let url: string | null = null;
+    let gone = false; // another page was chosen meanwhile: this image must not replace it
     api(`/documents/${id}/pages/${page}`)
       .then((r) => r.blob())
-      .then((b) => setSrc((url = URL.createObjectURL(b))))
-      .catch(() => setSrc(null));
+      .then((b) => {
+        if (!gone) setSrc((url = URL.createObjectURL(b)));
+      })
+      .catch(() => !gone && setSrc(null));
     return () => {
+      gone = true;
       if (url) URL.revokeObjectURL(url);
     };
   }, [id, page]);
@@ -616,8 +620,9 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
           <img
             src={src}
             alt={`Original: ${fileName}`}
-            className="mx-auto h-full w-full origin-top object-contain transition-transform"
-            style={{ transform: `scale(${zoom}) rotate(${turn}deg)`, transformOrigin: zoom > 1 ? "top center" : "center" }}
+            className="mx-auto max-w-none object-contain transition-transform"
+            // zoom by size, not scale(): a scaled image overflows to the left, where it can't be scrolled to
+            style={{ width: `${zoom * 100}%`, height: zoom > 1 ? "auto" : "100%", transform: `rotate(${turn}deg)` }}
           />
         ) : (
           <p className="p-6 text-sm text-muted-foreground">Loading the original…</p>
