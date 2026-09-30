@@ -4,7 +4,8 @@ Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
 Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler), SUPABASE_URL and GEMINI_API_KEY in .env.
 Every request except the docs needs a Supabase Auth access token ('Authorization: Bearer ...'); users only
 ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 50 files per user per 24 hours).
-Optional WEBHOOK_URL (+ WEBHOOK_SECRET): each passed or reviewed document is sent there, e.g. to n8n.
+Optional WEBHOOK_URL (+ WEBHOOK_SECRET, WEBHOOK_USER_ID): each passed or reviewed document of that one account is sent
+there, e.g. to n8n; other users' documents never are.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
 """
 import contextlib
@@ -132,8 +133,8 @@ def send_event(doc_id):
         return
     with store.conn() as con:
         r = row_by_id(con, doc_id)
-    if r is None:
-        return  # deleted meanwhile
+    if r is None or str(r['user_id']) != os.environ.get('WEBHOOK_USER_ID'):
+        return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
     body = json.dumps({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
                        'status': r['status'], 'document': r['document'], 'checks': r['checks']}).encode()
     headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
