@@ -132,6 +132,12 @@ try:
     d = c.put(f'/documents/{amb2}', json=live['document'], params={'date_order': 'DMY'}, headers=dave).json()
     assert d['status'] == 'reviewed' and d['checks'] == [] and d['issue_date'] == '2021-11-05'
     assert c.post('/check', json=doc2, params={'date_order': 'YMD'}).status_code == 422
+    # a misread digit that breaks two checks comes with a suggested fix; a clean document with none
+    memo = {'subtotal': '1230', 'total': '1230', 'items': [{'quantity': '2', 'unit_price': '140', 'amount': '280'},
+            {'quantity': '2', 'unit_price': '120', 'amount': '280'}, {'quantity': '1', 'unit_price': '710', 'amount': '710'}]}
+    assert c.post('/check', json=memo, headers=dave).json()['suggestion']['changes'] == [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]
+    assert c.post('/check', json=live['document'], headers=dave).json()['suggestion'] is None
+    assert c.get(f'/documents/{amb2}', headers=dave).json()['suggestion'] is None  # reviewed: nothing to suggest
 
     # failed call is stored as failed with a short public message
     assert 'limit is used up' in app.public_error(RuntimeError('daily quota used up: HTTP 429: {...}'))
