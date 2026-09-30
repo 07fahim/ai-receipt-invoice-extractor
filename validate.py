@@ -149,8 +149,11 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
 
     for n, i in enumerate(doc.items):
-        # ponytail: exact to 0.01; weighed items (0.235 kg x price) may need rounding room on invoices
-        if None not in (i.quantity, i.unit_price, i.amount) and not close(i.quantity * i.unit_price, i.amount):
+        # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step
+        if None in (i.quantity, i.unit_price, i.amount):
+            continue
+        room = abs(i.unit_price) * Decimal('0.005') if i.quantity != i.quantity.to_integral_value() else 0
+        if abs(i.quantity * i.unit_price - i.amount) > max(Decimal('0.01'), room):
             fail('line_math', [f'items[{n}]'], f'{i.quantity} x {i.unit_price} = {i.quantity * i.unit_price}, line amount is {i.amount}')
 
     if doc.issue_date is not None and doc.issue_date > today:  # due dates are allowed in the future
