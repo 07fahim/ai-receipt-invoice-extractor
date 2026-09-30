@@ -289,7 +289,8 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
     if status:
         sql += ' AND status = %s'; args.append(status)
     if q:
-        sql += ' AND (vendor ILIKE %s OR file_name ILIKE %s)'; args += [f'%{q}%'] * 2
+        like = '%' + q.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_') + '%'  # % and _ typed are literal
+        sql += ' AND (vendor ILIKE %s OR file_name ILIKE %s)'; args += [like] * 2
     if date_from:
         sql += ' AND issue_date >= %s'; args.append(date_from)
     if date_to:
