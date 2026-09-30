@@ -13,8 +13,8 @@ export default function ReviewQueue() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getJSON<DocumentRow[]>("/documents?status=needs_review&limit=200")
-      .then((rows) => (rows.length ? router.replace(`/app/documents/${rows[rows.length - 1].id}`) : setEmpty(true)))
+    getJSON<DocumentRow[]>("/documents?status=needs_review&oldest=true&limit=1")
+      .then((rows) => (rows.length ? router.replace(`/app/documents/${rows[0].id}`) : setEmpty(true)))
       .catch((e) => setError(e.message));
   }, [router]);
 
