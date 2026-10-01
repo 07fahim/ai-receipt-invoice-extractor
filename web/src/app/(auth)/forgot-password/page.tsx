@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
         <h1 className="text-xl font-semibold">Reset your password</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {email ? (
-            <>We sent an email to <span className="font-medium text-foreground">{email}</span>. Open its link, or enter its 6-digit code here with a new password.</>
+            <>We sent an email to <span className="font-medium text-foreground">{email}</span>. Open its link, or enter its code here with a new password.</>
           ) : (
             "We'll email you a link to reset it."
           )}
@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
       </div>
       {email ? (
         <form onSubmit={reset} className="grid gap-4">
-          <Field id="code" label="Code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} autoFocus />
+          <Field id="code" label="Code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" maxLength={10} autoFocus />
           <Field id="password" label="New password" type="password" autoComplete="new-password" minLength={8} />
           <FormError message={error} />
           <Button type="submit" className="h-10" disabled={busy}>
