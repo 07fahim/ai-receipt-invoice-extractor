@@ -334,18 +334,18 @@ try:
 
     # refused uploads say why: not a supported type, or too large
     r = c.post('/documents', files=[('files', ('n.txt', io.BytesIO(b'hello'), 'text/plain'))], headers=erin).json()
-    assert r[0]['error'] == 'not a PDF/JPG/PNG/WebP/HEIC file', r
+    assert r[0]['error'] == 'Not a PDF, JPG, PNG, WebP or HEIC file.', r
     app.MAX_BYTES, real_max = 20, app.MAX_BYTES
     r = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'good' * 10), 'image/jpeg'))], headers=erin).json()
     app.MAX_BYTES = real_max
-    assert r[0]['error'] == 'over 10 MB', r
+    assert r[0]['error'] == 'Larger than 10 MB.', r
 
     # daily upload limit per user: files over the limit are refused, then the whole request
     app.DAILY_UPLOAD_LIMIT = 2
     carol = as_user(CAROL)
     three = [('files', (f'{k}.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg')) for k in range(3)]
     r = c.post('/documents', files=three, headers=carol).json()
-    assert ['id' in x for x in r] == [True, True, False] and 'daily limit' in r[2]['error']
+    assert ['id' in x for x in r] == [True, True, False] and 'Daily limit' in r[2]['error']
     assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
     # deleting documents gives no quota back, and a retry counts as a read too
     for d in c.get('/documents', headers=carol).json():

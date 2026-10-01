@@ -75,13 +75,13 @@ def signing_key(token):
 def current_user(authorization: str | None = Header(None)) -> str:
     """The signed-in user's id, from a Supabase Auth access token. 401 unless the token is valid and unexpired."""
     if not authorization or not authorization.startswith('Bearer '):
-        raise HTTPException(401, 'sign in required')
+        raise HTTPException(401, 'Please sign in.')
     token = authorization.removeprefix('Bearer ')
     try:
         claims = jwt.decode(token, signing_key(token), algorithms=['ES256', 'RS256'], audience='authenticated', options={'require': ['exp', 'sub']}, leeway=30,  # the PC's clock may run a little behind Supabase's
                             issuer=f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1')
     except jwt.PyJWTError:
-        raise HTTPException(401, 'sign in again')
+        raise HTTPException(401, 'Please sign in again.')
     return claims['sub']
 
 
@@ -98,7 +98,7 @@ def get_row(con, doc_id, uid, with_file=False):
     """The document if it belongs to user uid; 404 otherwise, so other users' ids reveal nothing."""
     r = row_by_id(con, doc_id, with_file)
     if r is None or str(r['user_id']) != uid:
-        raise HTTPException(404, 'document not found')
+        raise HTTPException(404, 'Document not found.')
     return r
 
 
@@ -165,14 +165,14 @@ def public_error(e):
     print(f'extraction failed: {e!r}')
     text = str(e)
     if 'daily quota used up' in text:
-        return "Today's AI reading limit is used up. Use Read again tomorrow."
+        return "Today's AI limit is used up. Try again tomorrow."
     if 'HTTP 503' in text or 'HTTP 429' in text:
-        return 'The AI service is busy. Please retry in a few minutes.'
+        return 'The AI service is busy. Try again in a few minutes.'
     if 'no answer from the model service' in text:
-        return 'The AI service did not answer. Please retry.'
+        return 'The AI service did not answer. Try again.'
     if isinstance(e, ValueError):
-        return 'The AI answer could not be read as a document. Please retry.'
-    return 'Extraction failed. Please retry.'
+        return 'The AI reply could not be read. Try again.'
+    return 'Reading failed. Try again.'
 
 
 def process(doc_id):
@@ -245,25 +245,25 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
     """Upload up to 20 files (PDF, JPG, PNG, WebP, HEIC; max 10 MB each). Extraction runs in the background.
     A plain def: FastAPI runs it in a thread, so the database writes don't block other requests."""
     if not files or len(files) > MAX_FILES:
-        raise HTTPException(400, f'send 1 to {MAX_FILES} files')
+        raise HTTPException(400, f'Send 1 to {MAX_FILES} files.')
     with store.conn() as con:
         used = reads_today(con, uid)
     # ponytail: counted once per request; two parallel uploads can overshoot the limit slightly
     left = DAILY_UPLOAD_LIMIT - used
     if left <= 0:
-        raise HTTPException(429, f'daily limit of {DAILY_UPLOAD_LIMIT} files reached; try again tomorrow')
+        raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
     created = []
     for f in files:
         if left <= 0:
-            created.append({'file_name': f.filename, 'error': f'daily limit of {DAILY_UPLOAD_LIMIT} files reached'})
+            created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again tomorrow.'})
             continue
         data = heic_to_jpeg(f.file.read(MAX_BYTES + 1))
         kind = providers.mime(data)  # type from the file's bytes, never from its name
         if kind is None:
-            created.append({'file_name': f.filename, 'error': 'not a PDF/JPG/PNG/WebP/HEIC file'})
+            created.append({'file_name': f.filename, 'error': 'Not a PDF, JPG, PNG, WebP or HEIC file.'})
             continue
         if len(data) > MAX_BYTES:  # also a HEIC photo that grew past the limit when converted to JPEG
-            created.append({'file_name': f.filename, 'error': 'over 10 MB'})
+            created.append({'file_name': f.filename, 'error': 'Larger than 10 MB.'})
             continue
         if kind == 'application/pdf':
             pages = pdf_pages(data)
@@ -333,9 +333,9 @@ def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_ord
     with store.conn() as con:
         row = get_row(con, doc_id, uid)
         if row['status'] == 'processing':
-            raise HTTPException(409, 'still being read; save again when it is done')
+            raise HTTPException(409, 'Still being read. Save again when it is done.')
         if if_unchanged_since and row['updated_at'] != if_unchanged_since:
-            raise HTTPException(409, 'This document was changed in another tab or window. Reload to see the latest version.')
+            raise HTTPException(409, 'Changed in another tab. Reload to see the latest version.')
         save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
     tasks.add_task(send_event, doc_id)
     return get_document(doc_id, uid)
@@ -347,13 +347,13 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
     user's corrections, and one still processing is not sent to the model twice."""
     with store.conn() as con:  # one statement, so two quick clicks can't both start a read
         if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
-            raise HTTPException(429, f'daily limit of {DAILY_UPLOAD_LIMIT} reads reached; try again tomorrow')
+            raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
         claimed = con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() "
                               "WHERE id = %s AND user_id = %s AND status IN ('failed', 'needs_review') RETURNING id",
                               (doc_id, uid)).fetchone()
         if claimed is None:
             get_row(con, doc_id, uid)  # 404 for ids that are not the user's
-            raise HTTPException(409, 'only failed or needs_review documents can be retried')
+            raise HTTPException(409, 'Only failed or flagged documents can be read again.')
         con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
@@ -364,7 +364,7 @@ def delete_document(doc_id: int, uid: str = Depends(current_user)):
     """Delete the record together with the uploaded file."""
     with store.conn() as con:
         if con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).rowcount == 0:
-            raise HTTPException(404, 'document not found')
+            raise HTTPException(404, 'Document not found.')
 
 
 @app.get('/documents/{doc_id}/file')
@@ -403,14 +403,14 @@ def page_image(doc_id: int, n: int, uid: str = Depends(current_user)):
         r = get_row(con, doc_id, uid, with_file=True)
     if r['mime'] != 'application/pdf':
         if n != 0:
-            raise HTTPException(404, 'page not found')
+            raise HTTPException(404, 'Page not found.')
         return Response(bytes(r['file']), media_type=r['mime'])
     buf = io.BytesIO()
     with PDF_LOCK:
         pdf = pypdfium2.PdfDocument(bytes(r['file']))
         try:
             if not 0 <= n < len(pdf):
-                raise HTTPException(404, 'page not found')
+                raise HTTPException(404, 'Page not found.')
             page = pdf[n]
             scale = min(2, 2000 / max(page.get_size()))  # at most 2000 px on the long side, whatever the page size
             page.render(scale=scale).to_pil().save(buf, 'PNG')
@@ -428,7 +428,7 @@ def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, 
     """Confirm how this vendor prints dates (MDY or DMY). Unreviewed documents of the vendor are re-checked;
     those that now pass are sent to the webhook."""
     if body.date_order not in ('MDY', 'DMY'):
-        raise HTTPException(422, 'date_order must be MDY or DMY')
+        raise HTTPException(422, 'date_order must be MDY or DMY.')
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
         rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
@@ -445,7 +445,7 @@ def delete_auth_user(uid):
     """Remove the sign-in account with Supabase's Admin API (SUPABASE_SECRET_KEY, backend only). Raises on failure."""
     key = os.environ.get('SUPABASE_SECRET_KEY')
     if not key:
-        raise HTTPException(503, 'account deletion is not set up on this server')
+        raise HTTPException(503, 'Account deletion is not set up on this server.')
     url = f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1/admin/users/{uid}'
     urllib.request.urlopen(urllib.request.Request(url, method='DELETE', headers={'apikey': key, 'Authorization': f'Bearer {key}'}),
                            timeout=15)
@@ -571,7 +571,7 @@ def export(format: str = 'xlsx', status: str | None = None, uid: str = Depends(c
     """Download documents as CSV (one row per document), XLSX (Documents and Items sheets) or a QuickBooks
     Online bill import CSV (X-Skipped header: documents left out for a missing date or total)."""
     if format not in ('csv', 'xlsx', 'quickbooks'):
-        raise HTTPException(422, 'format must be csv, xlsx or quickbooks')
+        raise HTTPException(422, 'Format must be csv, xlsx or quickbooks.')
     if format == 'quickbooks':
         rows, skipped = quickbooks_rows(uid)
         buf = io.StringIO()
