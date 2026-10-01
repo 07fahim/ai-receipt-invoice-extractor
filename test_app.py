@@ -175,10 +175,13 @@ try:
     padded = {**kept['extracted'], 'subtotal': '51.90', 'vendor': ' Green Field '}  # how the review screen shows it: not a correction
     assert corrections.report([(kept['extracted'], padded)])[0] == '1 reviewed documents, 0 corrected (0%)'
 
-    # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
+    # webhook: every reading (passed, needs_review, failed) and every review, signed with the secret
     kinds = [(e['event'], e['id']) for e, _, _ in events]
     # Dave's reviewed document and the resumed one belong to other users: not sent
-    assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
+    assert kinds == [('document.passed', good_id), ('document.needs_review', amb_id), ('document.passed', amb_id),
+                     ('document.failed', bad_id), ('document.failed', bad_id), ('document.reviewed', good_id)], kinds
+    failed_event = next(e for e, _, _ in events if e['event'] == 'document.failed')
+    assert 'busy' in failed_event['error'] and 'HTTP' not in failed_event['error']  # the short public message only
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
 
