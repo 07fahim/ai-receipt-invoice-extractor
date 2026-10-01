@@ -12,6 +12,7 @@ type Stats = {
   documents: number;
   by_status: Record<string, number>;
   spend_by_currency: Sum[];
+  tax_by_currency: Sum[];
   top_vendors: (Sum & { vendor: string })[];
   by_month: (Sum & { month: string })[];
 };
@@ -19,22 +20,52 @@ type Stats = {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const label = (month: string) => `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(2, 4)}`;
 const NO_CURRENCY = "No currency";
+const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+// first day of each range, in the user's own time zone; "" = all time
+const RANGES: Record<string, () => string> = {
+  "All time": () => "",
+  "This month": () => `${ym(new Date())}-01`,
+  "Last 3 months": () => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 2); return `${ym(d)}-01`; },
+  "This year": () => `${new Date().getFullYear()}-01-01`,
+};
+
+// every month in the period (at most the last 12), empty ones as 0, so gaps show as gaps.
+// A chosen period runs from its start to this month; all time runs from the first to the last document.
+function monthSeries(rows: { month: string; total: number }[], from: string) {
+  if (!rows.length) return [];
+  const first = from ? from.slice(0, 7) : rows[0].month;
+  const lastRow = rows[rows.length - 1].month;
+  const last = from && ym(new Date()) > lastRow ? ym(new Date()) : lastRow;
+  const d = new Date(Number(last.slice(0, 4)), Number(last.slice(5, 7)) - 1, 1);
+  const out = [];
+  for (let i = 0; i < 12 && ym(d) >= first; i++, d.setMonth(d.getMonth() - 1)) {
+    out.unshift({ month: label(ym(d)), total: rows.find((r) => r.month === ym(d))?.total ?? 0 });
+  }
+  return out;
+}
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recent, setRecent] = useState<DocumentRow[]>([]);
   const [currency, setCurrency] = useState<string | null>(null);
+  const [range, setRange] = useState("All time");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getJSON<Stats>("/stats")
+    const from = RANGES[range]();
+    let current = true; // a slower answer for an earlier range must not overwrite this one
+    getJSON<Stats>(from ? `/stats?date_from=${from}` : "/stats")
       .then((s) => {
+        if (!current) return;
         setStats(s);
-        // start with the currency that has the most documents
+        // keep the chosen currency; otherwise start with the one that has the most documents
         const top = [...s.spend_by_currency].sort((a, b) => b.n - a.n)[0];
-        setCurrency(top ? top.currency ?? NO_CURRENCY : null);
+        setCurrency((c) => (c && (!s.spend_by_currency.length || s.spend_by_currency.some((x) => (x.currency ?? NO_CURRENCY) === c)) ? c : top ? top.currency ?? NO_CURRENCY : null));
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => current && setError(e.message));
+    return () => { current = false; };
+  }, [range]);
+  useEffect(() => {
     getJSON<DocumentRow[]>("/documents?limit=5").then(setRecent).catch(() => {});
   }, []);
 
@@ -54,7 +85,8 @@ export default function DashboardPage() {
   const is = (c: string | null) => (c ?? NO_CURRENCY) === currency;
   const spend = stats.spend_by_currency.find((s) => is(s.currency));
   const others = stats.spend_by_currency.filter((s) => !is(s.currency));
-  const months = stats.by_month.filter((m) => is(m.currency)).slice(-12).map((m) => ({ month: label(m.month), total: m.total }));
+  const tax = stats.tax_by_currency.find((s) => is(s.currency));
+  const months = monthSeries(stats.by_month.filter((m) => is(m.currency)), RANGES[range]());
   const vendors = stats.top_vendors.filter((v) => is(v.currency)).slice(0, 5);
   const code = currency === NO_CURRENCY ? "" : currency ?? "";
 
@@ -66,6 +98,14 @@ export default function DashboardPage() {
           <p className="mt-0.5 text-sm text-muted-foreground">Spend from passed and reviewed documents</p>
         </div>
         <div className="flex gap-2">
+          <select
+            aria-label="Date range"
+            className="h-9 rounded-md border border-input bg-card px-2.5 text-sm"
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+          >
+            {Object.keys(RANGES).map((r) => <option key={r}>{r}</option>)}
+          </select>
           {stats.spend_by_currency.length > 1 && (
             <select
               aria-label="Currency"
@@ -83,24 +123,25 @@ export default function DashboardPage() {
       </div>
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Total spend" value={spend ? money(spend.total) : "–"} unit={code}>
+        <Kpi label="Total spend" value={spend ? money(spend.total) : "–"} unit={spend ? code : undefined}>
           {others.length > 0
             ? `Not included: ${others.map((o) => `${o.n} ${o.currency ?? "no-currency"}`).join(", ")} document${others.length > 1 || others[0].n > 1 ? "s" : ""}`
             : `${spend?.n ?? 0} document${spend?.n === 1 ? "" : "s"}`}
         </Kpi>
-        <Kpi label="Documents" value={String(stats.documents)}>
-          {(stats.by_status.passed ?? 0) + (stats.by_status.reviewed ?? 0)} checked
+        <Kpi label="Tax / VAT paid" value={tax ? money(tax.total) : "–"} unit={tax ? code : undefined}>
+          {tax ? `on ${tax.n} document${tax.n === 1 ? "" : "s"}` : spend ? "No tax printed" : "No documents"}
         </Kpi>
         <Kpi label="Needs review" value={String(stats.by_status.needs_review ?? 0)}>
           {stats.by_status.needs_review ? <Link href="/app/review" className="font-medium text-primary underline">Review now</Link> : "All clear"}
         </Kpi>
-        <Kpi label="Failed" value={String(stats.by_status.failed ?? 0)}>
-          {stats.by_status.failed ? <Link href="/app/documents" className="font-medium text-primary underline">See documents</Link> : "None"}
+        <Kpi label="Documents" value={String(stats.documents)}>
+          {(stats.by_status.passed ?? 0) + (stats.by_status.reviewed ?? 0)} checked
+          {stats.by_status.failed ? <> · <Link href="/app/documents" className="font-medium text-primary underline">{stats.by_status.failed} failed</Link></> : null}
         </Kpi>
       </div>
 
       <div className="mb-5 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <Card title="Spend by month" note={`${code || "No currency"}, by issue date`}>
+        <Card title="Spend by month" note={`${code || "No currency"}, by issue date${months.length === 12 ? ", last 12 months" : ""}`}>
           {months.length ? (
             <div className="h-60" role="img" aria-label={`Spend by month: ${months.map((m) => `${m.month} ${money(m.total)}`).join(", ")}`}>
               <ResponsiveContainer width="100%" height="100%">
@@ -114,7 +155,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No dated documents in this currency yet.</p>
+            <p className="text-sm text-muted-foreground">No dated documents in this currency{range === "All time" ? " yet" : " in this period"}.</p>
           )}
         </Card>
         <Card title="Top vendors" note={code}>
@@ -131,7 +172,7 @@ export default function DashboardPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">No vendors in this currency yet.</p>
+            <p className="text-sm text-muted-foreground">No vendors in this currency{range === "All time" ? " yet" : " in this period"}.</p>
           )}
         </Card>
       </div>
