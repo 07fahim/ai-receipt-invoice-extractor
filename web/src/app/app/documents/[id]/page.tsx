@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type Suggestion } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, skip } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
 
@@ -252,6 +252,19 @@ export default function ReviewPage() {
                 {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`} onClick={leaveCheck}><ArrowRight /></Link> : <ArrowRight />}
               </Button>
             </div>
+          )}
+          {pos >= 0 && queue.length > 1 && (
+            <Button
+              variant="outline"
+              className="h-9"
+              onClick={() => {
+                if (dirty && !window.confirm("Leave without saving your changes?")) return;
+                skip(Number(id)); // the review queue opens another one next time
+                router.push(`/app/documents/${queue[(pos + 1) % queue.length]}`);
+              }}
+            >
+              Skip
+            </Button>
           )}
           {doc && (
             <Button
