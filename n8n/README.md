@@ -8,7 +8,7 @@ sends a Telegram message with a link to it.
 1. Crosscheck posts an event to the webhook (`document.passed`, `document.reviewed`, `document.needs_review`,
    `document.failed`, `document.deleted`).
 2. A Code node checks the HMAC-SHA256 signature (`X-Signature`) and drops anything not signed with the secret.
-3. Needs review or failed: Telegram "Send message". Everything else: Google Sheets "Append or Update Row", matched on `id`.
+3. Needs review or failed: Telegram "Send message" and an email (SMTP, e.g. Gmail with an app password). Everything else: Google Sheets "Append or Update Row", matched on `id`.
 4. A WhatsApp step (template `crosscheck_alert`) sits next to Telegram but is disabled. Meta blocks sending until the
    business has a payment method, a complete business profile and business verification. Each alert step fails on its
    own, so one channel being down never stops the other.
@@ -18,6 +18,7 @@ Setup:
 - A Telegram bot from @BotFather. Send it one message first, then get your chat id (for example from @userinfobot).
 - n8n started with `CROSSCHECK_WEBHOOK_SECRET` set, `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` and
   `NODE_FUNCTION_ALLOW_BUILTIN=crypto` (the Code node reads the secret and uses `crypto`).
-- Import the file. Pick your Google Sheets and Telegram credentials, your sheet and your chat id. Then activate.
+- For email: an SMTP credential (Gmail: `smtp.gmail.com`, port 465, SSL, an app password).
+- Import the file. Pick your Google Sheets, Telegram and SMTP credentials, your sheet, chat id and email address. Then activate.
 - In the app's `.env`: `WEBHOOK_URL=<n8n>/webhook/crosscheck`, `WEBHOOK_SECRET=<same secret>`,
   `WEBHOOK_USER_ID=<the account whose documents are sent>`.

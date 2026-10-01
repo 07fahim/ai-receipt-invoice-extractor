@@ -1,5 +1,5 @@
 {
-  "name": "Crosscheck → Google Sheets + Telegram",
+  "name": "Crosscheck → Google Sheets, Telegram, email",
   "nodes": [
     {
       "id": "wh",
@@ -293,6 +293,35 @@
           "name": "WhatsApp account"
         }
       }
+    },
+    {
+      "id": "mail",
+      "name": "Send email alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "onError": "continueRegularOutput",
+      "position": [
+        800,
+        -400
+      ],
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "Crosscheck alerts <you@example.com>",
+        "toEmail": "you@example.com",
+        "subject": "={{ $json.wa[0] }}: {{ $json.wa[1] }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE",
+          "name": "SMTP account"
+        }
+      }
     }
   ],
   "connections": {
@@ -328,6 +357,11 @@
           },
           {
             "node": "Send WhatsApp alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send email alert",
             "type": "main",
             "index": 0
           }
