@@ -484,7 +484,7 @@ export default function ReviewPage() {
             <>
               <DialogHeader>
                 <DialogTitle>{otherFailing.length} {otherFailing.length === 1 ? "check still fails" : "checks still fail"}</DialogTitle>
-                <DialogDescription>{otherFailing.map((c) => c.message).join(". ")}. Save anyway?</DialogDescription>
+                <DialogDescription>{otherFailing.map((c) => c.message).join(" ")} Save anyway?</DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirm(null)}>Keep editing</Button>
