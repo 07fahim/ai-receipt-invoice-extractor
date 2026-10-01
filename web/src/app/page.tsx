@@ -1,26 +1,26 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Archive, Calculator, ClipboardCheck, Download, Store, Upload, Wallet } from "lucide-react";
+import { Archive, Calculator, ClipboardCheck, Download, Lock, ScanText, Store, Trash2, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 const features = [
-  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are done in about five seconds." },
-  { icon: ClipboardCheck, title: "Review only what needs it", text: "Flagged fields are shown next to the original, with the reason." },
-  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import, or send rows to Google Sheets." },
+  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are read in about five seconds." },
+  { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. The reason is shown too." },
+  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import. Or send rows to Google Sheets." },
 ];
 
 // Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
 const useCases = [
   { icon: Calculator, title: "Bookkeepers", docs: "Receipts · invoices",
-    text: "A client's month of paperwork in one upload. You only answer the questions where the numbers don't add up." },
+    text: "Upload a client's month of paperwork at once. You only check the ones that don't add up." },
   { icon: Store, title: "Restaurants and shops", docs: "Produce · meat · repairs",
-    text: "Every supplier bill looks different. They all end up in the same spreadsheet or QuickBooks import." },
+    text: "Every supplier bill looks different. They all end up in one spreadsheet." },
   { icon: Wallet, title: "Expense claims", docs: "Fuel · taxi · supplies",
-    text: "Staff photograph their receipts. You review the flagged ones and export the rest." },
+    text: "Staff photograph their receipts. You check the flagged ones and export the rest." },
   { icon: Archive, title: "Year-end and audits", docs: "Last year's receipts",
-    text: "Clear a backlog in batches of 20, with duplicates caught before they are counted twice." },
+    text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
 ];
 
 const checks = [
@@ -46,9 +46,9 @@ const TAPE: [string, string, "ok" | "flag" | ""][] = [
 ];
 
 const privacy = [
-  "Only you can see the documents you upload.",
-  "Delete any document, or your whole account, at any time.",
-  "Files are read by Google's Gemini AI on its free plan, where Google may use them to improve its products. Please upload sample documents while this is a demo.",
+  { icon: Lock, title: "Only you see your files", text: "Other users can't see your documents." },
+  { icon: Trash2, title: "Delete anytime", text: "Remove one document or your whole account." },
+  { icon: ScanText, title: "Read by Google Gemini", text: "This demo uses Gemini's free plan. Google may use files to improve its AI. Please upload samples." },
 ];
 
 export default function Home() {
@@ -77,9 +77,8 @@ export default function Home() {
               Every receipt read <span className="text-primary">and checked</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-foreground/80">
-              Upload receipts and invoices, one or a whole batch. Crosscheck reads the vendor, dates, line items and totals,
-              checks that the numbers add up, and <span className="mark">highlights anything it is not sure about</span> so you
-              only look at those.
+              Upload one receipt or a whole batch. Crosscheck reads the vendor, date, items and totals. Then it checks the
+              numbers and <span className="mark">flags anything it is not sure about</span>. You only look at those.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button size="lg" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Get started</Link></Button>
@@ -118,8 +117,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">For the bills that come in</h2>
             <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              Your till and accounting software know what you sell. The receipts and invoices you receive from others
-              still get typed in by hand.
+              Your till knows what you sell. But the bills you receive still get typed in by hand.
             </p>
             <div className="mt-11 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {useCases.map(({ icon: Icon, title, docs, text }) => (
@@ -174,14 +172,20 @@ export default function Home() {
         </section>
 
         <section id="privacy" className="border-t px-6 py-22">
-          <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-[1fr_1.4fr] md:gap-12">
+          <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Privacy</h2>
-            <ul className="divide-y">
-              {privacy.map((p) => (
-                <li key={p} className="py-3 text-foreground/85 first:pt-0">{p}</li>
+            <div className="mt-11 grid gap-5 md:grid-cols-3">
+              {privacy.map(({ icon: Icon, title, text }) => (
+                <div key={title} className="rounded-xl border bg-card p-6 shadow-xs">
+                  <span className="mb-4 grid size-10 place-items-center rounded-lg bg-accent text-primary">
+                    <Icon className="size-5" aria-hidden />
+                  </span>
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>
+                </div>
               ))}
-              <li className="py-3"><Link href="/privacy" className="font-medium text-primary underline">Read the full privacy note</Link></li>
-            </ul>
+            </div>
+            <Link href="/privacy" className="mt-6 inline-block text-sm font-medium text-primary underline">Read the privacy page</Link>
           </div>
         </section>
 
