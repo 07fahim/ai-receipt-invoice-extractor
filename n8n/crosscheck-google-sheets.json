@@ -29,7 +29,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// Only events signed with the shared secret (WEBHOOK_SECRET in the app, CROSSCHECK_WEBHOOK_SECRET here) get through.\nconst crypto = require('crypto');\nconst secret = $env.CROSSCHECK_WEBHOOK_SECRET;\nif (!secret) throw new Error('CROSSCHECK_WEBHOOK_SECRET is not set. Start n8n with start-n8n.cmd.');\nconst raw = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst sig = String($input.first().json.headers['x-signature'] || '');\nconst want = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');\nif (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) {\n  throw new Error('Bad signature. Event ignored.');\n}\nconst e = JSON.parse(raw.toString('utf8'));\nconst updated = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Dhaka' }); // 2026-10-01 18:50:14, Dhaka time\n// needs review or could not be read: an alert, not a spreadsheet row (the row comes once it is checked)\nconst APP = 'http://localhost:3000'; // the Crosscheck web app, for the link in the alert\nif (e.event === 'document.needs_review' || e.event === 'document.failed') {\n  const d = e.document || {};\n  const what = [d.vendor || e.file_name, d.total ? `${d.total} ${d.currency || ''}`.trim() : ''].filter(Boolean).join(' · ');\n  const why = e.event === 'document.failed' ? (e.error || 'The file could not be read.') : (e.checks || []).map((c) => '• ' + c.message).join('\\n');\n  const head = e.event === 'document.failed' ? 'Could not read a file' : 'A receipt needs review';\n  return [{ json: { alert: true, text: `${head}\\n${what}\\n${why}\\n${APP}/app/documents/${e.id}` } }];\n}\n// a deleted document keeps its row; only the status changes\nif (e.event === 'document.deleted') return [{ json: { id: e.id, status: 'deleted', updated } }];\nconst d = e.document || {};\nreturn [{ json: {\n  id: e.id, file: e.file_name, status: e.status, vendor: d.vendor ?? '', date: d.issue_date ?? '',\n  currency: d.currency ?? '', subtotal: d.subtotal ?? '', tax: d.tax ?? '', total: d.total ?? '',\n  items: (d.items || []).length, checks: (e.checks || []).map((c) => c.message).join(' | '), updated,\n} }];"
+        "jsCode": "// Only events signed with the shared secret (WEBHOOK_SECRET in the app, CROSSCHECK_WEBHOOK_SECRET here) get through.\nconst crypto = require('crypto');\nconst secret = $env.CROSSCHECK_WEBHOOK_SECRET;\nif (!secret) throw new Error('CROSSCHECK_WEBHOOK_SECRET is not set. Start n8n with start-n8n.cmd.');\nconst raw = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst sig = String($input.first().json.headers['x-signature'] || '');\nconst want = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');\nif (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) {\n  throw new Error('Bad signature. Event ignored.');\n}\nconst e = JSON.parse(raw.toString('utf8'));\nconst updated = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Dhaka' }); // 2026-10-01 18:50:14, Dhaka time\n// needs review or could not be read: an alert, not a spreadsheet row (the row comes once it is checked)\nconst APP = 'http://localhost:3000'; // the Crosscheck web app, for the link in the alert\nif (e.event === 'document.needs_review' || e.event === 'document.failed') {\n  const d = e.document || {};\n  const what = [d.vendor || e.file_name, d.total ? `${d.total} ${d.currency || ''}`.trim() : ''].filter(Boolean).join(' · ');\n  const why = e.event === 'document.failed' ? (e.error || 'The file could not be read.') : (e.checks || []).map((c) => '• ' + c.message).join('\\n');\n  const head = e.event === 'document.failed' ? 'Could not read a file' : 'A receipt needs review';\n  const link = `${APP}/app/documents/${e.id}`;\n  // WhatsApp template values may not hold line breaks, so the reasons go on one line\n  const wa = [head, what.replace(' · ', ', '), why.replace(/^• /gm, '').replace(/\\n/g, ' ') || '-', link];\n  return [{ json: { alert: true, text: `${head}\\n${what}\\n${why}\\n${link}`, wa } }];\n}\n// a deleted document keeps its row; only the status changes\nif (e.event === 'document.deleted') return [{ json: { id: e.id, status: 'deleted', updated } }];\nconst d = e.document || {};\nreturn [{ json: {\n  id: e.id, file: e.file_name, status: e.status, vendor: d.vendor ?? '', date: d.issue_date ?? '',\n  currency: d.currency ?? '', subtotal: d.subtotal ?? '', tax: d.tax ?? '', total: d.total ?? '',\n  items: (d.items || []).length, checks: (e.checks || []).map((c) => c.message).join(' | '), updated,\n} }];"
       }
     },
     {
@@ -220,6 +220,7 @@
       "name": "Send Telegram alert",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
+      "onError": "continueRegularOutput",
       "position": [
         800,
         -120
@@ -238,6 +239,58 @@
         "telegramApi": {
           "id": "REPLACE",
           "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "wa",
+      "name": "Send WhatsApp alert",
+      "disabled": true,
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "onError": "continueRegularOutput",
+      "position": [
+        800,
+        -260
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendTemplate",
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "YOUR_WHATSAPP_NUMBER",
+        "template": "crosscheck_alert|en",
+        "components": {
+          "component": [
+            {
+              "type": "body",
+              "bodyParameters": {
+                "parameter": [
+                  {
+                    "type": "text",
+                    "text": "={{ $json.wa[0] }}"
+                  },
+                  {
+                    "type": "text",
+                    "text": "={{ $json.wa[1] }}"
+                  },
+                  {
+                    "type": "text",
+                    "text": "={{ $json.wa[2] }}"
+                  },
+                  {
+                    "type": "text",
+                    "text": "={{ $json.wa[3] }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "whatsAppApi": {
+          "id": "REPLACE",
+          "name": "WhatsApp account"
         }
       }
     }
@@ -270,6 +323,11 @@
         [
           {
             "node": "Send Telegram alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send WhatsApp alert",
             "type": "main",
             "index": 0
           }
