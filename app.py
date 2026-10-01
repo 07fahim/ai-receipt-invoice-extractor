@@ -584,7 +584,11 @@ def export(format: str = 'xlsx', status: str | None = None, uid: str = Depends(c
     for ws, cols, rows in ((wb.active, DOC_COLUMNS, docs), (wb.create_sheet('Items'), ITEM_COLUMNS, items)):
         ws.append(cols)
         for row_ in rows:
-            ws.append(cells(cols, row_))
+            ws.append([date.fromisoformat(v) if c in ('issue_date', 'due_date') and v else v for c, v in zip(cols, cells(cols, row_))])
+        for row_ in ws.iter_rows(min_row=2):  # real dates, so Excel's date filters and sorting work
+            for x in row_:
+                if isinstance(x.value, date):
+                    x.number_format = 'yyyy-mm-dd'
     wb.active.title = 'Documents'
     buf = io.BytesIO()
     wb.save(buf)

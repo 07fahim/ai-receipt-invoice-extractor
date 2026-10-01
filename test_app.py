@@ -2,6 +2,7 @@
 Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end.
 Sign-in tokens are signed with a local test key instead of Supabase's."""
 import csv
+from datetime import date
 import io
 import os
 import time
@@ -248,6 +249,9 @@ try:
     wb = load_workbook(io.BytesIO(c.get('/export').content))
     assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+    dates = {h.value: x for h, x in zip(wb['Documents'][1], wb['Documents'][2])}
+    assert dates['issue_date'].value.date() == date(2016, 5, 26) and dates['issue_date'].number_format == 'yyyy-mm-dd'  # a real date
+    assert dates['due_date'].value is None and '2016-05-26' in csv_text  # CSV keeps ISO text
     # text stays text (leading zeros kept) and a formula from a document is never run by the spreadsheet
     ANSWERS['formula'] = ('{"vendor": "=HYPERLINK(\\"http://evil\\")", "doc_number": "00123", "total": 5,'
                           ' "items": [{"description": "2023", "amount": 5}]}')
