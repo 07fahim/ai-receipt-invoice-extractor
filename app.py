@@ -3,7 +3,7 @@
 Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
 Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler), SUPABASE_URL and GEMINI_API_KEY in .env.
 Every request except the docs needs a Supabase Auth access token ('Authorization: Bearer ...'); users only
-ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 50 files per user per 24 hours).
+ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 10 files per user per 24 hours).
 Optional WEBHOOK_URL (+ WEBHOOK_SECRET, WEBHOOK_USER_ID): each passed or reviewed document of that one account is sent
 there, e.g. to n8n; other users' documents never are.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
@@ -45,7 +45,7 @@ MAX_FILES = 20
 MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 DateOrderValue = Literal['MDY', 'DMY']
-DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 50))   # model reads (uploads + retries) per day: protects the quota
+DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 10))   # model reads (uploads + retries) per day: protects the quota
 
 
 def reads_today(con, uid):
