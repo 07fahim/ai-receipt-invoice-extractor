@@ -206,6 +206,12 @@ try:
     s = c.get('/stats').json()
     assert s['documents'] == 3 and s['by_status'] == {'reviewed': 1, 'passed': 1, 'failed': 1}
     assert {x['currency']: x['total'] for x in s['spend_by_currency']} == {'USD': 60.0, None: 10.0}
+    assert sum(x['total'] for x in s['tax_by_currency']) > 0
+    # a date range narrows the money figures (the 2016 receipt drops out) but not the counts
+    later = c.get('/stats', params={'date_from': '2021-01-01'}).json()
+    assert later['documents'] == 3 and later['by_status'] == s['by_status']
+    assert all(m['month'] >= '2021-01' for m in later['by_month']) and sum(x['n'] for x in later['spend_by_currency']) < sum(x['n'] for x in s['spend_by_currency'])
+    assert c.get('/stats', params={'date_from': 'soon'}).status_code == 422
     erin = as_user(str(uuid.uuid4()))  # a document waiting for review is not spend yet
     c.post('/documents', files=[('files', ('w.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=erin)
     s = c.get('/stats', headers=erin).json()
