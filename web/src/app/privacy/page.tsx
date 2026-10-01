@@ -14,6 +14,7 @@ const sections: [string, React.ReactNode][] = [
       <li>Your email and a hashed password. With Google sign-in, also your name and picture.</li>
       <li>Your files and the data read from them.</li>
       <li>Your corrections and vendor date settings.</li>
+      <li>The AI&apos;s first reading of each file. I compare it with your corrections to measure how often the AI is wrong.</li>
       <li>The time of each upload. This is for the daily limit.</li>
     </ul>
     <p>No ads. No tracking. Cookies only keep you signed in.</p>
