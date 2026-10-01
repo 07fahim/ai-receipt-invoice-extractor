@@ -469,21 +469,24 @@ def delete_account(uid: str = Depends(current_user)):
 
 
 @app.get('/stats')
-def stats(uid: str = Depends(current_user)):
+def stats(date_from: date | None = None, uid: str = Depends(current_user)):
     """Dashboard numbers for the user. Money is summed per currency (never converted), and only from checked
-    documents (passed or reviewed): amounts still waiting for review are not counted as spend."""
+    documents (passed or reviewed): amounts still waiting for review are not counted as spend.
+    date_from limits the money figures to documents issued on or after it (undated ones drop out); counts stay all-time."""
     with store.conn() as con:
-        q = lambda cols, rest='': con.execute(f'SELECT {cols} FROM documents WHERE user_id = %s {rest}', (uid,)).fetchall()
+        q = lambda cols, rest='', args=(): con.execute(f'SELECT {cols} FROM documents WHERE user_id = %s {rest}', (uid, *args)).fetchall()
+        checked = "AND status IN ('passed', 'reviewed')" + (' AND issue_date >= %s' if date_from else '')
+        m = lambda cols, rest: q(cols, f'{checked} {rest}', (date_from,) if date_from else ())
         return {
             'documents': q('count(*) AS n')[0]['n'],
             'by_status': {r['status']: r['n'] for r in q('status, count(*) AS n', 'GROUP BY status')},
-            'spend_by_currency': q('currency, sum(total) AS total, count(*) AS n',
-                                   "AND total IS NOT NULL AND status IN ('passed', 'reviewed') GROUP BY currency"),
-            'top_vendors': q('min(vendor) AS vendor, currency, sum(total) AS total, count(*) AS n',
-                             "AND vendor IS NOT NULL AND status IN ('passed', 'reviewed') GROUP BY lower(vendor), currency "
-                             'ORDER BY total DESC NULLS LAST LIMIT 10'),
-            'by_month': q("to_char(issue_date, 'YYYY-MM') AS month, currency, sum(total) AS total, count(*) AS n",
-                          "AND issue_date IS NOT NULL AND status IN ('passed', 'reviewed') GROUP BY month, currency ORDER BY month"),
+            'spend_by_currency': m('currency, sum(total) AS total, count(*) AS n', 'AND total IS NOT NULL GROUP BY currency'),
+            'tax_by_currency': m("currency, sum((document->>'tax')::numeric) AS total, count(*) AS n",
+                                 "AND document->>'tax' IS NOT NULL GROUP BY currency"),
+            'top_vendors': m('min(vendor) AS vendor, currency, sum(total) AS total, count(*) AS n',
+                             'AND vendor IS NOT NULL GROUP BY lower(vendor), currency ORDER BY total DESC NULLS LAST LIMIT 10'),
+            'by_month': m("to_char(issue_date, 'YYYY-MM') AS month, currency, sum(total) AS total, count(*) AS n",
+                          'AND issue_date IS NOT NULL GROUP BY month, currency ORDER BY month'),
         }
 
 
