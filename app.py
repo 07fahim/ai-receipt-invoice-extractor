@@ -124,6 +124,8 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
     fields = {'document': Jsonb(doc.model_dump(mode='json')), 'checks': Jsonb(checks), 'status': status,
               'error': None, 'vendor': doc.vendor, 'currency': doc.currency, 'issue_date': doc.issue_date,
               'total': doc.total, **(extra or {})}
+    if only_if_processing:  # the AI's reading: also kept apart, as the user first sees it, to measure corrections (corrections.py)
+        fields['extracted'] = fields['document']
     only = " AND status = 'processing'" if only_if_processing else ''
     con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
                 (*fields.values(), doc_id))
