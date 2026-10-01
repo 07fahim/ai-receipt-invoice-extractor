@@ -87,7 +87,8 @@ _post = app.post_event
 
 
 def post_and_wait(payload):  # the app delivers on a side thread; tests wait so events can be checked
-    _post(payload).join()
+    _post(payload)
+    app.EVENTS.join()
 
 
 app.post_event = post_and_wait
@@ -343,6 +344,7 @@ try:
     erin = as_user(str(uuid.uuid4()))
     passed = c.post('/documents', files=[('files', ('e.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]
     assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed' and len(events) == sent
+    assert c.delete(f"/documents/{passed['id']}", headers=erin).status_code == 204 and len(events) == sent  # nor her deletes
 
     # refused uploads say why: not a supported type, or too large
     r = c.post('/documents', files=[('files', ('n.txt', io.BytesIO(b'hello'), 'text/plain'))], headers=erin).json()

@@ -4,8 +4,8 @@ Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
 Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler), SUPABASE_URL and GEMINI_API_KEY in .env.
 Every request except the docs needs a Supabase Auth access token ('Authorization: Bearer ...'); users only
 ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 10 files per user per 24 hours).
-Optional WEBHOOK_URL (+ WEBHOOK_SECRET, WEBHOOK_USER_ID): each passed or reviewed document of that one account is sent
-there, e.g. to n8n; other users' documents never are.
+Optional WEBHOOK_URL (+ WEBHOOK_SECRET, WEBHOOK_USER_ID): each status change of that one account's documents (passed,
+reviewed, needs_review, failed, deleted) is sent there, e.g. to n8n; other users' documents never are.
 Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
 """
 import contextlib
@@ -15,6 +15,7 @@ import hmac
 import io
 import json
 import os
+import queue
 import threading
 import time
 import urllib.parse
@@ -139,39 +140,46 @@ def send_event(doc_id):
         r = row_by_id(con, doc_id)
     if r is None or str(r['user_id']) != os.environ.get('WEBHOOK_USER_ID'):
         return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
-    return post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
-                       'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
+    post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
+                'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
 
 
 def send_deleted(doc_id, uid):
     """Tell the webhook a document is gone, so its spreadsheet row can be marked deleted."""
     if os.environ.get('WEBHOOK_URL') and uid == os.environ.get('WEBHOOK_USER_ID'):
-        return post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
+        post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
+
+
+EVENTS = queue.Queue()  # one worker delivers in order, so a retried 'passed' never lands after 'reviewed' or 'deleted'
+
+
+def deliver_events():
+    while True:
+        url, body, headers, doc_id = EVENTS.get()
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=30):
+                    break
+            except Exception as e:
+                print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+        EVENTS.task_done()
+
+
+# ponytail: in-memory queue; events still waiting are lost on restart, a table if they must survive
+threading.Thread(target=deliver_events, daemon=True).start()
 
 
 def post_event(payload):
-    """Deliver one event on a side thread, signed with HMAC-SHA256 of the body in X-Signature when
-    WEBHOOK_SECRET is set. Returns the thread (tests join it)."""
-    url = os.environ['WEBHOOK_URL']
-    doc_id = payload['id']
+    """Queue one event, signed with HMAC-SHA256 of the body in X-Signature when WEBHOOK_SECRET is set.
+    The app does not wait; tests call EVENTS.join()."""
     body = json.dumps(payload).encode()
     headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
     secret = os.environ.get('WEBHOOK_SECRET')
     if secret:
         headers['X-Signature'] = 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    # ponytail: in-process retries on a side thread; a queue if deliveries must survive restarts
-    def deliver():
-        for attempt in range(3):
-            try:
-                with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=10):
-                    return
-            except Exception as e:
-                print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-    worker = threading.Thread(target=deliver, daemon=True)
-    worker.start()
-    return worker  # tests join it; the app does not wait
+    EVENTS.put((os.environ['WEBHOOK_URL'], body, headers, payload['id']))
 
 
 def public_error(e):
