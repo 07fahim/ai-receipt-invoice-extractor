@@ -305,6 +305,8 @@ try:
     pre = {'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization'}
     assert anon.options('/documents', headers={'Origin': 'http://localhost:3000', **pre}).headers['access-control-allow-origin'] == 'http://localhost:3000'
     assert 'access-control-allow-origin' not in anon.options('/documents', headers={'Origin': 'https://evil.example', **pre}).headers
+    # the browser may read an export's file name (else QuickBooks bills download as documents.csv)
+    assert 'content-disposition' in c.get('/export', params={'format': 'quickbooks'}, headers={'Origin': 'http://localhost:3000'}).headers['access-control-expose-headers'].lower()
 
     # another user sees none of Alice's documents and cannot change them
     bob = as_user(BOB)
