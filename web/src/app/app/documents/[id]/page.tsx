@@ -41,6 +41,14 @@ function readAs(text: string | null, order: Order) {
 const blank = (v: string) => (v.trim() === "" ? null : v.trim());
 const EMPTY_ITEM: Item = { description: null, quantity: null, unit_price: null, amount: null, discount: null };
 
+// Show money with two decimals ("8.5" -> "8.50") by padding the text, so no value is ever rounded.
+const pad = (v: string | null) => (v && /^-?\d+(\.\d)?$/.test(v) ? (v.includes(".") ? v + "0" : v + ".00") : v);
+const cents = (d: Doc): Doc => ({
+  ...d,
+  subtotal: pad(d.subtotal), discount: pad(d.discount), tax: pad(d.tax), service_charge: pad(d.service_charge), total: pad(d.total),
+  items: d.items.map((it) => ({ ...it, unit_price: pad(it.unit_price), amount: pad(it.amount), discount: pad(it.discount) })),
+});
+
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -68,7 +76,7 @@ export default function ReviewPage() {
           setDetail(d);
           if (d.status === "processing") timer = setTimeout(load, 2000);
           else if (d.document) {
-            setDoc(d.document);
+            setDoc(cents(d.document));
             setChecks(d.checks ?? []);
             setSuggestion(d.suggestion ?? null);
             setOrder(null);
@@ -148,7 +156,7 @@ export default function ReviewPage() {
       const it = m && doc?.items[Number(m[1])];
       return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
     };
-    if (!s.changes.every((c) => current(c.field) === c.from)) {
+    if (!s.changes.every((c) => current(c.field) != null && Number(current(c.field)) === Number(c.from))) { // 280.00 is 280.0
       toast.error("The document changed. Wait a moment for the checks to update.");
       return;
     }
@@ -157,8 +165,8 @@ export default function ReviewPage() {
       const next = { ...d, items: d.items.map((it) => ({ ...it })) };
       for (const c of s.changes) {
         const m = c.field.match(ITEM_FIELD);
-        if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = c.to;
-        else (next as unknown as Record<string, string | null>)[c.field] = c.to;
+        if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = m[2] === "quantity" ? c.to : pad(c.to);
+        else (next as unknown as Record<string, string | null>)[c.field] = pad(c.to);
       }
       return next;
     });
@@ -429,7 +437,7 @@ export default function ReviewPage() {
                 {suggestion.changes.length <= 3 && (
                   <ul className="mt-1.5 text-xs">
                     {suggestion.changes.map((c) => (
-                      <li key={c.field}>{fieldLabel(c.field)}: <s>{c.from}</s> → <b>{c.to}</b></li>
+                      <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
                     ))}
                   </ul>
                 )}
