@@ -11,7 +11,7 @@ const martian = Martian_Mono({ variable: "--font-mono", subsets: ["latin"] }); /
 export const metadata: Metadata = {
   title: "Crosscheck: receipt and invoice data extraction",
   description:
-    "Upload receipts and invoices. Crosscheck extracts the vendor, dates, line items and totals, checks the numbers, and sends only uncertain documents to review.",
+    "Upload receipts and invoices. Crosscheck reads them and checks the numbers. Only unsure ones go to review.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
