@@ -83,16 +83,14 @@ threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
 os.environ['WEBHOOK_USER_ID'] = ALICE  # only Alice's documents go to the webhook
-_send = app.send_event
+_post = app.post_event
 
 
-def send_and_wait(doc_id):  # the app delivers on a side thread; tests wait so events can be checked
-    worker = _send(doc_id)
-    if worker:
-        worker.join()
+def post_and_wait(payload):  # the app delivers on a side thread; tests wait so events can be checked
+    _post(payload).join()
 
 
-app.send_event = send_and_wait
+app.post_event = post_and_wait
 c = TestClient(app.app, headers=as_user(ALICE))
 app.DAILY_UPLOAD_LIMIT = 50  # these tests upload more than the default 10; the limit test sets its own
 try:
@@ -404,8 +402,11 @@ try:
     assert f.headers['content-type'] == 'image/jpeg' and f.content[:3] == b'\xff\xd8\xff'
     assert Image.open(io.BytesIO(f.content)).size == (60, 40)
 
-    # delete removes the record and the file
+    # delete removes the record and the file, and tells the webhook (the row gets marked deleted)
     assert c.delete(f'/documents/{good_id}').status_code == 204
+    e, sig, raw = events[-1]
+    assert e == {'event': 'document.deleted', 'id': good_id, 'status': 'deleted'}
+    assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest()
     assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
     assert c.delete(f'/documents/{good_id}').status_code == 404
     assert c.post('/documents', files=[]).status_code in (400, 422)
