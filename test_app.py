@@ -297,7 +297,7 @@ try:
     routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
               for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
               for m in rt.methods - {'HEAD'}]
-    assert len(routes) == 14, routes
+    assert len(routes) == 15, routes
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
@@ -354,6 +354,7 @@ try:
     app.DAILY_UPLOAD_LIMIT = 3
     flagged = c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=carol).json()[0]['id']
     assert c.post(f'/documents/{flagged}/retry', headers=carol).status_code == 429
+    assert c.get('/usage', headers=carol).json() == {'used': 3, 'limit': 3}  # shown on the upload page
     app.DAILY_UPLOAD_LIMIT = 50
 
     # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
