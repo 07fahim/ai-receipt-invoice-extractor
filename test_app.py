@@ -165,6 +165,17 @@ try:
     doc['total'] = '60.00'
     d = c.put(f'/documents/{good_id}', json=doc).json()
     assert d['status'] == 'reviewed' and d['total'] == 60.0 and d['checks'][0]['check'] == 'total_math'
+    # the AI's first reading is kept apart from the correction, to measure how often people fix it
+    with app.store.conn() as con:
+        kept = con.execute('SELECT extracted, document FROM documents WHERE id = %s', (good_id,)).fetchone()
+    assert kept['extracted']['total'] == '56.58' and kept['document']['total'] == '60.00'
+    import corrections
+    assert corrections.report([(kept['extracted'], kept['document'])]) == [
+        '1 reviewed documents, 1 corrected (100%)', '1 of the corrected ones had passed every check (mistakes the checks missed)',
+        'Fields changed: total 1']
+    assert corrections.report([(kept['extracted'], kept['extracted'])])[0] == '1 reviewed documents, 0 corrected (0%)'
+    padded = {**kept['extracted'], 'subtotal': '51.90', 'vendor': ' Green Field '}  # how the review screen shows it: not a correction
+    assert corrections.report([(kept['extracted'], padded)])[0] == '1 reviewed documents, 0 corrected (0%)'
 
     # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
     kinds = [(e['event'], e['id']) for e, _, _ in events]

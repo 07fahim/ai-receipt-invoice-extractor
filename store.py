@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id UUID;   -- tables created before accounts existed
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted JSONB; -- the AI's reading as first saved, kept when the user corrects it
 CREATE INDEX IF NOT EXISTS documents_user ON documents (user_id, id);
 CREATE INDEX IF NOT EXISTS documents_vendor ON documents (user_id, lower(vendor));
 CREATE INDEX IF NOT EXISTS documents_status ON documents (status);
