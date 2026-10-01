@@ -1,0 +1,212 @@
+{
+  "name": "Crosscheck â†’ Google Sheets",
+  "nodes": [
+    {
+      "id": "wh",
+      "name": "Crosscheck event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crosscheck",
+        "options": {
+          "rawBody": true
+        }
+      }
+    },
+    {
+      "id": "code",
+      "name": "Check signature, build row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Only events signed with the shared secret (WEBHOOK_SECRET in the app, CROSSCHECK_WEBHOOK_SECRET here) get through.\nconst crypto = require('crypto');\nconst secret = $env.CROSSCHECK_WEBHOOK_SECRET;\nif (!secret) throw new Error('CROSSCHECK_WEBHOOK_SECRET is not set. Start n8n with start-n8n.cmd.');\nconst raw = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst sig = String($input.first().json.headers['x-signature'] || '');\nconst want = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');\nif (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) {\n  throw new Error('Bad signature. Event ignored.');\n}\nconst e = JSON.parse(raw.toString('utf8'));\nconst updated = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Dhaka' }); // 2026-10-01 18:50:14, Dhaka time\n// a deleted document keeps its row; only the status changes\nif (e.event === 'document.deleted') return [{ json: { id: e.id, status: 'deleted', updated } }];\nconst d = e.document || {};\nreturn [{ json: {\n  id: e.id, file: e.file_name, status: e.status, vendor: d.vendor ?? '', date: d.issue_date ?? '',\n  currency: d.currency ?? '', subtotal: d.subtotal ?? '', tax: d.tax ?? '', total: d.total ?? '',\n  items: (d.items || []).length, checks: (e.checks || []).map((c) => c.message).join(' | '), updated,\n} }];"
+      }
+    },
+    {
+      "id": "sheet",
+      "name": "Add or update row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        0
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "file",
+              "displayName": "file",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "vendor",
+              "displayName": "vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "subtotal",
+              "displayName": "subtotal",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "tax",
+              "displayName": "tax",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "items",
+              "displayName": "items",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "checks",
+              "displayName": "checks",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "updated",
+              "displayName": "updated",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Crosscheck event": {
+      "main": [
+        [
+          {
+            "node": "Check signature, build row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check signature, build row": {
+      "main": [
+        [
+          {
+            "node": "Add or update row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Dhaka",
+    "executionOrder": "v1"
+  }
+}
