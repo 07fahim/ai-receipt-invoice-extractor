@@ -29,19 +29,25 @@ const RANGES: Record<string, () => string> = {
   "This year": () => `${new Date().getFullYear()}-01-01`,
 };
 
-// every month in the period (at most the last 12), empty ones as 0, so gaps show as gaps.
-// A chosen period runs from its start to this month; all time runs from the first to the last document.
-function monthSeries(rows: { month: string; total: number }[], from: string) {
-  if (!rows.length) return [];
+// Spend over the whole period, empty months/years as 0 so gaps show as gaps: by month up to 12 months, else by year
+// (so every document in the totals is on the chart). A chosen period runs from its start to this month;
+// all time runs from the first to the last document.
+function spendSeries(rows: { month: string; total: number }[], from: string) {
+  if (!rows.length) return { by: "month", points: [] };
   const first = from ? from.slice(0, 7) : rows[0].month;
   const lastRow = rows[rows.length - 1].month;
   const last = from && ym(new Date()) > lastRow ? ym(new Date()) : lastRow;
-  const d = new Date(Number(last.slice(0, 4)), Number(last.slice(5, 7)) - 1, 1);
-  const out = [];
-  for (let i = 0; i < 12 && ym(d) >= first; i++, d.setMonth(d.getMonth() - 1)) {
-    out.unshift({ month: label(ym(d)), total: rows.find((r) => r.month === ym(d))?.total ?? 0 });
+  const span = (Number(last.slice(0, 4)) - Number(first.slice(0, 4))) * 12 + Number(last.slice(5, 7)) - Number(first.slice(5, 7)) + 1;
+  const sum = (prefix: string) => rows.filter((r) => r.month.startsWith(prefix)).reduce((t, r) => t + Number(r.total), 0);
+  const points = [];
+  if (span > 12) {
+    for (let y = Number(first.slice(0, 4)); y <= Number(last.slice(0, 4)); y++) points.push({ label: String(y), total: sum(`${y}-`) });
+    return { by: "year", points };
   }
-  return out;
+  for (const d = new Date(Number(first.slice(0, 4)), Number(first.slice(5, 7)) - 1, 1); ym(d) <= last; d.setMonth(d.getMonth() + 1)) {
+    points.push({ label: label(ym(d)), total: sum(ym(d)) });
+  }
+  return { by: "month", points };
 }
 
 export default function DashboardPage() {
@@ -86,7 +92,7 @@ export default function DashboardPage() {
   const spend = stats.spend_by_currency.find((s) => is(s.currency));
   const others = stats.spend_by_currency.filter((s) => !is(s.currency));
   const tax = stats.tax_by_currency.find((s) => is(s.currency));
-  const months = monthSeries(stats.by_month.filter((m) => is(m.currency)), RANGES[range]());
+  const { by, points: months } = spendSeries(stats.by_month.filter((m) => is(m.currency)), RANGES[range]());
   const vendors = stats.top_vendors.filter((v) => is(v.currency)).slice(0, 5);
   const code = currency === NO_CURRENCY ? "" : currency ?? "";
 
@@ -141,13 +147,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="mb-5 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <Card title="Spend by month" note={`${code || "No currency"}, by issue date${months.length === 12 ? ", last 12 months" : ""}`}>
+        <Card title={`Spend by ${by}`} note={`${code || "No currency"}, by issue date`}>
           {months.length ? (
-            <div className="h-60" role="img" aria-label={`Spend by month: ${months.map((m) => `${m.month} ${money(m.total)}`).join(", ")}`}>
+            <div className="h-60" role="img" aria-label={`Spend by ${by}: ${months.map((m) => `${m.label} ${money(m.total)}`).join(", ")}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={months} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid vertical={false} stroke="#EEF0F3" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis tickLine={false} axisLine={false} fontSize={12} width={56} tickFormatter={(v) => Number(v).toLocaleString("en-US")} />
                   <Tooltip cursor={{ fill: "#F3F4F6" }} formatter={(v) => [money(Number(v), code), "Spend"]} />
                   <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={44} />
