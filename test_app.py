@@ -94,6 +94,7 @@ def send_and_wait(doc_id):  # the app delivers on a side thread; tests wait so e
 
 app.send_event = send_and_wait
 c = TestClient(app.app, headers=as_user(ALICE))
+app.DAILY_UPLOAD_LIMIT = 50  # these tests upload more than the default 10; the limit test sets its own
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
