@@ -1,0 +1,92 @@
+# Render Blueprint: the Crosscheck API and its n8n (alerts + Google Sheets), both on the free plan.
+# Values marked sync: false are asked for when the Blueprint is created; they never live in git.
+# Free services sleep after ~15 idle minutes and wake on the next request (about a minute).
+services:
+  - type: web
+    name: crosscheck-api
+    runtime: python
+    plan: free
+    region: singapore  # nearest Render region to the Supabase database (Mumbai)
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL  # Supabase session pooler, port 5432
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN  # the Vercel address of the web app
+        sync: false
+      - key: WEBHOOK_URL  # https://<crosscheck-n8n address>/webhook/crosscheck
+        sync: false
+      - key: WEBHOOK_SECRET  # same value as CROSSCHECK_WEBHOOK_SECRET below
+        sync: false
+      - key: WEBHOOK_USER_ID  # the account whose documents go to n8n
+        sync: false
+      - key: DAILY_UPLOAD_LIMIT
+        value: "10"
+
+  - type: web
+    name: crosscheck-n8n
+    runtime: image
+    image:
+      url: docker.io/n8nio/n8n:2.41.5  # same version as the local install the workflow was built on
+    plan: free
+    region: singapore
+    envVars:
+      - key: N8N_PORT
+        value: "10000"
+      - key: N8N_PROTOCOL
+        value: https
+      - key: WEBHOOK_URL  # https://<this service's address>/ (Google sign-in callback and webhook URLs)
+        sync: false
+      - key: N8N_PROXY_HOPS
+        value: "1"
+      # workflows and credentials live in Supabase (schema n8n): the service's own disk is wiped on every restart
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST  # Supabase session pooler host
+        sync: false
+      - key: DB_POSTGRESDB_PORT
+        value: "5432"
+      - key: DB_POSTGRESDB_DATABASE
+        value: postgres
+      - key: DB_POSTGRESDB_USER  # postgres.<project ref>
+        sync: false
+      - key: DB_POSTGRESDB_PASSWORD
+        sync: false
+      - key: DB_POSTGRESDB_SCHEMA
+        value: n8n
+      - key: DB_POSTGRESDB_SSL_ENABLED
+        value: "true"
+      # ponytail: encrypted but the server certificate is not checked; set DB_POSTGRESDB_SSL_CA to Supabase's CA to check it
+      - key: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: N8N_ENCRYPTION_KEY  # encrypts saved credentials; must never change
+        generateValue: true
+      - key: CROSSCHECK_WEBHOOK_SECRET
+        sync: false
+      - key: CROSSCHECK_APP_URL  # the Vercel address, for links in alerts
+        sync: false
+      - key: N8N_BLOCK_ENV_ACCESS_IN_NODE
+        value: "false"
+      - key: NODE_FUNCTION_ALLOW_BUILTIN
+        value: crypto
+      - key: GENERIC_TIMEZONE
+        value: Asia/Dhaka
+      - key: TZ
+        value: Asia/Dhaka
+      - key: EXECUTIONS_DATA_PRUNE  # keeps the database small: run history older than 7 days is deleted
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "168"
+      - key: N8N_DIAGNOSTICS_ENABLED
+        value: "false"
+      - key: N8N_VERSION_NOTIFICATIONS_ENABLED
+        value: "false"
+      - key: NODE_OPTIONS  # the free plan has 512 MB
+        value: --max-old-space-size=384
