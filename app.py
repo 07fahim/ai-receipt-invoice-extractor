@@ -379,9 +379,11 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
 def delete_document(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     """Delete the record together with the uploaded file."""
     with store.conn() as con:
-        if con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).rowcount == 0:
-            raise HTTPException(404, 'Document not found.')
-    tasks.add_task(send_deleted, doc_id, uid)
+        gone = con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s RETURNING status', (doc_id, uid)).fetchone()
+    if gone is None:
+        raise HTTPException(404, 'Document not found.')
+    if gone['status'] in ('passed', 'reviewed'):  # only checked documents have a spreadsheet row to mark
+        tasks.add_task(send_deleted, doc_id, uid)
 
 
 @app.get('/documents/{doc_id}/file')

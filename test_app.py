@@ -412,6 +412,10 @@ try:
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest()
     assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
     assert c.delete(f'/documents/{good_id}').status_code == 404
+    unread = upload(('u.jpg', JPG + b'boom')).json()[0]['id']  # failed: never had a spreadsheet row
+    assert c.get(f'/documents/{unread}').json()['status'] == 'failed'
+    sent = len(events)
+    assert c.delete(f'/documents/{unread}').status_code == 204 and len(events) == sent  # so no deleted event
     assert c.post('/documents', files=[]).status_code in (400, 422)
     # size limits: an 11 MB file is refused; a request larger than 20 files x 10 MB is refused before reading
     over = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'0' * (10 * 1024 * 1024)), 'image/jpeg'))]).json()
