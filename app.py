@@ -468,6 +468,13 @@ def delete_account(uid: str = Depends(current_user)):
             raise HTTPException(502, 'Could not delete the account. Please try again.')
 
 
+@app.get('/usage')
+def usage(uid: str = Depends(current_user)):
+    """Model reads (uploads + retries) used in the last 24 hours and the daily limit, for the upload page."""
+    with store.conn() as con:
+        return {'used': reads_today(con, uid), 'limit': DAILY_UPLOAD_LIMIT}
+
+
 @app.get('/stats')
 def stats(date_from: date | None = None, uid: str = Depends(current_user)):
     """Dashboard numbers for the user. Money is summed per currency (never converted), and only from checked
