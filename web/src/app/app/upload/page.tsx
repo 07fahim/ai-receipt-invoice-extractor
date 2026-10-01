@@ -29,8 +29,8 @@ const PREVIEWABLE = ["image/jpeg", "image/png", "image/webp"]; // browsers canno
 // Public-domain (CC0) US receipts and our own synthetic Dhaka bill, so visitors can try the app without their own files.
 const SAMPLES = [
   { file: "grand-lux-cafe.jpg", label: "US restaurant", note: "Passes all checks" },
-  { file: "taco-bell.jpg", label: "US fast food", note: "Unclear date, goes to review" },
-  { file: "dhaka-restaurant.png", label: "Dhaka restaurant", note: "Service charge and VAT" },
+  { file: "taco-bell.jpg", label: "US fast food", note: "Has an unclear date" },
+  { file: "dhaka-restaurant.png", label: "Dhaka restaurant", note: "With service charge and VAT" },
 ];
 
 export default function UploadPage() {
@@ -151,8 +151,8 @@ export default function UploadPage() {
     <div className="mx-auto max-w-5xl">
       <h1 className="text-2xl font-semibold tracking-tight">Upload</h1>
       <p className="mt-0.5 text-sm text-muted-foreground">
-        Receipts and invoices, up to 20 files at a time. Files are read by Google&apos;s Gemini AI, so please use sample documents
-        (<Link href="/privacy" className="underline">privacy</Link>).
+        Up to 20 files at a time. Google&apos;s Gemini AI reads them. Please use sample receipts.{" "}
+        <Link href="/privacy" className="underline">Privacy</Link>
       </p>
 
       <label
@@ -189,8 +189,8 @@ export default function UploadPage() {
       {usage && (
         <p className={cn("mt-2.5 text-sm", limitReached ? "font-medium text-bad" : "text-muted-foreground")} aria-live="polite">
           {limitReached
-            ? `You have used today's ${usage.limit} reads. You can upload again tomorrow.`
-            : `${left} of ${usage.limit} reads left today (uploads and "Read again" both count).`}
+            ? "No reads left today. Try again tomorrow."
+            : `${left} of ${usage.limit} reads left today.`}
         </p>
       )}
 
@@ -250,7 +250,7 @@ export default function UploadPage() {
       )}
 
       <section aria-labelledby="samples" className="mt-8">
-        <h2 id="samples" className="text-sm font-semibold">No receipt at hand? Try a sample</h2>
+        <h2 id="samples" className="text-sm font-semibold">Or try a sample</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {SAMPLES.map((s) => (
             <button
