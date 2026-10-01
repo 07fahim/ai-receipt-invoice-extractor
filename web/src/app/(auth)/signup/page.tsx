@@ -99,6 +99,10 @@ export default function SignupPage() {
       <p className="text-sm text-muted-foreground">
         Already have an account? <Link href="/login" className="text-primary hover:underline">Log in</Link>
       </p>
+      <p className="text-xs text-muted-foreground">
+        Uploaded files are read by Google&apos;s Gemini AI. Please use sample documents.{" "}
+        <Link href="/privacy" className="underline">Privacy</Link>
+      </p>
     </div>
   );
 }

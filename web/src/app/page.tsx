@@ -48,7 +48,7 @@ const TAPE: [string, string, "ok" | "flag" | ""][] = [
 const privacy = [
   "Only you can see the documents you upload.",
   "Delete any document, or your whole account, at any time.",
-  "Documents are processed by a third-party AI service. Please upload sample documents while this is a demo.",
+  "Files are read by Google's Gemini AI on its free plan, where Google may use them to improve its products. Please upload sample documents while this is a demo.",
 ];
 
 export default function Home() {
@@ -180,6 +180,7 @@ export default function Home() {
               {privacy.map((p) => (
                 <li key={p} className="py-3 text-foreground/85 first:pt-0">{p}</li>
               ))}
+              <li className="py-3"><Link href="/privacy" className="font-medium text-primary underline">Read the full privacy note</Link></li>
             </ul>
           </div>
         </section>
@@ -196,7 +197,7 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 border-t px-6 pt-6 pb-10 text-sm text-muted-foreground">
-        <span>© 2026 Crosscheck</span>
+        <span>© 2026 Crosscheck · <Link className="underline" href="/privacy">Privacy</Link></span>
         <span>
           Built by Fahim Faiyaz · <a className="underline" href="https://www.upwork.com/freelancers/~01958224446d5f1b49">Upwork</a> ·{" "}
           <a className="underline" href="https://www.fiverr.com/fahimfaiyaz325">Fiverr</a> ·{" "}

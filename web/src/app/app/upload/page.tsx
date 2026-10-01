@@ -83,7 +83,10 @@ export default function UploadPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="text-2xl font-semibold tracking-tight">Upload</h1>
-      <p className="mt-0.5 text-sm text-muted-foreground">Receipts and invoices, up to 20 files at a time</p>
+      <p className="mt-0.5 text-sm text-muted-foreground">
+        Receipts and invoices, up to 20 files at a time. Files are read by Google&apos;s Gemini AI, so please use sample documents
+        (<Link href="/privacy" className="underline">privacy</Link>).
+      </p>
 
       <label
         onDragOver={(e) => {
