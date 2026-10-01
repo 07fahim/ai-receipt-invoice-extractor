@@ -146,7 +146,7 @@ export default function Home() {
                 <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
                 <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
               </div>
-              <Image src="/review-screen.jpg" width={1340} height={880} className="h-auto w-full"
+              <Image src="/review-smoke-city.jpg" width={1340} height={880} className="h-auto w-full"
                 alt="The review screen: a Smoke City Market receipt next to its fields. The beef ribs line is flagged because 1 x 19.50 is not 36.86." />
             </div>
           </div>
