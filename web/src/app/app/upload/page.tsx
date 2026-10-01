@@ -13,6 +13,13 @@ type Entry = { key: string; file_name: string; id?: number; status?: Status; err
 
 const ACCEPT = ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf";
 
+// Public-domain (CC0) US receipts and our own synthetic Dhaka bill, so visitors can try the app without their own files.
+const SAMPLES = [
+  { file: "grand-lux-cafe.jpg", label: "US restaurant", note: "passes all checks" },
+  { file: "taco-bell.jpg", label: "US fast food", note: "unclear date, goes to review" },
+  { file: "dhaka-restaurant.png", label: "Dhaka restaurant", note: "service charge + VAT" },
+];
+
 export default function UploadPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -57,6 +64,15 @@ export default function UploadPage() {
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
+    }
+  }
+
+  async function trySample(name: string) {
+    try {
+      const blob = await (await fetch(`/samples/${name}`)).blob();
+      await send([new File([blob], name, { type: blob.type })]);
+    } catch {
+      toast.error("Could not load the sample.");
     }
   }
 
@@ -117,6 +133,15 @@ export default function UploadPage() {
         </Button>
         <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => send([...(e.target.files ?? [])])} />
       </label>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted-foreground">No receipt at hand? Try a sample:</span>
+        {SAMPLES.map((s) => (
+          <Button key={s.file} variant="outline" size="sm" disabled={busy} title={s.note} onClick={() => trySample(s.file)}>
+            {s.label}
+          </Button>
+        ))}
+      </div>
 
       {entries.length > 0 && (
         <section aria-labelledby="batch" className="mt-6 overflow-hidden rounded-xl border bg-card shadow-xs">
