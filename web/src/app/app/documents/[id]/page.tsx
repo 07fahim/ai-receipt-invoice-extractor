@@ -425,7 +425,7 @@ export default function ReviewPage() {
             {suggestion && (
               <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p className="font-medium">Suggested fix</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message}. Compare with the photo before applying.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message} Compare with the photo before applying.</p>
                 {suggestion.changes.length <= 3 && (
                   <ul className="mt-1.5 text-xs">
                     {suggestion.changes.map((c) => (
