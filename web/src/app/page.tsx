@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const features = [
   { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are read in about five seconds." },
   { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. The reason is shown too." },
-  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import. Or send rows to Google Sheets." },
+  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import." },
 ];
 
 // Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
@@ -134,7 +134,25 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="border-t px-6 py-22">
+        <section id="review" className="border-t px-6 py-22">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
+            <p className="mt-4 max-w-2xl text-lg text-foreground/75">
+              This Bangla cash memo has one misread amount. Crosscheck flags it and suggests the fix. You compare and click Apply.
+            </p>
+            <div className="mt-11 overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]">
+              <div className="flex gap-1.5 border-b bg-background px-4 py-3" aria-hidden>
+                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+              </div>
+              <Image src="/review-screen.jpg" width={1580} height={869} className="h-auto w-full"
+                alt="The review screen: the memo photo, its fields, and a suggested fix of 240 instead of 280 for one line" />
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="border-t bg-background px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">From a pile of receipts to a clean spreadsheet</h2>
             <div className="mt-11 grid gap-5 md:grid-cols-3">
@@ -151,7 +169,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="checks" className="border-t bg-background px-6 py-22">
+        <section id="checks" className="border-t px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Every document is checked</h2>
             <p className="mt-4 text-lg text-foreground/75">A document that fails a check goes to your review list.</p>
@@ -171,7 +189,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="privacy" className="border-t px-6 py-22">
+        <section id="privacy" className="border-t bg-background px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Privacy</h2>
             <div className="mt-11 grid gap-5 md:grid-cols-3">
@@ -193,9 +211,9 @@ export default function Home() {
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white md:p-12">
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt</h2>
-              <p className="mt-1.5 text-white/75">Results in seconds.</p>
+              <p className="mt-1.5 text-white/75">Sign up free. Sample receipts are ready to try.</p>
             </div>
-            <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Get started</Link></Button>
+            <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Try the demo</Link></Button>
           </div>
         </section>
       </main>
