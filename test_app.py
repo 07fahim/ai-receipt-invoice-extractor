@@ -290,9 +290,10 @@ try:
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
-    for bad in ({'exp': int(time.time()) - 10}, {'aud': 'anon'}, {'key': OTHER_KEY}):
+    for bad in ({'exp': int(time.time()) - 60}, {'aud': 'anon'}, {'key': OTHER_KEY}):
         assert c.get('/documents', headers=as_user(ALICE, **bad)).status_code == 401, bad
     assert c.get('/documents', headers={'Authorization': 'Basic abc'}).status_code == 401
+    assert c.get('/documents', headers=as_user(ALICE, iat=int(time.time()) + 5)).status_code == 200  # clock skew
 
     # the web app's origin may call the API from the browser; other sites may not
     pre = {'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization'}
