@@ -9,6 +9,9 @@ sends a Telegram message with a link to it.
    `document.failed`, `document.deleted`).
 2. A Code node checks the HMAC-SHA256 signature (`X-Signature`) and drops anything not signed with the secret.
 3. Needs review or failed: Telegram "Send message". Everything else: Google Sheets "Append or Update Row", matched on `id`.
+4. A WhatsApp step (template `crosscheck_alert`) sits next to Telegram but is disabled. Meta blocks sending until the
+   business has a payment method, a complete business profile and business verification. Each alert step fails on its
+   own, so one channel being down never stops the other.
 
 Setup:
 - Sheet with these headers in row 1: `id file status vendor date currency subtotal tax total items checks updated`.
