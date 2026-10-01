@@ -90,3 +90,5 @@ services:
         value: "false"
       - key: NODE_OPTIONS  # the free plan has 512 MB
         value: --max-old-space-size=384
+      - key: N8N_RUNNERS_GRANT_TOKEN_TTL  # the Code node's runner starts slowly on the free CPU (default 30 s failed twice)
+        value: "120"
