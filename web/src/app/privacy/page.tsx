@@ -30,6 +30,8 @@ const sections: [string, React.ReactNode][] = [
       </li>
       <li><b>Gmail</b> sends the sign-up and reset emails.</li>
       <li><b>Supabase</b> stores the data and handles sign-in.</li>
+      <li><b>Render</b> runs the server that receives your files, in Singapore. It does not keep them.</li>
+      <li><b>Vercel</b> hosts this website. Your files do not pass through it.</li>
     </ul>
     <p>Nothing is sold or shared with anyone else.</p>
   </>],
@@ -58,7 +60,7 @@ export default function PrivacyPage() {
       </header>
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Last updated 1 October 2026</p>
+        <p className="mt-2 text-sm text-muted-foreground">Last updated 2 October 2026</p>
         <div className="mt-8 space-y-8">
           {sections.map(([title, body]) => (
             <section key={title}>
