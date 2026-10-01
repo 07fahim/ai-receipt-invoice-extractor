@@ -133,5 +133,5 @@ for bad in ({'items': [{}] * 201}, {'total': '1e100000'}):
     except pydantic.ValidationError:
         pass
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
-assert msg == 'Total printed as 22.000: is it 22,000 rather than 22?', msg
+assert msg == 'The total is printed as 22.000. Is it 22,000?', msg
 print('ok')

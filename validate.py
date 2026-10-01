@@ -120,16 +120,16 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         issues.append({'check': check, 'fields': fields, 'message': message})
 
     if doc.is_document is False:  # one clear message instead of "No total found" and friends
-        fail('is_document', [], "This doesn't look like a receipt or invoice")
+        fail('is_document', [], "This doesn't look like a receipt or invoice.")
         return issues
 
     if date_order is None:
         for field in ('issue_date', 'due_date'):
             if ambiguous(getattr(doc, field + '_text')):
-                fail('date_ambiguous', [field], f'{getattr(doc, field + "_text")} could be day/month or month/day')
+                fail('date_ambiguous', [field], f'Is {getattr(doc, field + "_text")} day first or month first?')
 
     if (doc.document_count or 1) > 1:
-        fail('one_document', [], f'This file seems to contain {doc.document_count} documents; upload one per file')
+        fail('one_document', [], f'This file seems to hold {doc.document_count} documents. Upload one per file.')
 
     if doc.total is None:
         fail('total_present', ['total'], 'No total found')
@@ -137,10 +137,10 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     printed = thousands_read_as_decimals(doc.total_text, doc.total)
     if printed and (doc.currency or '').upper() not in THREE_DECIMAL_CURRENCIES:
         whole = Decimal(re.sub(r'\D', '', printed))
-        fail('total_format', ['total'], f'Total printed as {printed}: is it {whole:,} rather than {doc.total}?')
+        fail('total_format', ['total'], f'The total is printed as {printed}. Is it {whole:,}?')
 
     if not doc.items and (doc.total or doc.subtotal):
-        fail('items_missing', ['items'], 'Amounts found but no line items')
+        fail('items_missing', ['items'], 'There are amounts but no line items.')
 
     tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
@@ -149,7 +149,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # tax-inclusive prices: lines add up to subtotal + tax
         gross = sum(amounts)  # item discounts listed apart, already inside the discount line
         if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
-            fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}, subtotal is {doc.subtotal}')
+            fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}. The subtotal is {doc.subtotal}.')
 
     whole = not CENTS_PRINTED.search(doc.total_text or '') or doc.currency is None or doc.currency.upper() in WHOLE_UNIT_CASH
     near = lambda expected: total_close(expected, doc.total, whole)
@@ -173,7 +173,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         expected = net + tax + (doc.service_charge or 0) - (0 if twice else abs(doc.discount or 0))
         included = tax and near(expected - tax) and (doc.tax_included is not False or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
-            fail('items_total', ['items', 'total'], f'Line items add up to {expected}, total is {doc.total}')
+            fail('items_total', ['items', 'total'], f'Line items add up to {expected}. The total is {doc.total}.')
 
     for n, i in enumerate(doc.items):
         # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step
@@ -185,9 +185,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
 
     # one day of room: the server's date (UTC) is behind Dhaka until 06:00; due dates may be in the future
     if doc.issue_date is not None and doc.issue_date > today + timedelta(days=1):
-        fail('date_future', ['issue_date'], f'Issue date {doc.issue_date} is in the future')
+        fail('date_future', ['issue_date'], f'The issue date {doc.issue_date} is in the future.')
     if doc.issue_date and doc.due_date and doc.due_date < doc.issue_date:
-        fail('due_before_issue', ['issue_date', 'due_date'], 'Due date is before issue date')
+        fail('due_before_issue', ['issue_date', 'due_date'], 'The due date is before the issue date.')
 
     if doc.currency is not None and doc.currency.upper() not in CURRENCIES:
         fail('currency_code', ['currency'], f'"{doc.currency}" is not an ISO 4217 currency code')
@@ -226,7 +226,7 @@ def suggest(doc: Document) -> dict | None:
         updates = {f: v * 1000 for f, v in amounts}
         if sums_fail(changed(updates)):
             return None
-        return {'message': f'Thousands were read as decimals: every amount x1,000 (total {doc.total} becomes {doc.total * 1000:,})',
+        return {'message': f'The amounts look 1,000 times too small. The total would be {doc.total * 1000:,}.',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
 
     if len(failing) < 2 or len(amounts) > 100:  # the search grows with amounts squared: 100 amounts take about a second
@@ -246,5 +246,5 @@ def suggest(doc: Document) -> dict | None:
     if not found:
         return None
     field, value, candidate = found[0]
-    return {'message': f'Did you mean {candidate} instead of {value}? It is the only one-digit change that makes every sum add up',
+    return {'message': f'Did you mean {candidate} instead of {value}? Then every sum adds up.',
             'changes': [{'field': field, 'from': str(value), 'to': str(candidate)}]}
