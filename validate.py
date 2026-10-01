@@ -108,6 +108,14 @@ def apply_date_order(doc: Document, order: str | None) -> Document:
     return doc.model_copy(update=update)
 
 
+def num(d):
+    """A number for messages: 1,270 and 0.60, never 1270.0."""
+    if d == d.to_integral_value():
+        return f'{int(d):,}'
+    d = d.normalize()
+    return f'{d:,f}' if d.as_tuple().exponent < -2 else f'{d:,.2f}'  # weighed items keep their 3 decimals
+
+
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     """Return failed checks as {'check', 'fields', 'message'}. Empty list = passed.
     Checks with missing inputs are skipped, except a missing total.
@@ -132,12 +140,12 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         fail('one_document', [], f'This file seems to hold {doc.document_count} documents. Upload one per file.')
 
     if doc.total is None:
-        fail('total_present', ['total'], 'No total found')
+        fail('total_present', ['total'], 'No total found.')
 
     printed = thousands_read_as_decimals(doc.total_text, doc.total)
     if printed and (doc.currency or '').upper() not in THREE_DECIMAL_CURRENCIES:
         whole = Decimal(re.sub(r'\D', '', printed))
-        fail('total_format', ['total'], f'The total is printed as {printed}. Is it {whole:,}?')
+        fail('total_format', ['total'], f'The total is printed as {printed}. Is it {num(whole)}?')
 
     if not doc.items and (doc.total or doc.subtotal):
         fail('items_missing', ['items'], 'There are amounts but no line items.')
@@ -149,7 +157,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # tax-inclusive prices: lines add up to subtotal + tax
         gross = sum(amounts)  # item discounts listed apart, already inside the discount line
         if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
-            fail('items_sum', ['items', 'subtotal'], f'Line items add up to {net}. The subtotal is {doc.subtotal}.')
+            fail('items_sum', ['items', 'subtotal'], f'Line items add up to {num(net)}. The subtotal is {num(doc.subtotal)}.')
 
     whole = not CENTS_PRINTED.search(doc.total_text or '') or doc.currency is None or doc.currency.upper() in WHOLE_UNIT_CASH
     near = lambda expected: total_close(expected, doc.total, whole)
@@ -166,14 +174,14 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         included = tax and near(expected - tax) and (doc.tax_included or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
-                 f'subtotal + tax + service - discount = {expected}, total is {doc.total}')
+                 f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
     elif doc.total is not None and net is not None:
         # no subtotal printed: the lines themselves must add up to the total. Unless the model says the tax is
         # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
         expected = net + tax + (doc.service_charge or 0) - (0 if twice else abs(doc.discount or 0))
         included = tax and near(expected - tax) and (doc.tax_included is not False or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
-            fail('items_total', ['items', 'total'], f'Line items add up to {expected}. The total is {doc.total}.')
+            fail('items_total', ['items', 'total'], f'Line items add up to {num(expected)}. The total is {num(doc.total)}.')
 
     for n, i in enumerate(doc.items):
         # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step
@@ -181,7 +189,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             continue
         room = abs(i.unit_price) * Decimal('0.005') if i.quantity != i.quantity.to_integral_value() else 0
         if abs(i.quantity * i.unit_price - i.amount) > max(Decimal('0.01'), room):
-            fail('line_math', [f'items[{n}]'], f'{i.quantity} x {i.unit_price} = {i.quantity * i.unit_price}, line amount is {i.amount}')
+            fail('line_math', [f'items[{n}]'], f'{num(i.quantity)} x {num(i.unit_price)} = {num(i.quantity * i.unit_price)}. The line says {num(i.amount)}.')
 
     # one day of room: the server's date (UTC) is behind Dhaka until 06:00; due dates may be in the future
     if doc.issue_date is not None and doc.issue_date > today + timedelta(days=1):
@@ -190,7 +198,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         fail('due_before_issue', ['issue_date', 'due_date'], 'The due date is before the issue date.')
 
     if doc.currency is not None and doc.currency.upper() not in CURRENCIES:
-        fail('currency_code', ['currency'], f'"{doc.currency}" is not an ISO 4217 currency code')
+        fail('currency_code', ['currency'], f'"{doc.currency}" is not a currency code.')
 
     return issues
 
@@ -226,7 +234,7 @@ def suggest(doc: Document) -> dict | None:
         updates = {f: v * 1000 for f, v in amounts}
         if sums_fail(changed(updates)):
             return None
-        return {'message': f'The amounts look 1,000 times too small. The total would be {doc.total * 1000:,}.',
+        return {'message': f'The amounts look 1,000 times too small. The total would be {num(doc.total * 1000)}.',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
 
     if len(failing) < 2 or len(amounts) > 100:  # the search grows with amounts squared: 100 amounts take about a second
@@ -246,5 +254,5 @@ def suggest(doc: Document) -> dict | None:
     if not found:
         return None
     field, value, candidate = found[0]
-    return {'message': f'Did you mean {candidate} instead of {value}? Then every sum adds up.',
+    return {'message': f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.',
             'changes': [{'field': field, 'from': str(value), 'to': str(candidate)}]}
