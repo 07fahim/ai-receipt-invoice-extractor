@@ -244,61 +244,9 @@
       }
     },
     {
-      "id": "wa",
-      "name": "Send WhatsApp alert",
-      "disabled": true,
-      "type": "n8n-nodes-base.whatsApp",
-      "typeVersion": 1.1,
-      "onError": "continueRegularOutput",
-      "position": [
-        800,
-        -260
-      ],
-      "parameters": {
-        "resource": "message",
-        "operation": "sendTemplate",
-        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
-        "recipientPhoneNumber": "YOUR_WHATSAPP_NUMBER",
-        "template": "crosscheck_alert|en",
-        "components": {
-          "component": [
-            {
-              "type": "body",
-              "bodyParameters": {
-                "parameter": [
-                  {
-                    "type": "text",
-                    "text": "={{ $json.wa[0] }}"
-                  },
-                  {
-                    "type": "text",
-                    "text": "={{ $json.wa[1] }}"
-                  },
-                  {
-                    "type": "text",
-                    "text": "={{ $json.wa[2] }}"
-                  },
-                  {
-                    "type": "text",
-                    "text": "={{ $json.wa[3] }}"
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "whatsAppApi": {
-          "id": "REPLACE",
-          "name": "WhatsApp account"
-        }
-      }
-    },
-    {
       "id": "mail",
       "name": "Send email alert",
-      "type": "n8n-nodes-base.emailSend",
+      "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "onError": "continueRegularOutput",
       "position": [
@@ -306,21 +254,21 @@
         -400
       ],
       "parameters": {
-        "resource": "email",
+        "resource": "message",
         "operation": "send",
-        "fromEmail": "Crosscheck alerts <you@example.com>",
-        "toEmail": "you@example.com",
+        "sendTo": "you@example.com",
         "subject": "={{ $json.wa[0] }}{{ $json.wa[1] ? ': ' + $json.wa[1] : '' }}",
-        "emailFormat": "text",
-        "text": "={{ $json.text }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
         "options": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "senderName": "Crosscheck alerts"
         }
       },
       "credentials": {
-        "smtp": {
+        "gmailOAuth2": {
           "id": "REPLACE",
-          "name": "SMTP account"
+          "name": "Gmail account"
         }
       }
     }
@@ -357,11 +305,6 @@
             "index": 0
           },
           {
-            "node": "Send WhatsApp alert",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Send email alert",
             "type": "main",
             "index": 0
@@ -381,7 +324,6 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "timezone": "Asia/Dhaka",
-    "executionOrder": "v1",
-    "binaryMode": "separate"
+    "executionOrder": "v1"
   }
 }
