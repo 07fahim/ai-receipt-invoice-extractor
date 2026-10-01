@@ -1,9 +1,10 @@
 {
-  "name": "Crosscheck â†’ Google Sheets",
+  "name": "Crosscheck → Google Sheets + Telegram",
   "nodes": [
     {
       "id": "wh",
       "name": "Crosscheck event",
+      "webhookId": "7c1f6a2e-crosscheck-sheets",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -28,7 +29,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// Only events signed with the shared secret (WEBHOOK_SECRET in the app, CROSSCHECK_WEBHOOK_SECRET here) get through.\nconst crypto = require('crypto');\nconst secret = $env.CROSSCHECK_WEBHOOK_SECRET;\nif (!secret) throw new Error('CROSSCHECK_WEBHOOK_SECRET is not set. Start n8n with start-n8n.cmd.');\nconst raw = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst sig = String($input.first().json.headers['x-signature'] || '');\nconst want = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');\nif (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) {\n  throw new Error('Bad signature. Event ignored.');\n}\nconst e = JSON.parse(raw.toString('utf8'));\nconst updated = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Dhaka' }); // 2026-10-01 18:50:14, Dhaka time\n// a deleted document keeps its row; only the status changes\nif (e.event === 'document.deleted') return [{ json: { id: e.id, status: 'deleted', updated } }];\nconst d = e.document || {};\nreturn [{ json: {\n  id: e.id, file: e.file_name, status: e.status, vendor: d.vendor ?? '', date: d.issue_date ?? '',\n  currency: d.currency ?? '', subtotal: d.subtotal ?? '', tax: d.tax ?? '', total: d.total ?? '',\n  items: (d.items || []).length, checks: (e.checks || []).map((c) => c.message).join(' | '), updated,\n} }];"
+        "jsCode": "// Only events signed with the shared secret (WEBHOOK_SECRET in the app, CROSSCHECK_WEBHOOK_SECRET here) get through.\nconst crypto = require('crypto');\nconst secret = $env.CROSSCHECK_WEBHOOK_SECRET;\nif (!secret) throw new Error('CROSSCHECK_WEBHOOK_SECRET is not set. Start n8n with start-n8n.cmd.');\nconst raw = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst sig = String($input.first().json.headers['x-signature'] || '');\nconst want = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');\nif (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) {\n  throw new Error('Bad signature. Event ignored.');\n}\nconst e = JSON.parse(raw.toString('utf8'));\nconst updated = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Dhaka' }); // 2026-10-01 18:50:14, Dhaka time\n// needs review or could not be read: an alert, not a spreadsheet row (the row comes once it is checked)\nconst APP = 'http://localhost:3000'; // the Crosscheck web app, for the link in the alert\nif (e.event === 'document.needs_review' || e.event === 'document.failed') {\n  const d = e.document || {};\n  const what = [d.vendor || e.file_name, d.total ? `${d.total} ${d.currency || ''}`.trim() : ''].filter(Boolean).join(' · ');\n  const why = e.event === 'document.failed' ? (e.error || 'The file could not be read.') : (e.checks || []).map((c) => '• ' + c.message).join('\\n');\n  const head = e.event === 'document.failed' ? 'Could not read a file' : 'A receipt needs review';\n  return [{ json: { alert: true, text: `${head}\\n${what}\\n${why}\\n${APP}/app/documents/${e.id}` } }];\n}\n// a deleted document keeps its row; only the status changes\nif (e.event === 'document.deleted') return [{ json: { id: e.id, status: 'deleted', updated } }];\nconst d = e.document || {};\nreturn [{ json: {\n  id: e.id, file: e.file_name, status: e.status, vendor: d.vendor ?? '', date: d.issue_date ?? '',\n  currency: d.currency ?? '', subtotal: d.subtotal ?? '', tax: d.tax ?? '', total: d.total ?? '',\n  items: (d.items || []).length, checks: (e.checks || []).map((c) => c.message).join(' | '), updated,\n} }];"
       }
     },
     {
@@ -37,8 +38,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        528,
-        0
+        800,
+        120
       ],
       "parameters": {
         "operation": "appendOrUpdate",
@@ -179,6 +180,66 @@
           "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "id": "if",
+      "name": "Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tg",
+      "name": "Send Telegram alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE",
+          "name": "Telegram account"
+        }
+      }
     }
   ],
   "connections": {
@@ -197,6 +258,24 @@
       "main": [
         [
           {
+            "node": "Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Add or update row",
             "type": "main",
             "index": 0
@@ -206,7 +285,10 @@
     }
   },
   "settings": {
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
     "timezone": "Asia/Dhaka",
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }
