@@ -140,7 +140,7 @@ def send_event(doc_id):
     if r is None or str(r['user_id']) != os.environ.get('WEBHOOK_USER_ID'):
         return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
     return post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
-                       'status': r['status'], 'document': r['document'], 'checks': r['checks']})
+                       'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
 
 
 def send_deleted(doc_id, uid):
@@ -203,14 +203,16 @@ def process(doc_id):
         with store.conn() as con:
             save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
             done = row_by_id(con, doc_id)
-        passed = done is not None and done['status'] == 'passed'   # None: deleted meanwhile
+        read = done is not None   # None: deleted meanwhile
     except Exception as e:
         with store.conn() as con:
-            con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
-                        "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id))
+            failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
+                                 "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
+        if failed:
+            send_event(doc_id)  # document.failed: an alert, the file could not be read
         return
-    if passed:
-        send_event(doc_id)  # outside the try: a webhook problem never marks a good document failed
+    if read:
+        send_event(doc_id)  # passed or needs_review; outside the try: a webhook problem never marks a good document failed
 
 
 def resume_stuck():
