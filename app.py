@@ -132,17 +132,29 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
 
 
 def send_event(doc_id):
-    """POST the document to WEBHOOK_URL (e.g. an n8n workflow that adds a Google Sheets row).
-    Signed with HMAC-SHA256 of the body in X-Signature when WEBHOOK_SECRET is set. Never raises."""
-    url = os.environ.get('WEBHOOK_URL')
-    if not url:
+    """POST the document to WEBHOOK_URL (e.g. an n8n workflow that adds a Google Sheets row). Never raises."""
+    if not os.environ.get('WEBHOOK_URL'):
         return
     with store.conn() as con:
         r = row_by_id(con, doc_id)
     if r is None or str(r['user_id']) != os.environ.get('WEBHOOK_USER_ID'):
         return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
-    body = json.dumps({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
-                       'status': r['status'], 'document': r['document'], 'checks': r['checks']}).encode()
+    return post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
+                       'status': r['status'], 'document': r['document'], 'checks': r['checks']})
+
+
+def send_deleted(doc_id, uid):
+    """Tell the webhook a document is gone, so its spreadsheet row can be marked deleted."""
+    if os.environ.get('WEBHOOK_URL') and uid == os.environ.get('WEBHOOK_USER_ID'):
+        return post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
+
+
+def post_event(payload):
+    """Deliver one event on a side thread, signed with HMAC-SHA256 of the body in X-Signature when
+    WEBHOOK_SECRET is set. Returns the thread (tests join it)."""
+    url = os.environ['WEBHOOK_URL']
+    doc_id = payload['id']
+    body = json.dumps(payload).encode()
     headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
     secret = os.environ.get('WEBHOOK_SECRET')
     if secret:
@@ -362,11 +374,12 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
 
 
 @app.delete('/documents/{doc_id}', status_code=204)
-def delete_document(doc_id: int, uid: str = Depends(current_user)):
+def delete_document(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     """Delete the record together with the uploaded file."""
     with store.conn() as con:
         if con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).rowcount == 0:
             raise HTTPException(404, 'Document not found.')
+    tasks.add_task(send_deleted, doc_id, uid)
 
 
 @app.get('/documents/{doc_id}/file')
