@@ -138,7 +138,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
             <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              This Bangla cash memo has one misread amount. Crosscheck flags it and suggests the fix. You compare and click Apply.
+              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it. You fix one field.
             </p>
             <div className="mt-11 overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]">
               <div className="flex gap-1.5 border-b bg-background px-4 py-3" aria-hidden>
@@ -146,8 +146,8 @@ export default function Home() {
                 <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
                 <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
               </div>
-              <Image src="/review-screen.jpg" width={1580} height={869} className="h-auto w-full"
-                alt="The review screen: the memo photo, its fields, and a suggested fix of 240 instead of 280 for one line" />
+              <Image src="/review-screen.jpg" width={1340} height={880} className="h-auto w-full"
+                alt="The review screen: a Smoke City Market receipt next to its fields. The beef ribs line is flagged because 1 x 19.50 is not 36.86." />
             </div>
           </div>
         </section>
