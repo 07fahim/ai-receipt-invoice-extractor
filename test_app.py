@@ -72,6 +72,9 @@ class Hook(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers['Content-Length']))
+        if self.path == '/redirect':
+            self.send_response(302); self.send_header('Location', '/hook'); self.end_headers()
+            return
         if self.path == '/own':
             time.sleep(Hook.slow)
             if Hook.fail:
@@ -485,7 +488,15 @@ try:
                 'https://100.64.0.1/x', 'https://0.0.0.0/x', 'https://no-such-host.invalid/x', 'https://example.com:99999/x', own_url):
         assert c.put('/account/webhook', json={'url': bad}, headers=judy).status_code == 400, bad
         assert not app.public_url(bad), bad
-    assert app.public_url('https://8.8.8.8/hook')
+    assert app.public_url('https://8.8.8.8/hook') and not app.public_url('https://user:pw@8.8.8.8/hook')
+    # checked again when sending, and redirects are never followed
+    for url, own in (('https://127.0.0.1/x', True), (f'http://127.0.0.1:{hook.server_port}/redirect', False)):
+        try:
+            app.open_webhook(url, {'event': 'x', 'id': None}, 's', own, 5)
+            raise AssertionError(url)
+        except (ValueError, urllib.error.HTTPError):
+            pass
+    assert not any(e['event'] == 'x' for e, _, _ in events)
     real_public_url, app.public_url = app.public_url, lambda url: url == own_url  # the local receiver stands in for a public address
     saved = c.put('/account/webhook', json={'url': f' {own_url} '}, headers=judy).json()
     secret = saved['secret']
@@ -506,6 +517,22 @@ try:
     assert e['event'] == 'document.passed' and e['id'] == judy_doc and len(events) == sent
     assert sig == 'sha256=' + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
     assert all(ev['id'] == judy_doc or ev['event'] == 'test' for ev, _, _ in own_events)  # nobody else's documents
+    # a webhook problem never undoes the document change
+    real_for, app.webhook_for = app.webhook_for, lambda con, uid: (_ for _ in ()).throw(RuntimeError('webhook lookup broke'))
+    kept = c.post('/documents', files=[('files', ('k.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    assert c.get(f'/documents/{kept}', headers=judy).json()['status'] == 'passed'
+    app.webhook_for = real_for
+    flush()
+    # WEBHOOK_KEY missing after a deploy: events wait in the table instead of being dropped, and go once it is back
+    del os.environ['WEBHOOK_KEY']
+    waiting = c.post('/documents', files=[('files', ('w.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    flush()
+    with store.conn() as con:
+        assert con.execute("SELECT attempts FROM webhook_events WHERE payload->>'id' = %s", (str(waiting),)).fetchone()['attempts'] == 1
+        os.environ['WEBHOOK_KEY'] = 'test-webhook-key'
+        con.execute('UPDATE webhook_events SET next_at = now()')
+    flush()
+    assert own_events[-1][0]['id'] == waiting
     # a failed send is retried; after the last retry it is dropped, the error is shown, and the next event still goes
     real_retry, app.RETRY_SECONDS = app.RETRY_SECONDS, (0,)
     Hook.fail = 1
@@ -521,7 +548,7 @@ try:
     assert own_events[-1][0]['id'] == nxt and c.get('/account/webhook', headers=judy).json()['last_error'] is None
     app.RETRY_SECONDS = real_retry
     # a slow address delays only its own user
-    Hook.slow, arrived[:] = 1.5, []
+    Hook.slow, arrived[:] = 3, []
     c.post('/documents', files=[('files', ('j.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy)
     app.WAKE.set(); time.sleep(0.3)  # Judy's event is on its way
     c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))])
