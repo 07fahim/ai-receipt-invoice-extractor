@@ -262,7 +262,9 @@ export default function ReviewPage() {
               onClick={() => {
                 if (dirty && !window.confirm("Leave without saving your changes?")) return;
                 skip(Number(id)); // the review queue opens another one next time
-                router.push(`/app/documents/${queue[(pos + 1) % queue.length]}`);
+                // the next waiting document in line that was not skipped, else simply the next one
+                const after = [...queue.slice(pos + 1), ...queue.slice(0, pos)];
+                router.push(`/app/documents/${after.find((q) => !skippedIds().includes(q)) ?? after[0]}`);
               }}
             >
               Skip
