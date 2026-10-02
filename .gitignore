@@ -3,3 +3,6 @@
 data/
 __pycache__/
 docs/
+
+# WildReceipt: licence unclear, so per-receipt results (fields read from its images) stay local
+results/*wild_*
