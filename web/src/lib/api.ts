@@ -102,6 +102,7 @@ export async function download(path: string, fallbackName: string) {
 
 export function money(value: string | number | null, currency?: string | null) {
   if (value === null || value === undefined) return "–";
-  const n = Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // 2 decimals, 3 for currencies such as KWD
+  const n = Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
   return currency ? `${n} ${currency}` : n;
 }
