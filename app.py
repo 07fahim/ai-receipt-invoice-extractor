@@ -257,7 +257,9 @@ def heic_to_jpeg(data):
         return data
     try:
         img = Image.open(io.BytesIO(data))
-        if img.width * img.height > 40_000_000:  # a 48 MP photo decodes to ~150 MB per copy; the free server has 512 MB
+        # ponytail: 48 MP "HEIF Max" photos are refused (~150 MB per decoded copy, the free server has 512 MB);
+        # the usual 12/24 MP photos pass. Shrink while decoding if 48 MP receipts turn up.
+        if img.width * img.height > 40_000_000:
             print(f'HEIC too large to convert: {img.width}x{img.height}')
             return data
         img = ImageOps.exif_transpose(img).convert('RGB')  # keep the phone's rotation
