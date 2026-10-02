@@ -20,10 +20,11 @@ when idle, so the first request can take about a minute.)
 - **Sends to review** only what failed a check. The review screen shows the original next to the fields, explains
   each failed check and can suggest a fix (never applied without a click). A date like 05/11/2021 is asked about,
   and the answer can be kept for every document from that vendor.
-- **Exports** CSV, Excel and a QuickBooks bill import file. A dashboard shows spending and tax per currency
+- **Exports** CSV and Excel (every document read, with its status) and a QuickBooks bill import file (checked
+  documents only). A dashboard shows spending and tax per currency
   (amounts are never converted).
 - **Sends events** (`document.passed`, `needs_review`, `reviewed`, `failed`, `deleted`) to a webhook. The included
-  n8n workflow writes each document to a Google Sheet and sends Telegram and email alerts for the ones that need
+  n8n workflow writes each checked document to a Google Sheet and sends Telegram and email alerts for the ones that need
   review. Users can also add their own webhook address on the Account page.
 - **Accounts:** email or Google sign-in. Every document belongs to one user. Users can delete documents or their
   whole account.
@@ -36,7 +37,7 @@ flowchart LR
     A -->|image| G[Gemini 3.1 Flash-Lite]
     G -->|fields as JSON| C[Checks<br/>validate.py]
     C --> D[(Postgres<br/>Supabase)]
-    D -->|passed| X[Export: CSV, Excel, QuickBooks]
+    D --> X[Export: CSV, Excel, QuickBooks]
     D -->|needs review| R[Review screen]
     D -->|events table| H[Webhook: n8n or your own]
     H --> S[Google Sheet, Telegram, email]
@@ -57,7 +58,7 @@ flowchart LR
 Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-09-30. The result files are in
 [`results/`](results), with notes in [`results/M3_NOTES.md`](results/M3_NOTES.md).
 
-| Set | Documents | Fully correct | Total correct | Wrong and not flagged | Correct but sent to review |
+| Set | Documents | Fully correct | Total amount correct | Wrong and not flagged | Correct but sent to review |
 |---|---|---|---|---|---|
 | CORD receipts, test | 100 | 91% | 93.8% | 2 | 5 of 91 |
 | CORD receipts, validation | 100 | 94% | 96.9% | 2 | 5 of 94 |
@@ -67,15 +68,18 @@ Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-0
 - **Fully correct** means every scored field is right (totals, tax, line items; on invoices also number, vendor,
   buyer, currency and dates). **Wrong and not flagged** means no check fired. That is the number that matters most,
   because those errors would reach the spreadsheet unseen.
-- On invoices, most of the misses are dates like 05/11/2021 that can be read two ways. Every one of them was flagged
-  (4 of 4 and 14 of 14). Once a vendor's date format is confirmed in the review screen, the dates were 100% right.
-  The same rule also sends correctly read ambiguous dates to review: every invoice false alarm in the table is one of these.
-- The 2 unflagged invoices on the test set are answer-key errors: checked against the images, the model was right.
-  The unflagged CORD receipts have the totals right and an error in a line item.
+- On invoices, most of the misses are dates like 05/11/2021 that can be read two ways (4 of the 6 wrong test
+  invoices, 14 of the 17 wrong validation invoices). Every one of them was flagged. That is by design: the check
+  fires on any printed date that can be read both ways. With the vendor's date order applied, which is what
+  confirming it once in the review screen does, the dates were 100% right. The same rule also sends correctly read
+  ambiguous dates to review: every invoice false alarm in the table is one of these.
+- The unflagged invoices (2 on test, 3 on validation) are all answer-key errors: checked against the images, the
+  model was right. Of the 4 unflagged CORD receipts, 2 are answer-key errors and 2 have the totals right and an
+  error in a line item.
 
-**Planted mistakes.** One realistic mistake (a misread digit, a dropped or doubled line, cash paid taken as the
-total, a missed tax line, and so on) was planted into each correct answer key, and the checks were run on it. No
-model calls are involved.
+**Planted mistakes.** Each correct answer key was copied once per mistake type, with one realistic mistake planted
+in each copy (a misread digit, a dropped or doubled line, cash paid taken as the total, a missed tax line, and so
+on). Then the checks were run on every copy. No model calls are involved.
 
 | Set | Mistakes planted | Caught |
 |---|---|---|
@@ -85,19 +89,23 @@ model calls are involved.
 The weak spot is one misread digit in a CORD total (66% and 73% caught), mostly on receipts that print no subtotal.
 
 **Other measurements**
-- **Same input, same answer:** 30 US receipt photos read 3 times gave identical answers every time.
-- **Damaged photos** (26 test invoices): a smaller, blurred, darker JPEG read as well as the clean one. At 640 px
-  wide with heavy blur, fully correct dropped from 69% to 35%, and 2 new errors went unflagged.
-- **Speed:** about 6 to 7 seconds per document (median).
-- **Cost:** about $0.0007 per receipt and $0.001 per invoice at Gemini 3.1 Flash-Lite's list prices, worked out
-  from the token counts. The runs themselves used the free tier, so this is not a measured bill.
+- **Same input, same answer** (earlier prompt `9edae16b`): 30 US receipt photos read 3 times gave identical answers
+  every time.
+- **Damaged photos** (earlier prompt `9edae16b`, 26 test invoices): a smaller, blurred, darker JPEG read as well as
+  the clean one. At 640 px wide with heavy blur, fully correct dropped from 69% to 35%, and 2 new errors went
+  unflagged.
+- **Speed:** about 6 seconds per document (median 5.9 to 6.8 s across the four sets).
+- **Cost:** about $0.0009 per receipt and $0.0013 per invoice at Gemini 3.1 Flash-Lite's list prices
+  ($0.25 in / $1.50 out per million tokens, read 2026-09-28), worked out from the median token counts. The runs
+  themselves used the free tier, so this is an estimate and not a measured bill.
 
 **Data and how it was used.** [CORD-v2](https://huggingface.co/datasets/naver-clova-ix/cord-v2) (CC BY 4.0,
 Indonesian receipts) and [katanaml invoices](https://huggingface.co/datasets/katanaml-org/invoices-donut-data-v1)
-(synthetic English invoices, tagged MIT). Prompt changes were tried on training samples first. CORD test was also
-used to look for problems; CORD validation was only measured. The first invoice run looked at both invoice splits,
-so neither is unseen for the date fix. The receipt in the screenshots and the demo samples come from the
-ExpressExpense US receipt set (CC0).
+(synthetic English invoices, tagged MIT). Prompt changes were tried on training samples first. CORD test and a few
+CORD validation receipts were also used to find problems (thousands separators, a discount counted twice), so
+neither CORD split is fully unseen. The first invoice run looked at both invoice splits, so neither is unseen for
+the date fix either. The receipt in the screenshot and two of the demo samples come from the ExpressExpense US
+receipt set (CC0); the third sample is a synthetic Dhaka bill.
 
 ## Run it locally
 
@@ -112,7 +120,9 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
    | `SUPABASE_URL` | Your Supabase project address; sign-in tokens are checked with its public keys |
    | `SUPABASE_SECRET_KEY` | Optional. Lets users delete their account |
    | `FRONTEND_ORIGIN` | The web app address(es), comma-separated. Default `http://localhost:3000` |
-   | `DAILY_UPLOAD_LIMIT` | Model reads per user per day. Default 10 |
+   | `DAILY_UPLOAD_LIMIT` | Model reads per user in any 24 hours. Default 10 |
+   | `EXTRACT_MODEL` | Optional. Default `gemini-3.1-flash-lite` |
+   | `APP_SCHEMA` | Optional. Database schema for the app's tables. Default `app` |
    | `WEBHOOK_KEY` | Optional. Any long random text; turns on users' own webhooks and encrypts their addresses |
    | `WEBHOOK_URL`, `WEBHOOK_SECRET`, `WEBHOOK_USER_ID` | Optional. Your own n8n webhook and the account(s) whose documents go there |
 
@@ -129,6 +139,7 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
    .venv/Scripts/pip install -r requirements.txt      # .venv/bin/pip on macOS and Linux
    .venv/Scripts/python -m uvicorn app:app --port 8000
 
+   # in a second terminal
    cd web
    npm ci
    npm run dev
@@ -138,8 +149,8 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
 
 ## Run it in your own accounts
 
-Everything runs on accounts you own: your Gemini key, your Supabase project, your Render and Vercel. Your documents
-and your bills stay with you.
+Everything runs on accounts you own: your Gemini key, your Supabase project, your Render and Vercel. Your data stays
+in your own Supabase project, images go only to Google's Gemini API under your key, and the bills are yours.
 
 - **API and n8n:** [`render.yaml`](render.yaml) is a Render Blueprint for both services. Fill in the settings Render
   asks for. It creates `WEBHOOK_KEY` itself.
@@ -149,7 +160,8 @@ and your bills stay with you.
 ## Webhook events
 
 Each event is a JSON POST with an `X-Signature` header: `sha256=` followed by the HMAC-SHA256 of the raw body,
-keyed with your secret.
+keyed with your secret. For your own address that secret is shown once, when you save the address on the Account
+page. For the server's n8n it is `WEBHOOK_SECRET`.
 
 ```jsonc
 {
@@ -176,8 +188,9 @@ def from_crosscheck(body: bytes, signature: str, secret: str) -> bool:
     return hmac.compare_digest(expected, signature)
 ```
 
-A send can be repeated after a timeout, so use `event_id` to ignore repeats. `document.deleted` carries only `id`
-and `status`. The Account page's "Send test" posts `{"event": "test", "id": null}`.
+A send can be repeated after a timeout, so use `event_id` to ignore repeats. `document.deleted` is sent only for
+checked documents and carries just `id` and `status` (plus `event` and `event_id`). The Account page's "Send test"
+posts `{"event": "test", "id": null}` to your own saved address.
 
 ## Tests
 
