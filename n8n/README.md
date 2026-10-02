@@ -8,9 +8,10 @@ sends a Telegram message and an email with a link to it.
 1. Crosscheck posts an event to the webhook (`document.passed`, `document.reviewed`, `document.needs_review`,
    `document.failed`, `document.deleted`). The app keeps events in a database table until they are sent, so a
    restart loses none. It sends one event at a time per account, in order, and n8n answers only after the workflow
-   has finished, so two events for the same document never race. The Account page's "Send test" event
+   has finished, so two events for the same document never race. If you add this n8n address as your own webhook
+   on the Account page and set `CROSSCHECK_WEBHOOK_SECRET` to the secret shown there, its "Send test" event
    (`"event": "test"`) passes the signature check and writes nothing.
-2. A Code node checks the HMAC-SHA256 signature (`X-Signature`) and drops anything not signed with the secret.
+2. A Code node checks the HMAC-SHA256 signature (`X-Signature`) and rejects anything not signed with the secret (the run fails and nothing is written).
 3. Needs review or failed: Telegram "Send message" and a Gmail "Send" (Gmail API over HTTPS; Render's free plan blocks
    SMTP ports, so an SMTP node cannot send from there). Everything else: Google Sheets "Append or Update Row", matched on `id`.
 4. Each alert step fails on its own, so one channel being down never stops the other.
