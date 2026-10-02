@@ -256,7 +256,11 @@ def heic_to_jpeg(data):
     if data[4:8] != b'ftyp' or data[8:12] not in HEIF_BRANDS:
         return data
     try:
-        img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert('RGB')  # keep the phone's rotation
+        img = Image.open(io.BytesIO(data))
+        if img.width * img.height > 40_000_000:  # a 48 MP photo decodes to ~150 MB per copy; the free server has 512 MB
+            print(f'HEIC too large to convert: {img.width}x{img.height}')
+            return data
+        img = ImageOps.exif_transpose(img).convert('RGB')  # keep the phone's rotation
         buf = io.BytesIO()
         img.save(buf, 'JPEG', quality=90)
         return buf.getvalue()
