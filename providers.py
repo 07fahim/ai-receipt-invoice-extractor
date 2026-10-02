@@ -155,6 +155,10 @@ def parse(text):
     numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
     if any(isinstance(v, str) for v in numbers):
         raise ValueError('amount given as text, not a number')
+    for d, keys in [(data, MONEY)] + [(i, ITEM_NUMBERS) for i in data['items']]:
+        for k in keys:
+            if isinstance(d.get(k), float):
+                d[k] = round(d[k], 6)  # a unit price like 0.3333333 must not fail the whole document
     if not isinstance(data.get('document_count'), int) or isinstance(data.get('document_count'), bool):
         data['document_count'] = None  # a hint only: "two" or "1-2" must not fail the whole document
     if isinstance(data.get('currency'), str):
