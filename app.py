@@ -241,7 +241,7 @@ def resume_stuck():
 @app.middleware('http')
 async def limit_upload_size(request, call_next):
     """Refuse oversized requests before the body is read.
-    ponytail: relies on Content-Length; the host/proxy body limit covers chunked uploads (set it at deploy)."""
+    ponytail: relies on Content-Length; chunked uploads skip this check (Render has no body limit setting) and spool to disk."""
     if int(request.headers.get('content-length') or 0) > MAX_FILES * MAX_BYTES + 1024 * 1024:
         return Response('request too large', status_code=413)
     return await call_next(request)
