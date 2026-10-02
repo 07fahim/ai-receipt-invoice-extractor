@@ -160,7 +160,7 @@ def deliver_events():
         EVENTS.task_done()
 
 
-# ponytail: in-memory queue; events still waiting are lost on restart, a table if they must survive
+# Events still in this in-memory queue are lost on restart; store them in a table if they must survive.
 threading.Thread(target=deliver_events, daemon=True).start()
 
 
@@ -216,7 +216,7 @@ def process(doc_id):
 
 def resume_stuck():
     # documents still 'processing' at startup lost their job when the server stopped
-    # ponytail: assumes one API process; with several, claim rows first (UPDATE ... RETURNING)
+    # Assumes one API process. With several, claim rows first (UPDATE ... RETURNING).
     try:
         with store.conn() as con:
             ids = [r['id'] for r in con.execute("SELECT id FROM documents WHERE status = 'processing' ORDER BY id")]
@@ -230,7 +230,7 @@ def resume_stuck():
 
 @app.middleware('http')
 async def limit_upload_size(request, call_next):
-    # ponytail: relies on Content-Length; chunked uploads skip this check and spool to disk
+    # Relies on Content-Length: chunked uploads skip this check and spool to disk.
     if int(request.headers.get('content-length') or 0) > MAX_FILES * MAX_BYTES + 1024 * 1024:
         return Response('request too large', status_code=413)
     return await call_next(request)
@@ -245,8 +245,8 @@ def heic_to_jpeg(data):
         return data
     try:
         img = Image.open(io.BytesIO(data))
-        # ponytail: 48 MP "HEIF Max" photos are refused (~150 MB per decoded copy, the free server has 512 MB);
-        # the usual 12/24 MP photos pass. Shrink while decoding if 48 MP receipts turn up.
+        # 48 MP "HEIF Max" photos are refused (about 150 MB per decoded copy; the server has 512 MB).
+        # The usual 12/24 MP photos pass. Shrink while decoding if 48 MP receipts turn up.
         if img.width * img.height > 40_000_000:
             print(f'HEIC too large to convert: {img.width}x{img.height}')
             return data
@@ -266,7 +266,7 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
         raise HTTPException(400, f'Send 1 to {MAX_FILES} files.')
     with store.conn() as con:
         used = reads_today(con, uid)
-    # ponytail: counted once per request; two parallel uploads can overshoot the limit slightly
+    # Counted once per request, so two parallel uploads can go slightly over the limit.
     left = DAILY_UPLOAD_LIMIT - used
     if left <= 0:
         raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
@@ -275,12 +275,16 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
         if left <= 0:
             created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again tomorrow.'})
             continue
-        data = heic_to_jpeg(f.file.read(MAX_BYTES + 1))
+        data = f.file.read(MAX_BYTES + 1)
+        if len(data) > MAX_BYTES:
+            created.append({'file_name': f.filename, 'error': 'Larger than 10 MB.'})
+            continue
+        data = heic_to_jpeg(data)
         kind = providers.mime(data)  # type from the file's bytes, never from its name
         if kind is None:
             created.append({'file_name': f.filename, 'error': 'Not a PDF, JPG, PNG, WebP or HEIC file.'})
             continue
-        if len(data) > MAX_BYTES:  # also a HEIC photo that grew past the limit when converted to JPEG
+        if len(data) > MAX_BYTES:  # a HEIC photo that grew past the limit when converted to JPEG
             created.append({'file_name': f.filename, 'error': 'Larger than 10 MB.'})
             continue
         if kind == 'application/pdf':
@@ -331,6 +335,7 @@ def get_document(doc_id: int, uid: str = Depends(current_user)):
 def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int | None = None,
           uid: str = Depends(current_user)):
     # doc_id: compared only with documents uploaded before it
+    doc = doc.model_copy(update={'is_document': None, 'document_count': None})  # the user is editing it: it is one document
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
@@ -347,6 +352,7 @@ def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_ord
             raise HTTPException(409, 'Still being read. Save again when it is done.')
         if if_unchanged_since and row['updated_at'] != if_unchanged_since:
             raise HTTPException(409, 'Changed in another tab. Reload to see the latest version.')
+        doc = doc.model_copy(update={'is_document': None, 'document_count': None})  # the user saved it: it is one document
         save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
     tasks.add_task(send_event, doc_id)
     return get_document(doc_id, uid)
@@ -430,13 +436,11 @@ def page_image(doc_id: int, n: int, uid: str = Depends(current_user)):
 
 
 class DateOrder(BaseModel):
-    date_order: str
+    date_order: DateOrderValue
 
 
-@app.put('/vendors/{vendor}/date-order')
+@app.put('/vendors/{vendor:path}/date-order')  # :path keeps names like 'M/S Rahman Traders'
 def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, uid: str = Depends(current_user)):
-    if body.date_order not in ('MDY', 'DMY'):
-        raise HTTPException(422, 'date_order must be MDY or DMY.')
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
         rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
@@ -498,7 +502,7 @@ def stats(date_from: date | None = None, uid: str = Depends(current_user)):
             'tax_by_currency': m("currency, sum((document->>'tax')::numeric) AS total, count(*) AS n",
                                  "AND document->>'tax' IS NOT NULL GROUP BY currency"),
             'top_vendors': m('min(vendor) AS vendor, currency, sum(total) AS total, count(*) AS n',
-                             'AND vendor IS NOT NULL GROUP BY lower(vendor), currency ORDER BY total DESC NULLS LAST LIMIT 10'),
+                             'AND vendor IS NOT NULL GROUP BY lower(vendor), currency ORDER BY total DESC NULLS LAST'),
             'by_month': m("to_char(issue_date, 'YYYY-MM') AS month, currency, sum(total) AS total, count(*) AS n",
                           'AND issue_date IS NOT NULL GROUP BY month, currency ORDER BY month'),
         }
@@ -558,15 +562,16 @@ def quickbooks_rows(uid):
             if d.issue_date is None or d.total is None:
                 skipped += 1
                 continue
-            items = [(i.description, i.amount - (i.discount or 0)) for i in d.items if i.amount is not None]
-            extra = [(name, v) for name, v in (('Service charge', d.service_charge), ('Discount', -d.discount if d.discount else None)) if v]
+            items = [(i.description, i.amount - abs(i.discount or 0)) for i in d.items if i.amount is not None]
+            extra = [(name, v) for name, v in (('Service charge', d.service_charge), ('Discount', -abs(d.discount) if d.discount else None)) if v]
             # tax added on top gets its own line; "VAT included" is already inside the items. Whichever adds up wins.
             lines = next((ls for ls in (items + extra + ([('Tax', d.tax)] if d.tax else []), items + extra)
                           if items and sum(v for _, v in ls) == d.total), [('Total', d.total)])
-            # ponytail: US date order; QuickBooks asks for the file's date format on import
+            # US date order; QuickBooks asks for the file's date format on import.
             bill = [cell('text', d.doc_number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
                     f'{d.issue_date:%m/%d/%Y}', f'{(d.due_date or d.issue_date):%m/%d/%Y}', 'Uncategorized Expense']
-            rows += [bill + [cell('text', desc), f'{v:.2f}', None] for desc, v in lines]
+            # 2 decimals, or 3 for currencies such as KWD
+            rows += [bill + [cell('text', desc), f'{v:.2f}' if v == round(v, 2) else format(v.normalize(), 'f'), None] for desc, v in lines]
     return rows, skipped
 
 

@@ -33,7 +33,7 @@ def report(rows):
         if diff:
             corrected += 1
             fields.update(diff)
-            if not validate(first):  # ponytail: checks re-run with today's rules, not the ones at reading time
+            if not validate(first):  # checks re-run with today's rules, not those at reading time
                 missed += 1
     n = len(rows)
     lines = [f'{n} reviewed documents, {corrected} corrected' + (f' ({corrected / n:.0%})' if n else '')]
