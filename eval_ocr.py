@@ -1,10 +1,4 @@
-"""M1: RapidOCR baseline on CORD-v2 test.
-
-Measures how much of the ground truth the OCR text contains. This is the ceiling for
-approach A (OCR text + LLM): a field the OCR never read cannot be extracted from text.
-Writes results/ocr_baseline.json and caches OCR output in data/ocr_cache/ for M3.
-Latency in the cache comes from the first (uncached) run.
-"""
+"""RapidOCR baseline on CORD-v2 test: how much of the answer the OCR text contains."""
 import json
 import re
 import statistics

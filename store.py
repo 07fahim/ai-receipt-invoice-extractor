@@ -1,6 +1,4 @@
-"""PostgreSQL storage for the app (Supabase or any Postgres): one row per uploaded document, plus the date
-order each user confirmed per vendor. Every row belongs to a Supabase Auth user (user_id). Connection string comes from DATABASE_URL in .env; APP_SCHEMA picks the schema
-(default 'app', kept out of Supabase's public Data API; tests use their own schema)."""
+"""PostgreSQL storage: one row per document, every row owned by a Supabase user."""
 import os
 import re
 import threading
