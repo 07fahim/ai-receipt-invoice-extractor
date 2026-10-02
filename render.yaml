@@ -40,7 +40,8 @@ services:
       url: docker.io/n8nio/n8n:2.41.5  # same version as the local install the workflow was built on
     plan: free
     region: singapore
-    healthCheckPath: /healthz
+    # no healthCheckPath: n8n takes about a minute to start on the free CPU and /healthz misses Render's 5 s limit
+    # meanwhile, so Render kept restarting it; the default port check is enough
     envVars:
       - key: N8N_PORT
         value: "10000"
