@@ -144,7 +144,7 @@ function WebhookCard() {
     <section className="mt-5 rounded-xl border bg-card px-5 py-4 shadow-xs">
       <h2 className="font-semibold">Webhook</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Send each document to your own address, like n8n, Zapier or Make. You get the data read from it, not the file.
+        Send each document to your own address, like an n8n webhook. You get the data read from it, not the file.
         Saving an address makes a new secret.
       </p>
       <div className="mt-4 grid gap-1.5">
