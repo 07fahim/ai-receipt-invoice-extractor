@@ -1,9 +1,3 @@
-"""How often people correct the AI's reading, from real use. Run: python corrections.py
-
-Compares each reviewed document (one a person opened and saved) with the AI's first reading (the
-`extracted` column). Prints how many were corrected, which fields changed most, and how many corrected
-documents had passed every check: mistakes the checks missed. Counts only, no document content.
-A mistake nobody noticed is never corrected, so the real error rate can only be equal or higher."""
 from collections import Counter
 from decimal import Decimal
 
@@ -16,7 +10,6 @@ ITEM_FIELDS = ['description', 'quantity', 'unit_price', 'amount', 'discount']
 
 
 def same(a, b):
-    """Equal values, ignoring formatting: 8.5 and 8.50, ' Shwapno' and 'Shwapno', None and ''."""
     if isinstance(a, Decimal) or isinstance(b, Decimal):
         return a == b if a is None or b is None else Decimal(a) == Decimal(b)
     a, b = (str(v).strip() if v is not None else '' for v in (a, b))
@@ -24,7 +17,6 @@ def same(a, b):
 
 
 def changed(first: Document, saved: Document) -> list[str]:
-    """Names of the fields the person changed; 'items' if any line was added, removed or edited."""
     out = [f for f in FIELDS if not same(getattr(first, f), getattr(saved, f))]
     lines = lambda d: [[getattr(i, f) for f in ITEM_FIELDS] for i in d.items]
     a, b = lines(first), lines(saved)
@@ -34,7 +26,6 @@ def changed(first: Document, saved: Document) -> list[str]:
 
 
 def report(rows):
-    """rows: (extracted JSON, saved document JSON) of reviewed documents. Returns the summary lines."""
     fields, corrected, missed = Counter(), 0, 0
     for first_json, saved_json in rows:
         first, saved = Document.model_validate(first_json), Document.model_validate(saved_json)

@@ -1,10 +1,3 @@
-"""M2: how well the validation checks work on real receipts (CORD-v2 test ground truth).
-
-1. False alarms: correct (ground-truth) receipts that get flagged anyway.
-2. Catch rate: take receipts that pass, inject one typical extraction mistake, count how many get flagged.
-Writes results/validation.json, or results/validation_<split>.json for another split:
-    python eval_validation.py validation
-"""
 import json
 import random
 import sys
@@ -20,7 +13,6 @@ ROOT = Path(__file__).parent
 
 
 def bump_digit(value, rng):
-    """Change one digit of an amount, like an OCR/LLM misread (5 -> 6)."""
     s = str(abs(value))
     pos = rng.choice([i for i, c in enumerate(s) if c.isdigit()])
     new = s[:pos] + str((int(s[pos]) + rng.randint(1, 9)) % 10) + s[pos + 1:]
@@ -28,7 +20,6 @@ def bump_digit(value, rng):
 
 
 def mutations(doc, gt_parse, rng):
-    """Yield (name, broken_doc). Each mutation is one realistic mistake; skipped when it can't apply."""
     d = doc.model_copy(deep=True)
     if doc.total:
         yield 'total_digit_misread', d.model_copy(update={'total': bump_digit(doc.total, rng)})

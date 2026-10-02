@@ -1,6 +1,3 @@
-"""Self-check for the API with a fake model (no model calls, no quota). Run: python test_app.py
-Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end.
-Sign-in tokens are signed with a local test key instead of Supabase's."""
 import csv
 from datetime import date
 import io
