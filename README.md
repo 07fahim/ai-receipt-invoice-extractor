@@ -1,14 +1,39 @@
-# Crosscheck
+<h1 align="center">
+  <img src="assets/logo.png" alt="Crosscheck" width="360">
+</h1>
 
-[![CI](https://github.com/07fahim/ai-receipt-invoice-extractor/actions/workflows/ci.yml/badge.svg)](https://github.com/07fahim/ai-receipt-invoice-extractor/actions/workflows/ci.yml)
+<p align="center">
+  <b>Receipts and invoices read by AI, then checked by plain code.</b><br>
+  Upload a batch, get checked spreadsheet rows, and look only at the documents the checks flag.
+</p>
 
-Receipt and invoice extraction with built-in checks. Upload a batch, get checked spreadsheet rows, and look only at
-the documents the checks flag.
+<p align="center">
+  <a href="https://github.com/07fahim/ai-receipt-invoice-extractor/actions/workflows/ci.yml"><img src="https://github.com/07fahim/ai-receipt-invoice-extractor/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://crosscheck-gamma.vercel.app"><img src="https://img.shields.io/badge/live_demo-crosscheck--gamma.vercel.app-1D4ED8" alt="Live demo"></a>
+</p>
 
-**Live demo:** https://crosscheck-gamma.vercel.app (sign up, then try the sample receipts. The free server sleeps
-when idle, so the first request can take about a minute.)
+<p align="center">
+  <a href="https://crosscheck-gamma.vercel.app">Live demo</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#measured-results">Measured results</a> ·
+  <a href="#run-it-locally">Run it locally</a>
+</p>
 
-![Review screen: the receipt next to the fields read from it, with a date that can be read two ways and a duplicate flagged](assets/review.png)
+![The review screen on the Crosscheck home page: a Smoke City Market receipt next to the fields read from it. The beef ribs line is flagged because 1 x 19.50 is not 36.86.](assets/hero.png)
+
+> **Try it:** sign up on the [live demo](https://crosscheck-gamma.vercel.app) and use the sample receipts. The free
+> server sleeps when idle, so the first request can take about a minute.
+
+## Highlights
+
+- **91% and 94% of receipts read fully correct** on the CORD-v2 test and validation sets, and only 2 in 100 were
+  wrong without a check catching it.
+- **Checks you can read:** every sum, tax line, date and duplicate is checked by plain Python, so a flag always says
+  exactly what failed and why.
+- **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
+  decimal point), and nothing changes without the user's click.
+- **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
+  Telegram, email) or the user's own address.
 
 ## What it does
 
@@ -31,17 +56,9 @@ when idle, so the first request can take about a minute.)
 
 ## How it works
 
-```mermaid
-flowchart LR
-    W[Web app<br/>Next.js on Vercel] -->|upload| A[API<br/>FastAPI on Render]
-    A -->|image| G[Gemini 3.1 Flash-Lite]
-    G -->|fields as JSON| C[Checks<br/>validate.py]
-    C --> D[(Postgres<br/>Supabase)]
-    D --> X[Export: CSV, Excel, QuickBooks]
-    D -->|needs review| R[Review screen]
-    D -->|events table| H[Webhook: n8n or your own]
-    H --> S[Google Sheet, Telegram, email]
-```
+<p align="center">
+  <img src="assets/how-it-works.svg" alt="How Crosscheck works: upload, the AI reads, plain-code checks. Passed documents are ready to export; flagged ones go to the review screen and are ready once fixed. Every change is saved in Postgres and sent as a signed webhook to n8n or your own address." width="100%">
+</p>
 
 - `providers.py` sends the image straight to the model and parses its JSON answer. The model also returns each
   date exactly as printed, so dates that can be read two ways are caught.
@@ -106,6 +123,17 @@ CORD validation receipts were also used to find problems (thousands separators, 
 neither CORD split is fully unseen. The first invoice run looked at both invoice splits, so neither is unseen for
 the date fix either. The receipt in the screenshot and two of the demo samples come from the ExpressExpense US
 receipt set (CC0); the third sample is a synthetic Dhaka bill.
+
+## Tech stack
+
+| Part | Built with |
+|---|---|
+| Web app | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
+| API | Python 3.11, FastAPI, Pydantic |
+| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0 |
+| Data and sign-in | PostgreSQL and Auth on Supabase |
+| Automation | n8n (Google Sheets, Telegram, Gmail), signed webhooks |
+| Hosting and CI | Vercel, Render, GitHub Actions |
 
 ## Run it locally
 
@@ -215,3 +243,9 @@ Each Python test prints `ok`. GitHub Actions runs them on every push, with a thr
 ## Privacy
 
 What is stored, where, and who sees it: https://crosscheck-gamma.vercel.app/privacy
+
+## Author
+
+Built by [Fahim Faiyaz](https://github.com/07fahim), ML engineer. I build document AI and automations for small
+businesses. If you want this running on your own accounts, or a version for your documents, open an issue or reach
+me through GitHub.

@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 570" width="1200" height="570" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>How Crosscheck works: upload, the AI reads, plain-code checks, then passed documents export and flagged ones go to review; every change becomes a signed webhook event</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
+    </marker>
+    <marker id="arrow-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#047857"/>
+    </marker>
+    <marker id="arrow-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#D97706"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- card -->
+  <rect x="0.5" y="0.5" width="1199" height="569" rx="20" fill="#F6F7F9" stroke="#E5E7EB"/>
+
+  <!-- main flow -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="60" width="230" height="150" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="320" y="60" width="250" height="150" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="620" y="60" width="250" height="150" rx="14" fill="#1D4ED8"/>
+  </g>
+
+  <!-- 1 upload -->
+  <circle cx="72" cy="92" r="16" fill="#EEF2FF"/>
+  <text x="72" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">1</text>
+  <text x="98" y="99" font-size="20" font-weight="700" fill="#111827">Upload</text>
+  <text x="62" y="138" font-size="15" fill="#374151">Photos, scans, PDFs</text>
+  <text x="62" y="160" font-size="15" fill="#374151">up to 20 at a time</text>
+  <text x="62" y="192" font-size="13" fill="#6B7280">Next.js on Vercel</text>
+
+  <!-- 2 AI reads -->
+  <circle cx="352" cy="92" r="16" fill="#EEF2FF"/>
+  <text x="352" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">2</text>
+  <text x="378" y="99" font-size="20" font-weight="700" fill="#111827">AI reads</text>
+  <text x="342" y="138" font-size="15" fill="#374151">Gemini 3.1 Flash-Lite returns</text>
+  <text x="342" y="160" font-size="15" fill="#374151">every field as JSON</text>
+  <text x="342" y="192" font-size="13" fill="#6B7280">FastAPI on Render</text>
+
+  <!-- 3 checks -->
+  <circle cx="652" cy="92" r="16" fill="#FFFFFF"/>
+  <text x="652" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">3</text>
+  <text x="678" y="99" font-size="20" font-weight="700" fill="#FFFFFF">Checks</text>
+  <text x="642" y="138" font-size="15" fill="#E0E7FF">Sums, tax, dates, duplicates</text>
+  <text x="642" y="160" font-size="15" fill="#E0E7FF">Plain code, same answer</text>
+  <text x="642" y="182" font-size="15" fill="#E0E7FF">every time</text>
+
+  <path d="M272 135 H316" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M572 135 H616" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- outcomes -->
+  <g filter="url(#shadow)">
+    <rect x="930" y="40" width="230" height="110" rx="14" fill="#FFFFFF" stroke="#047857" stroke-width="2"/>
+    <rect x="930" y="190" width="230" height="130" rx="14" fill="#FFFFFF" stroke="#D97706" stroke-width="2"/>
+  </g>
+  <rect x="950" y="58" width="78" height="26" rx="13" fill="#D1FAE5"/>
+  <text x="989" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#047857">Passed</text>
+  <text x="950" y="112" font-size="16" font-weight="700" fill="#111827">Ready to export</text>
+  <text x="950" y="134" font-size="14" fill="#374151">CSV, Excel, QuickBooks</text>
+
+  <rect x="950" y="208" width="116" height="26" rx="13" fill="#FEF3C7"/>
+  <text x="1008" y="226" text-anchor="middle" font-size="13" font-weight="700" fill="#92400E">Needs review</text>
+  <text x="950" y="262" font-size="16" font-weight="700" fill="#111827">Review screen</text>
+  <text x="950" y="284" font-size="14" fill="#374151">Original next to the fields,</text>
+  <text x="950" y="304" font-size="14" fill="#374151">the failed check explained</text>
+
+  <path d="M872 120 C900 120 900 95 926 95" stroke="#047857" stroke-width="2.5" fill="none" marker-end="url(#arrow-ok)"/>
+  <path d="M872 150 C900 150 900 255 926 255" stroke="#D97706" stroke-width="2.5" fill="none" marker-end="url(#arrow-warn)"/>
+  <!-- reviewed goes to export -->
+  <path d="M1045 188 V156" stroke="#047857" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#arrow-ok)"/>
+  <text x="1056" y="177" font-size="12" font-weight="600" fill="#047857">once fixed</text>
+
+  <!-- storage and events -->
+  <path d="M745 212 V376" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="755" y="300" font-size="13" fill="#6B7280">saved with every change</text>
+
+  <g filter="url(#shadow)">
+    <rect x="620" y="380" width="250" height="140" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="930" y="380" width="230" height="140" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+  </g>
+  <!-- database icon -->
+  <path d="M644 404 V428 A16 6 0 0 0 676 428 V404" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="2"/>
+  <path d="M644 416 A16 6 0 0 0 676 416" fill="none" stroke="#1D4ED8" stroke-width="1.5"/>
+  <ellipse cx="660" cy="404" rx="16" ry="6" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="2"/>
+  <text x="692" y="425" font-size="18" font-weight="700" fill="#111827">Postgres</text>
+  <text x="642" y="468" font-size="14" fill="#374151">Files, fields, corrections</text>
+  <text x="642" y="490" font-size="14" fill="#374151">and an events table</text>
+  <text x="642" y="510" font-size="13" fill="#6B7280">Supabase</text>
+
+  <circle cx="962" cy="412" r="16" fill="#EEF2FF"/>
+  <text x="962" y="418" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">4</text>
+  <text x="988" y="419" font-size="18" font-weight="700" fill="#111827">Webhook</text>
+  <text x="950" y="458" font-size="14" fill="#374151">Signed, retried for 2.5 h</text>
+  <text x="950" y="480" font-size="14" fill="#374151">n8n: Sheet, Telegram, email</text>
+  <text x="950" y="502" font-size="14" fill="#374151">or your own address</text>
+
+  <path d="M872 450 H926" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- measured -->
+  <rect x="40" y="380" width="530" height="140" rx="14" fill="#EEF2FF"/>
+  <text x="64" y="414" font-size="13" font-weight="700" fill="#1D4ED8" letter-spacing="1.5">MEASURED ON 200 PUBLIC RECEIPTS (CORD-V2)</text>
+  <text x="64" y="466" font-size="40" font-weight="800" fill="#111827">91 to 94%</text>
+  <text x="64" y="496" font-size="14" fill="#374151">read fully correct</text>
+  <line x1="300" y1="430" x2="300" y2="500" stroke="#C7D2FE" stroke-width="2"/>
+  <text x="328" y="466" font-size="40" font-weight="800" fill="#111827">2 in 100</text>
+  <text x="328" y="496" font-size="14" fill="#374151">wrong and not flagged</text>
+
+  <text x="40" y="550" font-size="13" fill="#6B7280">Only flagged documents need a person. Everything that passes is ready to export.</text>
+</svg>
