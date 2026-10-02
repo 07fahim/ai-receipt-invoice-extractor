@@ -188,7 +188,7 @@ def public_error(e):
         return 'The AI service did not answer. Try again.'
     if isinstance(e, ValueError):
         return 'The AI reply could not be read. Try again.'
-    if re.search(r'HTTP 4\d\d', text):
+    if re.search(r'HTTP (400|413|415)', text) and 'API key' not in text:  # the file itself; key errors stay generic
         return 'The AI could not read this file. Try a clearer photo or another file.'
     return 'Reading failed. Try again.'
 
@@ -331,9 +331,11 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
 def get_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
         r = get_row(con, doc_id, uid)
-        if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []) \
-                and not store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id):
-            r['checks'] = [c for c in r['checks'] if c['check'] != 'duplicate']  # the original was deleted or corrected
+        if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
+            dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
+            # the original may have been deleted or corrected since: drop the flag, or link the copy still there
+            r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
+                           for c in r['checks'] if dup or c['check'] != 'duplicate']
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
     return r
 
@@ -543,7 +545,7 @@ def cell(column, v, xlsx=False):
     if v is None:
         return None
     if column in NUMERIC:
-        return v if isinstance(v, Decimal) else Decimal(str(v))
+        return Decimal(format(v if isinstance(v, Decimal) else Decimal(str(v)), 'f'))  # 10, not 1E+1
     if isinstance(v, str) and v[:1] in (('=',) if xlsx else ('=', '+', '-', '@', '\t', '\r')):
         return "'" + v
     return v
