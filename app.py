@@ -143,11 +143,9 @@ def webhook_for(con, uid):
             return fernet().decrypt(r['url'].encode()).decode(), fernet().decrypt(r['secret'].encode()).decode(), True
         except InvalidToken:
             pass  # WEBHOOK_KEY changed: the user has to set the address again
-    if os.environ.get('WEBHOOK_URL') and str(uid) in webhook_users():
-        if os.environ.get('WEBHOOK_SECRET'):
-            return os.environ['WEBHOOK_URL'], os.environ['WEBHOOK_SECRET'], False
-        print('webhook not sent: WEBHOOK_SECRET is not set')  # n8n would reject it anyway
-    return None
+    if os.environ.get('WEBHOOK_URL') and os.environ.get('WEBHOOK_SECRET') and str(uid) in webhook_users():
+        return os.environ['WEBHOOK_URL'], os.environ['WEBHOOK_SECRET'], False
+    return None  # a missing WEBHOOK_SECRET shows in the log as 'webhooks are not set up on the server'
 
 
 def configured(con, uid):
@@ -253,7 +251,7 @@ def deliver(event_id, uid):
             target = r and webhook_for(con, uid)
             error = None
             if r and not target and configured(con, uid):
-                error = 'webhooks are not set up on the server'  # e.g. WEBHOOK_KEY missing after a deploy: keep retrying
+                error = 'webhooks are not set up on the server'  # e.g. WEBHOOK_KEY missing after a deploy: retried like a failed send, so it waits about 2.5 h
                 print(f'webhook event {event_id} waits: {error}')
         if r is None:
             return
@@ -619,7 +617,7 @@ def set_webhook(body: WebhookIn, uid: str = Depends(current_user)):
     url = body.url.strip()
     if not public_url(url):
         raise HTTPException(400, 'Use an https address that is reachable on the internet.')
-    secret = secrets.token_urlsafe(32)  # new on every save, so a leaked one is replaced by saving again
+    secret = secrets.token_urlsafe(32)  # new on every save; to replace a leaked one, remove the address and save it again
     with store.conn() as con:
         con.execute('INSERT INTO webhooks (user_id, url, secret) VALUES (%s, %s, %s) ON CONFLICT (user_id) DO UPDATE '
                     'SET url = excluded.url, secret = excluded.secret, last_at = NULL, last_error = NULL',
