@@ -63,36 +63,54 @@ providers.call = fake_call
 
 # a local webhook receiver standing in for n8n
 import hashlib, hmac, json, threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
-events = []
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+events, own_events, arrived = [], [], []  # the server's n8n (/hook), one user's own address (/own), arrival order of both
 
 
 class Hook(BaseHTTPRequestHandler):
+    fail, slow = 0, 0  # answer 500 to the next `fail` posts to /own; wait `slow` seconds before answering /own
+
     def do_POST(self):
         body = self.rfile.read(int(self.headers['Content-Length']))
-        events.append((json.loads(body), self.headers['X-Signature'], body))
+        if self.path == '/own':
+            time.sleep(Hook.slow)
+            if Hook.fail:
+                Hook.fail -= 1
+                self.send_response(500); self.end_headers()
+                return
+        (events if self.path == '/hook' else own_events).append((json.loads(body), self.headers['X-Signature'], body))
+        arrived.append(self.path)
         self.send_response(200); self.end_headers()
 
     def log_message(self, *a):
         pass
 
 
-hook = HTTPServer(('127.0.0.1', 0), Hook)
+hook = ThreadingHTTPServer(('127.0.0.1', 0), Hook)
 threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
 os.environ['WEBHOOK_USER_ID'] = f' {ALICE.upper()} ,'  # only Alice's documents go to the webhook (spaces, case, commas ignored)
-_post = app.post_event
+sender = []
 
 
-def post_and_wait(payload):  # the app delivers on a side thread; tests wait so events can be checked
-    _post(payload)
-    app.EVENTS.join()
-
-
-app.post_event = post_and_wait
+def flush():
+    # waits until every due webhook event is sent. The first call starts the sender, like a server starting
+    # with events saved before a restart: everything queued until then must still arrive.
+    if not sender:
+        sender.append(threading.Thread(target=app.deliver_events, daemon=True))
+        sender[0].start()
+    app.WAKE.set()
+    for _ in range(400):
+        time.sleep(0.05)
+        with store.conn() as con:
+            due = con.execute('SELECT count(*) AS n FROM webhook_events WHERE next_at <= now()').fetchone()['n']
+        if not due and not app.SENDING:
+            return
+    raise AssertionError('webhook events were not sent')
 c = TestClient(app.app, headers=as_user(ALICE))
 app.DAILY_UPLOAD_LIMIT = 50  # these tests upload more than the default 10; the limit test sets its own
+import store
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
@@ -156,7 +174,6 @@ try:
 
     # a restart while a document was being read: at startup it is read again instead of staying 'processing'
     hank = str(uuid.uuid4())
-    import store
     with store.conn() as con:
         stuck = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
                             "VALUES (%s, 's.jpg', 'image/jpeg', %s, 'processing') RETURNING id", (hank, JPG + b'good')).fetchone()['id']
@@ -181,6 +198,8 @@ try:
     assert corrections.report([(kept['extracted'], padded)])[0] == '1 reviewed documents, 0 corrected (0%)'
 
     # webhook: every reading (passed, needs_review, failed) and every review, signed with the secret
+    assert not events  # no sender yet: the events wait in the table
+    flush()
     kinds = [(e['event'], e['id']) for e, _, _ in events]
     # Dave's reviewed document and the resumed one belong to other users: not sent
     assert kinds == [('document.passed', good_id), ('document.needs_review', amb_id), ('document.passed', amb_id),
@@ -189,6 +208,7 @@ try:
     assert 'busy' in failed_event['error'] and 'HTTP' not in failed_event['error']  # the short public message only
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
+    assert len({e['event_id'] for e, _, _ in events}) == len(events)  # receivers can drop repeats by event_id
 
     # a reviewed document cannot be retried (the user's corrections would be lost)
     assert c.post(f'/documents/{good_id}/retry').status_code == 409
@@ -314,7 +334,7 @@ try:
     routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
               for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
               for m in rt.methods - {'HEAD'}]
-    assert len(routes) == 15, routes
+    assert len(routes) == 19, routes
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
@@ -347,8 +367,10 @@ try:
     sent = len(events)
     erin = as_user(str(uuid.uuid4()))
     passed = c.post('/documents', files=[('files', ('e.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]
-    assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed' and len(events) == sent
-    assert c.delete(f"/documents/{passed['id']}", headers=erin).status_code == 204 and len(events) == sent  # nor her deletes
+    assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed'
+    assert c.delete(f"/documents/{passed['id']}", headers=erin).status_code == 204  # nor her deletes
+    flush()
+    assert len(events) == sent
 
     # refused uploads say why: not a supported type, or too large
     r = c.post('/documents', files=[('files', ('n.txt', io.BytesIO(b'hello'), 'text/plain'))], headers=erin).json()
@@ -421,15 +443,19 @@ try:
 
     # delete removes the record and the file, and tells the webhook (the row gets marked deleted)
     assert c.delete(f'/documents/{good_id}').status_code == 204
+    flush()
     e, sig, raw = events[-1]
-    assert e == {'event': 'document.deleted', 'id': good_id, 'status': 'deleted'}
+    assert e == {'event': 'document.deleted', 'id': good_id, 'status': 'deleted', 'event_id': e['event_id']}
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest()
     assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
     assert c.delete(f'/documents/{good_id}').status_code == 404
     unread = upload(('u.jpg', JPG + b'boom')).json()[0]['id']  # failed: never had a spreadsheet row
     assert c.get(f'/documents/{unread}').json()['status'] == 'failed'
+    flush()
     sent = len(events)
-    assert c.delete(f'/documents/{unread}').status_code == 204 and len(events) == sent  # so no deleted event
+    assert c.delete(f'/documents/{unread}').status_code == 204
+    flush()
+    assert len(events) == sent  # so no deleted event
     assert c.post('/documents', files=[]).status_code in (400, 422)
     # size limits: an 11 MB file is refused; a request larger than 20 files x 10 MB is refused before reading
     over = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'0' * (10 * 1024 * 1024)), 'image/jpeg'))]).json()
@@ -446,6 +472,70 @@ try:
     assert str(app.cell('total', 12.5)) == '12.5' and str(app.cell('total', app.Decimal('12.50'))) == '12.50'
     assert app.cell('vendor', '- Discount', xlsx=True) == '- Discount' and app.cell('vendor', '- Discount') == "'- Discount"
     assert app.cell('vendor', '=1+1', xlsx=True) == "'=1+1"
+
+    # a user's own webhook address (Account page)
+    judy = as_user(JUDY := str(uuid.uuid4()))
+    own_url = f'http://127.0.0.1:{hook.server_port}/own'
+    assert c.get('/account/webhook', headers=judy).json() == {'enabled': False, 'url': None, 'last_at': None, 'last_error': None}
+    assert c.put('/account/webhook', json={'url': own_url}, headers=judy).status_code == 503  # no WEBHOOK_KEY on this server
+    os.environ['WEBHOOK_KEY'] = 'test-webhook-key'
+    # only https addresses on the public internet: never this server's own network
+    for bad in ('http://example.com/hook', 'ftp://example.com/x', 'https://127.0.0.1/x', 'https://localhost/x', 'https://10.0.0.5/x',
+                'https://192.168.1.1/x', 'https://169.254.169.254/latest/meta-data', 'https://[::1]/x', 'https://[::ffff:127.0.0.1]/x',
+                'https://100.64.0.1/x', 'https://0.0.0.0/x', 'https://no-such-host.invalid/x', 'https://example.com:99999/x', own_url):
+        assert c.put('/account/webhook', json={'url': bad}, headers=judy).status_code == 400, bad
+        assert not app.public_url(bad), bad
+    assert app.public_url('https://8.8.8.8/hook')
+    real_public_url, app.public_url = app.public_url, lambda url: url == own_url  # the local receiver stands in for a public address
+    saved = c.put('/account/webhook', json={'url': f' {own_url} '}, headers=judy).json()
+    secret = saved['secret']
+    shown = c.get('/account/webhook', headers=judy).json()
+    assert saved['url'] == shown['url'] == own_url and shown['enabled'] and secret not in str(shown)  # the secret is shown once only
+    with store.conn() as con:
+        stored = con.execute('SELECT url, secret FROM webhooks WHERE user_id = %s', (JUDY,)).fetchone()
+    assert '127.0.0.1' not in stored['url'] and secret not in stored['secret']  # encrypted in the database
+    tested = c.post('/account/webhook/test', headers=judy).json()
+    assert tested == {'ok': True, 'status': 200} and own_events[-1][0] == {'event': 'test', 'id': None}
+    assert c.post('/account/webhook/test', headers=bob).status_code == 404
+
+    # her documents go to her address, signed with her secret; the server's n8n never sees them
+    sent = len(events)
+    judy_doc = c.post('/documents', files=[('files', ('j.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    flush()
+    e, sig, raw = own_events[-1]
+    assert e['event'] == 'document.passed' and e['id'] == judy_doc and len(events) == sent
+    assert sig == 'sha256=' + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+    assert all(ev['id'] == judy_doc or ev['event'] == 'test' for ev, _, _ in own_events)  # nobody else's documents
+    # a failed send is retried; after the last retry it is dropped, the error is shown, and the next event still goes
+    real_retry, app.RETRY_SECONDS = app.RETRY_SECONDS, (0,)
+    Hook.fail = 1
+    assert c.delete(f'/documents/{judy_doc}', headers=judy).status_code == 204
+    flush()
+    assert own_events[-1][0]['event'] == 'document.deleted' and c.get('/account/webhook', headers=judy).json()['last_error'] is None
+    Hook.fail = 2
+    lost = c.post('/documents', files=[('files', ('j.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    flush()
+    assert own_events[-1][0]['id'] != lost and '500' in c.get('/account/webhook', headers=judy).json()['last_error']
+    nxt = c.post('/documents', files=[('files', ('j.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    flush()
+    assert own_events[-1][0]['id'] == nxt and c.get('/account/webhook', headers=judy).json()['last_error'] is None
+    app.RETRY_SECONDS = real_retry
+    # a slow address delays only its own user
+    Hook.slow, arrived[:] = 1.5, []
+    c.post('/documents', files=[('files', ('j.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy)
+    app.WAKE.set(); time.sleep(0.3)  # Judy's event is on its way
+    c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))])
+    flush()
+    assert arrived == ['/hook', '/own'], arrived
+    Hook.slow = 0
+    # removing the address stops events; deleting the account removes the address
+    assert c.delete('/account/webhook', headers=judy).status_code == 204
+    assert c.get('/account/webhook', headers=judy).json()['url'] is None
+    c.put('/account/webhook', json={'url': own_url}, headers=judy)
+    assert c.delete('/account', headers=judy).status_code == 204
+    with store.conn() as con:
+        assert con.execute('SELECT count(*) AS n FROM webhooks WHERE user_id = %s', (JUDY,)).fetchone()['n'] == 0
+    app.public_url = real_public_url
     print('ok')
 finally:
     import store

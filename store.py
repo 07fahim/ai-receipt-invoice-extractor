@@ -39,6 +39,21 @@ CREATE TABLE IF NOT EXISTS reads (   -- one row per model read (upload or retry)
     at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS reads_user ON reads (user_id, at);
+CREATE TABLE IF NOT EXISTS webhooks (      -- the user's own address for document events (Account page)
+    user_id UUID PRIMARY KEY,
+    url TEXT NOT NULL,                    -- url and secret encrypted with WEBHOOK_KEY
+    secret TEXT NOT NULL,
+    last_at TIMESTAMPTZ, last_error TEXT, -- last delivery: when, and why it failed (NULL: it worked)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS webhook_events (   -- waiting to be sent; deleted once sent, so restarts lose nothing
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID NOT NULL,
+    payload JSONB NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS webhook_events_user ON webhook_events (user_id, id);
 """
 
 _pool = None
