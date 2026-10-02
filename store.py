@@ -12,17 +12,18 @@ CREATE TABLE IF NOT EXISTS documents (
     user_id UUID,                  -- Supabase Auth user; rows without one are visible to nobody
     file_name TEXT NOT NULL,
     mime TEXT NOT NULL,
-    file BYTEA NOT NULL,           -- ponytail: files in the database (demo scale, survives redeploys); Supabase Storage if it grows
+    file BYTEA NOT NULL,           -- files kept in the database (demo scale, survives redeploys); move to Supabase Storage if it grows
     status TEXT NOT NULL CHECK (status IN ('processing', 'passed', 'needs_review', 'failed', 'reviewed')),
     document JSONB,                -- extracted (or corrected) Document
     checks JSONB,                  -- failed checks
     error TEXT,
-    vendor TEXT, currency TEXT, issue_date DATE, total NUMERIC(18, 2),   -- copies for search and dashboard
+    vendor TEXT, currency TEXT, issue_date DATE, total NUMERIC(20, 6),   -- copies for search and dashboard
     model TEXT, prompt_version TEXT, tokens_in INTEGER, tokens_out INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id UUID;   -- tables created before accounts existed
+ALTER TABLE documents ALTER COLUMN total TYPE NUMERIC(20, 6);  -- was (18, 2): 3-decimal currencies lost a digit
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted JSONB; -- the AI's reading as first saved, kept when the user corrects it
 CREATE INDEX IF NOT EXISTS documents_user ON documents (user_id, id);
 CREATE INDEX IF NOT EXISTS documents_vendor ON documents (user_id, lower(vendor));
@@ -111,7 +112,7 @@ def same_number(number):
 
 def duplicate_of(con, user_id, doc, before_id=None):
     # before_id: the first copy stays clean, later copies are flagged
-    # ponytail: exact match after clean-up; fuzzy matching would flag INV-1042 against INV-1043
+    # Exact match after clean-up: fuzzy matching would flag INV-1042 against INV-1043.
     number = same_number(doc.doc_number)
     if not (number and vendor_key(doc.vendor) and doc.total is not None):
         return None
