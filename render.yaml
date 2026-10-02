@@ -68,7 +68,7 @@ services:
         value: n8n
       - key: DB_POSTGRESDB_SSL_ENABLED
         value: "true"
-      # ponytail: encrypted but the server certificate is not checked; set DB_POSTGRESDB_SSL_CA to Supabase's CA to check it
+      # Encrypted, but the server certificate is not checked; set DB_POSTGRESDB_SSL_CA to Supabase's CA to check it
       - key: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
         value: "false"
       - key: N8N_ENCRYPTION_KEY  # encrypts saved credentials; must never change
