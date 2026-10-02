@@ -30,6 +30,8 @@ services:
         sync: false
       - key: WEBHOOK_USER_ID  # the account(s) whose documents go to n8n, comma-separated
         sync: false
+      - key: WEBHOOK_KEY  # encrypts users' own webhook addresses; changing it means they set them again
+        generateValue: true
       - key: DAILY_UPLOAD_LIMIT
         value: "10"
 
