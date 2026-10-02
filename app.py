@@ -1,16 +1,19 @@
+import base64
 import contextlib
 import csv
 import hashlib
 import hmac
 import io
+import ipaddress
 import json
 import os
-import queue
 import re
+import secrets
+import socket
 import threading
-import time
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
@@ -18,12 +21,13 @@ from typing import Literal
 import jwt
 import pillow_heif
 import pypdfium2
+from cryptography.fernet import Fernet, InvalidToken
 from PIL import Image, ImageOps
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from psycopg.types.json import Jsonb
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import providers
 import store
@@ -47,6 +51,7 @@ def reads_today(con, uid):
 @contextlib.asynccontextmanager
 async def lifespan(_):
     threading.Thread(target=resume_stuck, daemon=True).start()
+    threading.Thread(target=deliver_events, daemon=True).start()  # also sends events left over from before a restart
     yield
 
 
@@ -123,58 +128,157 @@ def webhook_users():  # comma-separated, so more than one of your own accounts c
     return {u.strip().lower() for u in os.environ.get('WEBHOOK_USER_ID', '').split(',') if u.strip()}
 
 
-EVENT_LOCK = threading.Lock()  # reading a document and queueing its event happen together, so a stale status never queues last
+def fernet():
+    # users' webhook addresses and secrets are stored encrypted with WEBHOOK_KEY (any long random text)
+    key = os.environ.get('WEBHOOK_KEY')
+    return key and Fernet(base64.urlsafe_b64encode(hashlib.sha256(key.encode()).digest()))
 
 
-def send_event(doc_id):
-    if not os.environ.get('WEBHOOK_URL'):
-        return
-    with EVENT_LOCK:
-        with store.conn() as con:
-            r = row_by_id(con, doc_id)
-        if r is None or str(r['user_id']) not in webhook_users():
-            return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
-        post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
-                    'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
+def webhook_for(con, uid):
+    # (url, secret, users_own): the user's own address first, else the server's n8n for the accounts in WEBHOOK_USER_ID.
+    # Read at send time, so waiting events go to the current address with the current secret.
+    r = con.execute('SELECT url, secret FROM webhooks WHERE user_id = %s', (uid,)).fetchone()
+    if r and fernet():
+        try:
+            return fernet().decrypt(r['url'].encode()).decode(), fernet().decrypt(r['secret'].encode()).decode(), True
+        except InvalidToken:
+            pass  # WEBHOOK_KEY changed: the user has to set the address again
+    if os.environ.get('WEBHOOK_URL') and str(uid) in webhook_users():
+        if os.environ.get('WEBHOOK_SECRET'):
+            return os.environ['WEBHOOK_URL'], os.environ['WEBHOOK_SECRET'], False
+        print('webhook not sent: WEBHOOK_SECRET is not set')  # n8n would reject it anyway
+    return None
 
 
-def send_deleted(doc_id, uid):
-    if os.environ.get('WEBHOOK_URL') and uid in webhook_users():
-        with EVENT_LOCK:
-            post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
+def configured(con, uid):
+    # the user set an address, or is one of the server's n8n accounts, even if webhook_for can't build the target now
+    own = con.execute('SELECT 1 FROM webhooks WHERE user_id = %s', (uid,)).fetchone()
+    return bool(own) or bool(os.environ.get('WEBHOOK_URL')) and str(uid) in webhook_users()
 
 
-EVENTS = queue.Queue()  # one worker delivers in order, so a retried 'passed' never lands after 'reviewed' or 'deleted'
+def public_url(url):
+    # users' addresses must be https on the public internet, so the server can't be pointed at its own network
+    try:
+        p = urllib.parse.urlsplit(url)
+        if p.scheme != 'https' or not p.hostname or p.username is not None:
+            return False
+        addresses = socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)
+    except (OSError, UnicodeError, ValueError):
+        return False
+    return all(ipaddress.ip_address(a[4][0]).is_global for a in addresses)
+
+
+def queue_event(con, uid, payload):
+    # Written in the caller's transaction, so a saved change always has its event, even if the server stops right after.
+    # The document row is locked by that change, so one document's events are queued in order.
+    try:
+        with con.transaction():  # savepoint: a failed insert never undoes the document change
+            if configured(con, uid):  # kept even while the server's settings are broken, sent once they are fixed
+                con.execute('INSERT INTO webhook_events (user_id, payload) VALUES (%s, %s)', (uid, Jsonb(payload)))
+    except Exception as e:
+        print(f'webhook event for document {payload["id"]} not queued: {e!r}')
+
+
+def queue_document_event(con, doc_id):
+    r = row_by_id(con, doc_id)
+    if r:
+        queue_event(con, r['user_id'], {'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
+                                        'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
+
+
+class NoRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args):  # a redirect could lead past the public_url check
+        return None
+
+
+OPENER = urllib.request.build_opener(NoRedirects)
+
+
+def signed(payload, secret):
+    body = json.dumps(payload).encode()
+    return body, {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1',
+                  'X-Signature': 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()}
+
+
+def open_webhook(url, payload, secret, users_own, timeout):
+    if users_own and not public_url(url):  # checked again at send time: the address may point elsewhere by now
+        raise ValueError('not a public https address')
+    with OPENER.open(urllib.request.Request(url, *signed(payload, secret)), timeout=timeout) as r:
+        return r.status
+
+
+RETRY_SECONDS = (60, 300, 1800, 7200)  # after the first try; then the event is dropped and the next one goes
+WAKE = threading.Event()  # set after a commit that queued events
+SENDING = set()  # users with an event in flight: one at a time per user keeps their events in order
+SENDING_LOCK = threading.Lock()
+SENDERS = ThreadPoolExecutor(8)  # a slow address holds one sender, never the others
 
 
 def deliver_events():
+    # Assumes one API process. With several, claim rows with FOR UPDATE SKIP LOCKED.
     while True:
-        url, body, headers, doc_id = EVENTS.get()
-        for attempt in range(3):
+        WAKE.clear()
+        try:
+            wait = dispatch()
+        except Exception as e:
+            print(f'webhook dispatch failed: {e!r}')
+            wait = 60
+        WAKE.wait(wait)
+
+
+def dispatch():
+    # starts each user's oldest event when due; returns seconds until the next retry (60 at most, in case a wake was missed)
+    with store.conn() as con:
+        rows = con.execute('SELECT DISTINCT ON (user_id) id, user_id, '
+                           'extract(epoch FROM next_at - now()) AS wait FROM webhook_events ORDER BY user_id, id').fetchall()
+    waits = [60]
+    for r in rows:
+        if r['wait'] > 0:
+            waits.append(float(r['wait']))
+            continue
+        with SENDING_LOCK:
+            if r['user_id'] in SENDING:
+                continue
+            SENDING.add(r['user_id'])
+        SENDERS.submit(deliver, r['id'], r['user_id'])
+    return min(waits)
+
+
+def deliver(event_id, uid):
+    try:
+        with store.conn() as con:
+            # read again: a sender that just finished may have sent or rescheduled it after dispatch() looked
+            r = con.execute('SELECT id, user_id, payload, attempts FROM webhook_events WHERE id = %s AND next_at <= now()',
+                            (event_id,)).fetchone()
+            target = r and webhook_for(con, uid)
+            error = None
+            if r and not target and configured(con, uid):
+                error = 'webhooks are not set up on the server'  # e.g. WEBHOOK_KEY missing after a deploy: keep retrying
+                print(f'webhook event {event_id} waits: {error}')
+        if r is None:
+            return
+        if target:
             try:
-                # long timeout: a sleeping free-tier n8n (Render) took 113 s to wake (measured 2026-10-02), then runs the workflow
-                with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=300):
-                    break
+                # 300 s for the server's n8n: asleep on Render's free plan it took 113 s to wake (measured 2026-10-02).
+                # Users' own addresses get 30 s, so a few dead ones can't hold every sender; a sleeping one is awake by the retry.
+                open_webhook(target[0], {**r['payload'], 'event_id': r['id']}, target[1], target[2], 30 if target[2] else 300)
             except Exception as e:
-                print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-        EVENTS.task_done()
-
-
-# Events still in this in-memory queue are lost on restart; store them in a table if they must survive.
-threading.Thread(target=deliver_events, daemon=True).start()
-
-
-def post_event(payload):
-    secret = os.environ.get('WEBHOOK_SECRET')
-    if not secret:
-        print(f'webhook for document {payload["id"]} not sent: WEBHOOK_SECRET is not set')  # n8n would reject it anyway
-        return
-    body = json.dumps(payload).encode()
-    headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1',
-               'X-Signature': 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()}
-    EVENTS.put((os.environ['WEBHOOK_URL'], body, headers, payload['id']))
+                error = str(e)[:200]
+                print(f'webhook for document {r["payload"]["id"]} failed (attempt {r["attempts"] + 1}): {error}')
+        with store.conn() as con:
+            if error and r['attempts'] < len(RETRY_SECONDS):
+                con.execute('UPDATE webhook_events SET attempts = attempts + 1, next_at = now() + make_interval(secs => %s) '
+                            'WHERE id = %s', (RETRY_SECONDS[r['attempts']], r['id']))
+            else:  # sent, given up, or nobody listens any more
+                con.execute('DELETE FROM webhook_events WHERE id = %s', (r['id'],))
+            if target and target[2]:  # shown on the Account page
+                con.execute('UPDATE webhooks SET last_at = now(), last_error = %s WHERE user_id = %s', (error, r['user_id']))
+    except Exception as e:
+        print(f'webhook event {event_id} delivery failed: {e!r}')
+    finally:
+        with SENDING_LOCK:
+            SENDING.discard(uid)
+        WAKE.set()
 
 
 def public_error(e):
@@ -205,17 +309,14 @@ def process(doc_id):
                  'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
             save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
-            done = row_by_id(con, doc_id)
-        read = done is not None   # None: deleted meanwhile
+            queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted meanwhile)
     except Exception as e:
         with store.conn() as con:
             failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
                                  "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
-        if failed:
-            send_event(doc_id)  # document.failed: an alert, the file could not be read
-        return
-    if read:
-        send_event(doc_id)  # passed or needs_review; outside the try: a webhook problem never marks a good document failed
+            if failed:
+                queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
+    WAKE.set()
 
 
 def resume_stuck():
@@ -352,7 +453,7 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
 
 
 @app.put('/documents/{doc_id}')
-def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_order: DateOrderValue | None = None,
+def update_document(doc_id: int, doc: Document, date_order: DateOrderValue | None = None,
                     if_unchanged_since: datetime | None = None, uid: str = Depends(current_user)):
     # if_unchanged_since: a change made meanwhile in another tab is not overwritten
     with store.conn() as con:
@@ -363,7 +464,8 @@ def update_document(doc_id: int, doc: Document, tasks: BackgroundTasks, date_ord
             raise HTTPException(409, 'Changed in another tab. Reload to see the latest version.')
         doc = doc.model_copy(update={'is_document': None, 'document_count': None})  # the user saved it: it is one document
         save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
-    tasks.add_task(send_event, doc_id)
+        queue_document_event(con, doc_id)
+    WAKE.set()
     return get_document(doc_id, uid)
 
 
@@ -385,13 +487,14 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
 
 
 @app.delete('/documents/{doc_id}', status_code=204)
-def delete_document(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
+def delete_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
         gone = con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s RETURNING status', (doc_id, uid)).fetchone()
+        if gone and gone['status'] in ('passed', 'reviewed'):  # only checked documents have a spreadsheet row to mark
+            queue_event(con, uid, {'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
     if gone is None:
         raise HTTPException(404, 'Document not found.')
-    if gone['status'] in ('passed', 'reviewed'):  # only checked documents have a spreadsheet row to mark
-        tasks.add_task(send_deleted, doc_id, uid)
+    WAKE.set()
 
 
 @app.get('/documents/{doc_id}/file')
@@ -449,7 +552,7 @@ class DateOrder(BaseModel):
 
 
 @app.put('/vendors/{vendor:path}/date-order')  # :path keeps names like 'M/S Rahman Traders'
-def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, uid: str = Depends(current_user)):
+def set_vendor_date_order(vendor: str, body: DateOrder, uid: str = Depends(current_user)):
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
         rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
@@ -458,7 +561,8 @@ def set_vendor_date_order(vendor: str, body: DateOrder, tasks: BackgroundTasks, 
         for r in rows:
             save(con, r['id'], Document.model_validate(r['document']), None, uid)
             if row_by_id(con, r['id'])['status'] == 'passed':
-                tasks.add_task(send_event, r['id'])
+                queue_document_event(con, r['id'])
+    WAKE.set()
     return {'vendor': vendor, 'date_order': body.date_order, 'rechecked': len(rows)}
 
 
@@ -482,6 +586,8 @@ def delete_account(uid: str = Depends(current_user)):
         con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
+        con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,))
+        con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
         try:
             delete_auth_user(uid)
         except HTTPException:
@@ -489,6 +595,55 @@ def delete_account(uid: str = Depends(current_user)):
         except Exception as e:
             print(f'deleting auth user {uid} failed: {e!r}')
             raise HTTPException(502, 'Could not delete the account. Please try again.')
+
+
+class WebhookIn(BaseModel):
+    url: str = Field(max_length=2000)
+
+
+@app.get('/account/webhook')
+def get_webhook(uid: str = Depends(current_user)):
+    # the secret is never sent back: the user sees it once, when it is made
+    with store.conn() as con:
+        target = webhook_for(con, uid)
+        r = con.execute('SELECT last_at, last_error FROM webhooks WHERE user_id = %s', (uid,)).fetchone()
+    own = bool(target and target[2])
+    return {'enabled': bool(fernet()), 'url': target[0] if own else None,
+            'last_at': r and r['last_at'], 'last_error': r and r['last_error']}
+
+
+@app.put('/account/webhook')
+def set_webhook(body: WebhookIn, uid: str = Depends(current_user)):
+    if not fernet():
+        raise HTTPException(503, 'Webhooks are not set up on this server.')
+    url = body.url.strip()
+    if not public_url(url):
+        raise HTTPException(400, 'Use an https address that is reachable on the internet.')
+    secret = secrets.token_urlsafe(32)  # new on every save, so a leaked one is replaced by saving again
+    with store.conn() as con:
+        con.execute('INSERT INTO webhooks (user_id, url, secret) VALUES (%s, %s, %s) ON CONFLICT (user_id) DO UPDATE '
+                    'SET url = excluded.url, secret = excluded.secret, last_at = NULL, last_error = NULL',
+                    (uid, fernet().encrypt(url.encode()).decode(), fernet().encrypt(secret.encode()).decode()))
+    return {'url': url, 'secret': secret}
+
+
+@app.delete('/account/webhook', status_code=204)
+def delete_webhook(uid: str = Depends(current_user)):
+    with store.conn() as con:
+        if con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,)).rowcount:  # the server's n8n accounts keep theirs
+            con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
+
+
+@app.post('/account/webhook/test')
+def test_webhook(uid: str = Depends(current_user)):
+    with store.conn() as con:
+        target = webhook_for(con, uid)
+    if not (target and target[2]):
+        raise HTTPException(404, 'Add a webhook address first.')
+    try:
+        return {'ok': True, 'status': open_webhook(target[0], {'event': 'test', 'id': None}, target[1], True, 60)}
+    except Exception as e:
+        return {'ok': False, 'error': str(e)[:200]}
 
 
 @app.get('/usage')

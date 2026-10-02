@@ -16,6 +16,7 @@ const sections: [string, React.ReactNode][] = [
       <li>Your corrections and vendor date settings.</li>
       <li>The AI&apos;s first reading of each file. I compare it with your corrections to measure how often the AI is wrong.</li>
       <li>The time of each upload. This is for the daily limit.</li>
+      <li>Your webhook address and its secret, if you add one. Both are encrypted.</li>
     </ul>
     <p>No ads. No tracking. Cookies only keep you signed in.</p>
   </>],
@@ -32,6 +33,7 @@ const sections: [string, React.ReactNode][] = [
       <li><b>Supabase</b> stores the data and handles sign-in.</li>
       <li><b>Render</b> runs the server that receives your files, in Singapore. It does not keep them.</li>
       <li><b>Vercel</b> hosts this website. Your files do not pass through it.</li>
+      <li><b>Your webhook</b>, if you add one, gets the data read from each file. Not the file itself.</li>
     </ul>
     <p>Nothing is sold or shared with anyone else.</p>
   </>],
