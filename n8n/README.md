@@ -33,4 +33,4 @@ Setup:
   Optional `CROSSCHECK_APP_URL` (default `http://localhost:3000`): the web app address used in alert links.
 - Import the file. Pick your Google Sheets, Telegram and Gmail credentials, your sheet, chat id and email address. Then activate.
 - In the app's environment: `WEBHOOK_URL=<n8n>/webhook/crosscheck`, `WEBHOOK_SECRET=<same secret>`,
-  `WEBHOOK_USER_ID=<the account whose documents are sent>`.
+  `WEBHOOK_USER_ID=<the account(s) whose documents are sent, comma-separated>`.
