@@ -7,12 +7,10 @@ import io
 import ipaddress
 import json
 import os
-import queue
 import re
 import secrets
 import socket
 import threading
-import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -137,23 +135,32 @@ def fernet():
 
 
 def webhook_for(con, uid):
-    # (url, secret, users_own): the user's own address first, else the server's n8n for the accounts in WEBHOOK_USER_ID
+    # (url, secret, users_own): the user's own address first, else the server's n8n for the accounts in WEBHOOK_USER_ID.
+    # Read at send time, so waiting events go to the current address with the current secret.
     r = con.execute('SELECT url, secret FROM webhooks WHERE user_id = %s', (uid,)).fetchone()
     if r and fernet():
         try:
             return fernet().decrypt(r['url'].encode()).decode(), fernet().decrypt(r['secret'].encode()).decode(), True
         except InvalidToken:
             pass  # WEBHOOK_KEY changed: the user has to set the address again
-    if os.environ.get('WEBHOOK_URL') and os.environ.get('WEBHOOK_SECRET') and str(uid) in webhook_users():
-        return os.environ['WEBHOOK_URL'], os.environ['WEBHOOK_SECRET'], False
+    if os.environ.get('WEBHOOK_URL') and str(uid) in webhook_users():
+        if os.environ.get('WEBHOOK_SECRET'):
+            return os.environ['WEBHOOK_URL'], os.environ['WEBHOOK_SECRET'], False
+        print('webhook not sent: WEBHOOK_SECRET is not set')  # n8n would reject it anyway
     return None
+
+
+def configured(con, uid):
+    # the user set an address, or is one of the server's n8n accounts, even if webhook_for can't build the target now
+    own = con.execute('SELECT 1 FROM webhooks WHERE user_id = %s', (uid,)).fetchone()
+    return bool(own) or bool(os.environ.get('WEBHOOK_URL')) and str(uid) in webhook_users()
 
 
 def public_url(url):
     # users' addresses must be https on the public internet, so the server can't be pointed at its own network
     try:
         p = urllib.parse.urlsplit(url)
-        if p.scheme != 'https' or not p.hostname:
+        if p.scheme != 'https' or not p.hostname or p.username is not None:
             return False
         addresses = socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)
     except (OSError, UnicodeError, ValueError):
@@ -166,7 +173,7 @@ def queue_event(con, uid, payload):
     # The document row is locked by that change, so one document's events are queued in order.
     try:
         with con.transaction():  # savepoint: a failed insert never undoes the document change
-            if webhook_for(con, uid):
+            if configured(con, uid):  # kept even while the server's settings are broken, sent once they are fixed
                 con.execute('INSERT INTO webhook_events (user_id, payload) VALUES (%s, %s)', (uid, Jsonb(payload)))
     except Exception as e:
         print(f'webhook event for document {payload["id"]} not queued: {e!r}')
@@ -244,13 +251,17 @@ def deliver(event_id, uid):
             r = con.execute('SELECT id, user_id, payload, attempts FROM webhook_events WHERE id = %s AND next_at <= now()',
                             (event_id,)).fetchone()
             target = r and webhook_for(con, uid)
+            error = None
+            if r and not target and configured(con, uid):
+                error = 'webhooks are not set up on the server'  # e.g. WEBHOOK_KEY missing after a deploy: keep retrying
+                print(f'webhook event {event_id} waits: {error}')
         if r is None:
             return
-        error = None
         if target:
             try:
-                # long timeout: a sleeping free-tier n8n (Render) took 113 s to wake (measured 2026-10-02), then runs the workflow
-                open_webhook(target[0], {**r['payload'], 'event_id': r['id']}, target[1], target[2], 300)
+                # 300 s for the server's n8n: asleep on Render's free plan it took 113 s to wake (measured 2026-10-02).
+                # Users' own addresses get 30 s, so a few dead ones can't hold every sender; a sleeping one is awake by the retry.
+                open_webhook(target[0], {**r['payload'], 'event_id': r['id']}, target[1], target[2], 30 if target[2] else 300)
             except Exception as e:
                 error = str(e)[:200]
                 print(f'webhook for document {r["payload"]["id"]} failed (attempt {r["attempts"] + 1}): {error}')
@@ -619,8 +630,8 @@ def set_webhook(body: WebhookIn, uid: str = Depends(current_user)):
 @app.delete('/account/webhook', status_code=204)
 def delete_webhook(uid: str = Depends(current_user)):
     with store.conn() as con:
-        con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,))
-        con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
+        if con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,)).rowcount:  # the server's n8n accounts keep theirs
+            con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
 
 
 @app.post('/account/webhook/test')
