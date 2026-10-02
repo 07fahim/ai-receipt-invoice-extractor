@@ -1,4 +1,3 @@
-"""Extraction accuracy on CORD and invoice splits. Run: python eval_extract.py MODEL [SPLIT] [LIMIT] [PROMPT_VERSION]"""
 import hashlib
 import io
 import json
@@ -21,7 +20,6 @@ TEXT = ('doc_number', 'issue_date', 'vendor', 'buyer', 'currency')
 
 
 def same(a, b, field=''):
-    """Money equal to the cent. Only a discount may differ in sign (a convention, not an error)."""
     if a is None or b is None:
         return False
     if field == 'discount':
@@ -30,7 +28,6 @@ def same(a, b, field=''):
 
 
 def f1(pred, gold):
-    """Multiset F1 of two lists (1.0 when both are empty)."""
     if not pred and not gold:
         return 1.0
     hit = sum((Counter(pred) & Counter(gold)).values())
@@ -38,7 +35,6 @@ def f1(pred, gold):
 
 
 def name_f1(pred, gold):
-    """Item names matched one-to-one when at least 80% similar (ignoring case and spaces)."""
     norm = lambda s: ''.join((s or '').casefold().split())
     left, hit = [norm(p) for p in pred], 0
     for g in map(norm, gold):
@@ -50,8 +46,6 @@ def name_f1(pred, gold):
 
 
 def text_match(field, p, g):
-    """Dates and currency must be equal. Names and numbers ignore case and spaces; vendor/buyer labels
-    include the address, so a name of 4+ characters only has to be the start of the label."""
     if p is None:
         return False
     if field in ('issue_date', 'currency'):
@@ -63,7 +57,6 @@ def text_match(field, p, g):
 
 
 def score(pred, gold):
-    """Per-field correctness for the fields the ground truth has."""
     s = {f: same(getattr(pred, f), getattr(gold, f), f) for f in HEADER if getattr(gold, f) is not None}
     s.update({f: text_match(f, getattr(pred, f), getattr(gold, f)) for f in TEXT if getattr(gold, f) is not None})
     s['item_amounts_f1'] = f1([i.amount for i in pred.items if i.amount is not None],
@@ -78,9 +71,6 @@ def rate(vals):
 
 
 def damage(image, variant):
-    """A worse copy of the image for the robustness test: 'bad_photo' = half resolution, blurred, darker, heavy JPEG
-    (a quick phone snap in a dim shop); 'very_bad_photo' = 640 px wide, more blur, darker, heavier JPEG (a hurried
-    snap from a distance); 'rot90' = turned sideways. Any other variant leaves the image as it is."""
     if variant not in ('bad_photo', 'very_bad_photo', 'rot90'):
         return image
     from PIL import Image, ImageEnhance, ImageFilter

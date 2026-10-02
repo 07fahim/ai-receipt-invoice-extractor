@@ -1,4 +1,3 @@
-"""Synthetic Bangladeshi invoices (Mushak-6.3) with their answer key."""
 import json
 from decimal import ROUND_HALF_UP, Decimal as D
 from pathlib import Path
@@ -12,7 +11,6 @@ def r2(x):
 
 
 def taka(x, lakh=False, bangla=False):
-    """1234.5 -> '1,234.50'; lakh=True groups the Bangladeshi way (1,23,456.00)."""
     whole, frac = f'{r2(x):.2f}'.split('.')
     if lakh and len(whole) > 3:
         head, tail = whole[:-3], whole[-3:]
@@ -41,7 +39,6 @@ def page(body, cls=''):
 
 
 def mushak(t, bangla=False, lakh=False):
-    """Mushak-6.3 page. t: seller, bin, address, buyer, buyer_bin, number, date_text, lines[(desc, unit, qty, price, sd%, vat%)]."""
     n = (lambda s: str(s).translate(BN_DIGITS)) if bangla else str
     money = lambda x: taka(x, lakh, bangla)
     rows, sub, sd_sum, vat_sum = [], D(0), D(0), D(0)
@@ -89,7 +86,6 @@ BN = dict(gov='গণপ্রজাতন্ত্রী বাংলাদে�
 
 
 def pos_receipt():
-    """Supermarket receipt: prices include 15% VAT, printed as 'VAT (included)' with subtotal = total."""
     lines = [('Rice Miniket 5kg', 1, '415.00'), ('Soybean Oil 2L', 1, '380.00'), ('Lentil (Masur) 1kg', 2, '130.00'),
              ('Tea 400g', 1, '95.00')]
     items = [{'description': d, 'quantity': str(q), 'unit_price': p, 'amount': str(r2(D(p) * q))} for d, q, p in lines]
@@ -109,7 +105,6 @@ def pos_receipt():
 
 
 def restaurant():
-    """Restaurant bill: service charge 10% and VAT 5% on (food + service), both added on top."""
     lines = [('Kacchi Biryani (Full)', 2, '420.00'), ('Chicken Roast', 2, '260.00'), ('Borhani', 3, '80.00'),
              ('Firni', 2, '90.00')]
     items = [{'description': d, 'quantity': str(q), 'unit_price': p, 'amount': str(r2(D(p) * q))} for d, q, p in lines]

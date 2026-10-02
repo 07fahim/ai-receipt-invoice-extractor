@@ -1,4 +1,3 @@
-"""Deterministic checks on an extracted Document. No AI: a failed check sends the document to review."""
 import re
 from datetime import date, timedelta
 from decimal import Decimal
@@ -37,15 +36,12 @@ def close(a, b, rel=Decimal(0)):
 
 
 def included_share(tax, total, lines, whole_rounding=True):
-    """True if the lines already add up to the total and tax is exactly the VAT inside it at a known rate (830 at 5%
-    holds 39.52), whatever the model said. Without the lines, 10% on top with the subtotal read as the total
-    (tax 15,000, total 165,000) would look the same."""
+    # 830 at 5% holds 39.52; without the lines, 10% on top with the subtotal read as the total looks the same
     return (lines is not None and total_close(lines, total, whole_rounding)
             and any(abs(tax - total * r / (100 + r)) <= Decimal('0.01') for r in INCLUDED_VAT_RATES))
 
 
 def total_close(expected, total, whole_rounding=True):
-    """expected (from the lines or the subtotal) matches the printed total, allowing only the total's own rounding."""
     if whole_rounding and total == total.to_integral_value():
         return abs(expected - total) <= max(Decimal('0.5'), abs(total) * TOTAL_ROUNDING)
     return abs(expected - total) <= (Decimal('0.025') if total * 20 == (total * 20).to_integral_value() else Decimal('0.01'))
@@ -56,9 +52,7 @@ THREE_DECIMAL_CURRENCIES = {'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND'}
 
 
 def thousands_read_as_decimals(text, amount):
-    """The printed amount if it ends in a separator + exactly 3 digits ('22.000', '·7,000', '1.250.000') and the
-    extracted amount read those 3 digits as decimals (22, 7, 1250); None otherwise. The arithmetic checks cannot see
-    this: every amount on the document shrinks by the same factor."""
+    # '22.000' read as 22: every amount shrinks by the same factor, so the sum checks can't see it
     numbers = PRINTED_NUMBER.findall(text or '')
     if not numbers or amount is None:
         return None
@@ -74,13 +68,11 @@ NUMERIC_DATE = re.compile(r'\b(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})\b')
 
 
 def ambiguous(text):
-    """True for printed dates like 05/11/2021 that read differently as day/month and month/day."""
     m = NUMERIC_DATE.search(text or '')
     return bool(m) and int(m[1]) <= 12 and int(m[2]) <= 12 and int(m[1]) != int(m[2])
 
 
 def read_date(text, order):
-    """Printed numeric date in a known order ('MDY' US, 'DMY' most other countries); None if it can't be read."""
     assert order in ('MDY', 'DMY'), order
     m = NUMERIC_DATE.search(text or '')
     if not m:
@@ -95,8 +87,7 @@ def read_date(text, order):
 
 
 def apply_date_order(doc: Document, order: str | None) -> Document:
-    """Re-read the printed dates with the date order the user confirmed for this vendor or country. A date the user
-    typed (not one of the two readings of the printed text) is kept."""
+    # a date the user typed (not one of the two readings) is kept
     if order is None:
         return doc
     update = {}
@@ -109,7 +100,6 @@ def apply_date_order(doc: Document, order: str | None) -> Document:
 
 
 def num(d):
-    """A number for messages: 1,270 and 0.60, never 1270.0."""
     if d == d.to_integral_value():
         return f'{int(d):,}'
     d = d.normalize()
@@ -117,9 +107,7 @@ def num(d):
 
 
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
-    """Return failed checks as {'check', 'fields', 'message'}. Empty list = passed.
-    Checks with missing inputs are skipped, except a missing total.
-    date_order: 'MDY' or 'DMY' when known for this vendor; otherwise ambiguous dates are flagged."""
+    # checks with missing inputs are skipped, except a missing total
     today = today or date.today()
     doc = apply_date_order(doc, date_order)
     issues = []
@@ -209,12 +197,8 @@ ITEM_AMOUNTS = ('unit_price', 'amount', 'discount')
 
 
 def suggest(doc: Document) -> dict | None:
-    """A correction for the review screen, never applied by itself: all amounts x1000 when thousands were read as
-    decimals, or one misread digit. Only when exactly one such change makes every sum check pass, and for a digit only
-    when two different sum checks failed: on planted mistakes that gave 384 right suggestions and 0 wrong, while
-    one failed check allowed coincidental fixes (a dropped line 'repaired' by changing another; 52 wrong of 333).
-    None otherwise.
-    Returns {'message', 'changes': [{'field', 'from', 'to'}]} with fields like 'total' or 'items[2].amount'."""
+    # never applied by itself. A digit fix needs two failed sum checks: on planted mistakes
+    # that gave 384 right and 0 wrong; with one failed check, 52 of 333 were wrong
     def sums_fail(d):
         return {i['check'] for i in validate(d)} & SUM_CHECKS  # dates play no part in the sums
 
