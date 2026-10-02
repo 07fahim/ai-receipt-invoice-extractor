@@ -17,14 +17,17 @@ sends a Telegram message and an email with a link to it.
 
 Known limit: the signature covers the body only. A captured request could be sent again, which re-sends the same
 row or alert. Add a timestamp to the payload if that matters.
+If one attempt times out (2 minutes) while n8n is still working, the app sends the event again: an alert can arrive twice.
 
-Hosting: `render.yaml` in the repo root runs n8n on Render's free plan with its data in Supabase (schema `n8n`).
+Hosting: `render.yaml` in the repo root runs n8n on Render's free plan with its data in Supabase (schema `n8n`;
+run `create schema if not exists n8n;` first if n8n does not create it).
 
 Setup:
 - Sheet with these headers in row 1: `id file status vendor date currency subtotal tax total items checks updated`.
 - A Telegram bot from @BotFather. Send it one message first, then get your chat id (for example from @userinfobot).
 - Google Cloud: an OAuth client (web) with redirect URI `<n8n address>/rest/oauth2-credential/callback`,
-  the Google Sheets API and Gmail API enabled, and your account added as a test user while the app is in testing.
+  the Google Sheets API and Gmail API enabled. Publish the app (In production; unverified is fine for your own account):
+  while it is in testing, Google sign-ins expire after 7 days and the Sheets and Gmail steps stop working.
 - n8n started with `CROSSCHECK_WEBHOOK_SECRET` set, `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` and
   `NODE_FUNCTION_ALLOW_BUILTIN=crypto` (the Code node reads the secret and uses `crypto`).
   Optional `CROSSCHECK_APP_URL` (default `http://localhost:3000`): the web app address used in alert links.
