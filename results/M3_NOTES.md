@@ -20,7 +20,7 @@ Each table names the prompt version and results file it comes from (`results/ext
 - Timing includes any retry waits: the code waits 30/60/90 s on rate limits and server errors, and attempts were not recorded for these runs. The GLM and Gemma times may partly be waiting. They were not re-measured.
 
 ## 2. Gemini 3.1 Flash Lite on 200 CORD receipts, prompt 903ae630 (`*_test_p903ae630.json`, `*_validation_p903ae630.json`)
-| | Test (100) | Validation (100, unseen) |
+| | Test (100) | Validation (100; a few receipts were later used to find problems) |
 |---|---|---|
 | Receipts fully correct (all money fields + line amounts; item names not included) | 94% | 96% |
 | Total | 96.9% | 99.0% |
@@ -228,7 +228,7 @@ Flags are the checks as shipped at each run. "Unflagged" = wrong and no check fi
 | Set | Fully correct | Total correct | Wrong and unflagged |
 |---|---|---|---|
 | CORD test (100) | 94% → 91% | 96.9% → 93.8% | 5 → 2 |
-| CORD validation (100, unseen) | 95% → 94% | 98.0% → 96.9% | 4 → 2 |
+| CORD validation (100; a few used to find problems) | 95% → 94% | 98.0% → 96.9% | 4 → 2 |
 | USD invoices test (26) | 65% → 77% | 96.2% → 96.2% | 2 → 2 |
 | USD invoices validation (48) | 64.6% → 64.6% | 100% → 100% | 3 → 3 |
 | USD invoices train, first 50 | 36 → 36 docs | unchanged | unchanged |
