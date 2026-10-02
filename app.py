@@ -3,6 +3,7 @@ import contextlib
 import csv
 import hashlib
 import hmac
+import http.client
 import io
 import ipaddress
 import json
@@ -11,6 +12,7 @@ import re
 import secrets
 import socket
 import threading
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -154,16 +156,22 @@ def configured(con, uid):
     return bool(own) or bool(os.environ.get('WEBHOOK_URL')) and str(uid) in webhook_users()
 
 
-def public_url(url):
-    # users' addresses must be https on the public internet, so the server can't be pointed at its own network
+def public_ip(url):
+    # Users' addresses must be https on the public internet, so the server can't be pointed at its own network.
+    # Returns the IP to connect to (None: refused). Sending connects to exactly that IP, so the name can't
+    # be pointed somewhere else between the check and the connection.
     try:
         p = urllib.parse.urlsplit(url)
         if p.scheme != 'https' or not p.hostname or p.username is not None:
-            return False
-        addresses = socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)
+            return None
+        ips = [a[4][0] for a in socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)]
     except (OSError, UnicodeError, ValueError):
-        return False
-    return all(ipaddress.ip_address(a[4][0]).is_global for a in addresses)
+        return None
+    return ips[0] if ips and all(ipaddress.ip_address(ip).is_global for ip in ips) else None
+
+
+def public_url(url):
+    return public_ip(url) is not None
 
 
 def queue_event(con, uid, payload):
@@ -184,14 +192,6 @@ def queue_document_event(con, doc_id):
                                         'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
 
 
-class NoRedirects(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, *args):  # a redirect could lead past the public_url check
-        return None
-
-
-OPENER = urllib.request.build_opener(NoRedirects)
-
-
 def signed(payload, secret):
     body = json.dumps(payload).encode()
     return body, {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1',
@@ -199,10 +199,30 @@ def signed(payload, secret):
 
 
 def open_webhook(url, payload, secret, users_own, timeout):
-    if users_own and not public_url(url):  # checked again at send time: the address may point elsewhere by now
+    # http.client follows no redirects, so a redirect can't lead past the check
+    p = urllib.parse.urlsplit(url)
+    ip = public_ip(url) if users_own else None  # checked again at send time: the name may point elsewhere by now
+    if users_own and not ip:
         raise ValueError('not a public https address')
-    with OPENER.open(urllib.request.Request(url, *signed(payload, secret)), timeout=timeout) as r:
-        return r.status
+    conn = (http.client.HTTPSConnection if p.scheme == 'https' else http.client.HTTPConnection)(p.hostname, p.port, timeout=timeout)
+    if ip:  # certificate and Host header still use the name
+        conn._create_connection = lambda address, *args: socket.create_connection((ip, address[1]), *args)
+
+    def cut():  # `timeout` limits each wait; this limits the whole send, even if the answer comes one byte at a time
+        with contextlib.suppress(OSError, AttributeError):
+            conn.sock.shutdown(socket.SHUT_RDWR)
+
+    deadline = threading.Timer(timeout, cut)
+    deadline.start()
+    try:
+        conn.request('POST', urllib.parse.urlunsplit(('', '', p.path or '/', p.query, '')), *signed(payload, secret))
+        status = conn.getresponse().status
+    finally:
+        deadline.cancel()
+        conn.close()
+    if status >= 300:
+        raise RuntimeError(f'HTTP {status}')
+    return status
 
 
 RETRY_SECONDS = (60, 300, 1800, 7200)  # after the first try; then the event is dropped and the next one goes
@@ -606,8 +626,10 @@ def get_webhook(uid: str = Depends(current_user)):
         target = webhook_for(con, uid)
         r = con.execute('SELECT last_at, last_error FROM webhooks WHERE user_id = %s', (uid,)).fetchone()
     own = bool(target and target[2])
-    return {'enabled': bool(fernet()), 'url': target[0] if own else None,
-            'last_at': r and r['last_at'], 'last_error': r and r['last_error']}
+    error = r and r['last_error']
+    if r and not own and fernet():  # WEBHOOK_KEY changed: the saved address can't be read any more
+        error = 'Your saved address could not be read after a server change. Save it again.'
+    return {'enabled': bool(fernet()), 'url': target[0] if own else None, 'last_at': r and r['last_at'], 'last_error': error}
 
 
 @app.put('/account/webhook')
@@ -632,14 +654,20 @@ def delete_webhook(uid: str = Depends(current_user)):
             con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
 
 
+TESTED = {}  # user -> time of the last Send test (in memory: a restart allows one more)
+
+
 @app.post('/account/webhook/test')
 def test_webhook(uid: str = Depends(current_user)):
     with store.conn() as con:
         target = webhook_for(con, uid)
     if not (target and target[2]):
         raise HTTPException(404, 'Add a webhook address first.')
+    if time.monotonic() - TESTED.get(uid, -60) < 10:  # each test is a request this server makes for the user
+        raise HTTPException(429, 'Wait a few seconds before testing again.')
+    TESTED[uid] = time.monotonic()
     try:
-        return {'ok': True, 'status': open_webhook(target[0], {'event': 'test', 'id': None}, target[1], True, 60)}
+        return {'ok': True, 'status': open_webhook(target[0], {'event': 'test', 'id': None}, target[1], True, 30)}
     except Exception as e:
         return {'ok': False, 'error': str(e)[:200]}
 
