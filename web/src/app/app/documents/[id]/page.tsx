@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type Suggestion } from "@/lib/api";
-import { cn, skip } from "@/lib/utils";
+import { cn, skip, skippedIds } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
 
@@ -192,7 +192,9 @@ export default function ReviewPage() {
         await sendJSON("PUT", `/vendors/${encodeURIComponent(doc.vendor)}/date-order`, { date_order: order });
       }
       toast.success("Review saved");
-      const next = queue.filter((q) => q !== Number(id))[0];
+      // the oldest other waiting document not skipped in this tab, else any other
+      const others = queue.filter((q) => q !== Number(id));
+      const next = others.find((q) => !skippedIds().includes(q)) ?? others[0];
       router.push(next ? `/app/documents/${next}` : "/app/documents");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save.");
