@@ -17,7 +17,7 @@ sends a Telegram message and an email with a link to it.
 
 Known limit: the signature covers the body only. A captured request could be sent again, which re-sends the same
 row or alert. Add a timestamp to the payload if that matters.
-If one attempt times out (2 minutes) while n8n is still working, the app sends the event again: an alert can arrive twice.
+If one attempt times out (5 minutes; waking a sleeping n8n on Render took 113 s) while n8n is still working, the app sends the event again: an alert can arrive twice.
 
 Hosting: `render.yaml` in the repo root runs n8n on Render's free plan with its data in Supabase (schema `n8n`;
 run `create schema if not exists n8n;` first if n8n does not create it).
