@@ -1,6 +1,3 @@
-"""PostgreSQL storage for the app (Supabase or any Postgres): one row per uploaded document, plus the date
-order each user confirmed per vendor. Every row belongs to a Supabase Auth user (user_id). Connection string comes from DATABASE_URL in .env; APP_SCHEMA picks the schema
-(default 'app', kept out of Supabase's public Data API; tests use their own schema)."""
 import os
 import re
 import threading
@@ -55,7 +52,6 @@ def schema_name():
 
 
 def pool():
-    """One connection pool per process; creates the schema and tables on first use."""
     global _pool
     with _pool_lock:  # two first requests at once must not build two pools
         if _pool is None:
@@ -64,7 +60,6 @@ def pool():
 
 
 def _open_pool():
-    """Create the pool, then the schema and tables."""
     name = schema_name()
 
     def configure(con):
@@ -86,7 +81,6 @@ def _open_pool():
 
 @contextmanager
 def conn():
-    """A pooled connection; commits when the block ends without an error."""
     with pool().connection() as con:
         yield con
 
@@ -95,8 +89,7 @@ COMPANY_SUFFIXES = {'ltd', 'limited', 'llc', 'inc', 'co', 'corp', 'corporation',
 
 
 def vendor_key(name):
-    """One vendor however it is printed: case, punctuation and trailing company words ignored
-    ('SHWAPNO', 'Shwapno Ltd.' and 'Shwapno Limited' are all 'shwapno')."""
+    # 'SHWAPNO', 'Shwapno Ltd.' and 'Shwapno Limited' are all 'shwapno'
     words = re.sub(r'[\W_]+', ' ', (name or '').lower()).split()
     while len(words) > 1 and words[-1] in COMPANY_SUFFIXES:
         words.pop()
@@ -112,14 +105,13 @@ def date_order(con, user_id, vendor):
 
 
 def same_number(number):
-    """Invoice number for comparing: letters and digits only, lower case ('INV-1042' = 'inv 1042' = '#INV1042')."""
+    # 'INV-1042' = 'inv 1042' = '#INV1042'
     return re.sub(r'[\W_]', '', (number or '').lower())
 
 
 def duplicate_of(con, user_id, doc, before_id=None):
-    """The earliest of the user's documents with the same vendor, invoice number and total; None if there is none.
-    before_id: only documents uploaded before this one, so the first copy stays clean and later copies are flagged.
-    ponytail: exact match after clean-up; fuzzy matching would flag INV-1042 against INV-1043."""
+    # before_id: the first copy stays clean, later copies are flagged
+    # ponytail: exact match after clean-up; fuzzy matching would flag INV-1042 against INV-1043
     number = same_number(doc.doc_number)
     if not (number and vendor_key(doc.vendor) and doc.total is not None):
         return None

@@ -1,8 +1,3 @@
-"""Send a document image to a vision LLM and get a schema Document back.
-
-Two API styles cover all providers: Gemini (generateContent) and OpenAI-compatible (Groq, Z.ai).
-Keys come from .env; nothing is logged except model output and token counts.
-"""
 import base64
 import json
 import os
@@ -71,7 +66,7 @@ def load_env():
 
 
 def mime(data):
-    """File type from its first bytes (not the file name). None if not a supported type."""
+    # from the first bytes, not the file name
     if data[:4] == b'%PDF':
         return 'application/pdf'
     if data[:4] == b'\x89PNG':
@@ -84,9 +79,7 @@ def mime(data):
 
 
 def post(url, headers, body, retries=3, timeout=60):
-    """POST JSON; wait and retry on rate limits (429), server errors, timeouts and dropped connections.
-    Returns (response, attempts). ponytail: 60 s per attempt suits Gemini (about 5 s per receipt); the slow
-    models from the M3 trial (GLM, Gemma) need timeout=180."""
+    # ponytail: 60 s per attempt suits Gemini; slower models (GLM, Gemma) need timeout=180
     data = json.dumps(body).encode()
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json',
@@ -110,7 +103,6 @@ def post(url, headers, body, retries=3, timeout=60):
 
 
 def call(name, image, prompt=PROMPT):
-    """Return (raw_text, input_tokens, output_tokens, attempts). attempts > 1 means retry waits are in the time."""
     style, base, model, key_var, _ = MODELS[name]
     key = os.environ[key_var]
     b64 = base64.b64encode(image).decode()
@@ -144,8 +136,7 @@ VAT_FORM = re.compile(r'mushak|মূসক', re.I)  # Bangladeshi VAT form name
 
 
 def parse(text):
-    """Model text to Document: the first JSON object, after removing <think> blocks. Raises on invalid output.
-    Numbers sent as text are rejected: "60.000" would otherwise silently become 60."""
+    # numbers sent as text are rejected: "60.000" would otherwise become 60
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
     start = text.find('{')
     if start == -1:

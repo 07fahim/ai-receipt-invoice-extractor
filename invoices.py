@@ -1,4 +1,3 @@
-"""Load the katanaml invoice set (HF katanaml-org/invoices-donut-data-v1, MIT tag; synthetic English invoices)."""
 import json
 from datetime import datetime
 from pathlib import Path
@@ -12,8 +11,7 @@ DATA = Path(__file__).parent / 'data'
 
 
 def to_document(g):
-    """Ground truth as a schema Document. Seller and client strings include the address (name first).
-    Line amount = net worth (before VAT); subtotal = total net, tax = total VAT, total = gross."""
+    # line amount = net (before VAT); subtotal = total net, tax = total VAT, total = gross
     h, s = g['header'], g['summary']
     items = [Item(description=i.get('item_desc'), quantity=parse_amount(i.get('item_qty', '')),
                   unit_price=parse_amount(i.get('item_net_price', '')), amount=parse_amount(i.get('item_net_worth', '')))
@@ -26,8 +24,6 @@ def to_document(g):
 
 
 def load(split):
-    """Yield (doc_id, image_bytes, gold Document). Rows with malformed or incomplete labels are skipped
-    (2 of 50 in validation; some in train)."""
     for n, row in enumerate(pq.read_table(DATA / f'katanaml_{split}.parquet').to_pylist()):
         g = json.loads(row['ground_truth'])['gt_parse']
         h, s = g.get('header'), g.get('summary')
@@ -44,6 +40,5 @@ PHOTO_SETS = {
 
 
 def load_photos(folder):
-    """Yield (doc_id, image_bytes, None) for an unlabelled photo set. No gold: only checks are measured."""
     for n, f in enumerate(sorted((DATA / folder).glob('*.jpg'))):
         yield n, f.read_bytes(), None

@@ -1,10 +1,3 @@
-"""M1: RapidOCR baseline on CORD-v2 test.
-
-Measures how much of the ground truth the OCR text contains. This is the ceiling for
-approach A (OCR text + LLM): a field the OCR never read cannot be extracted from text.
-Writes results/ocr_baseline.json and caches OCR output in data/ocr_cache/ for M3.
-Latency in the cache comes from the first (uncached) run.
-"""
 import json
 import re
 import statistics
@@ -35,12 +28,6 @@ def norm(s):
 
 
 def score_doc(pairs, ocr_lines):
-    """Return [(field, value, found)] for the ground-truth pairs of one document.
-    Numbers: an OCR token with the same digits (60.000, 60,000, Rp60.000 all match).
-    Line-item numbers use each token once, so a common value like qty "1" cannot match the same
-    token again and again. Totals only need to appear somewhere (a total often equals an item price).
-    Text: value found inside the OCR text, ignoring case and spaces.
-    Values with no digits in a numeric field (CORD has tax "-") are skipped."""
     pool = Counter(digits(t) for line in ocr_lines for t in line.split())
     pool.pop('', None)
     seen = set(pool)
@@ -63,7 +50,6 @@ def score_doc(pairs, ocr_lines):
 
 
 def word_recall(gt_words, ocr_lines):
-    """Share of labelled CORD words that OCR read exactly (case-insensitive, bag of words)."""
     gt = Counter(norm(w) for w in gt_words if w.strip())
     ocr = Counter(norm(t) for line in ocr_lines for t in line.split())
     return sum((gt & ocr).values()) / max(sum(gt.values()), 1)

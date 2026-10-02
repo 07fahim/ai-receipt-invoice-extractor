@@ -1,4 +1,3 @@
-"""Load the CORD-v2 test split (parquet from Hugging Face naver-clova-ix/cord-v2, CC-BY-4.0)."""
 import json
 import re
 from decimal import Decimal
@@ -15,14 +14,12 @@ TOTAL_KEYS = (('subtotal_price', 'subtotal'), ('tax_price', 'tax'), ('discount_p
 
 
 def as_list(x):
-    """CORD stores one value as a scalar/dict and several as a list."""
     if x is None:
         return []
     return x if isinstance(x, list) else [x]
 
 
 def load(path=PARQUET):
-    """Yield (doc_id, image_bytes, gt_parse, gt_words) for each document."""
     for row in pq.read_table(path).to_pylist():
         gt = json.loads(row['ground_truth'])
         words = [w['text'] for line in gt['valid_line'] for w in line['words']]
@@ -30,10 +27,7 @@ def load(path=PARQUET):
 
 
 def parse_amount(s):
-    """CORD number text to Decimal: '60.000' and '60,000' = 60000, '9.999,99' and '99,999.99' keep
-    2 decimals, '-60.000' and '99 -' are negative. None when there are no digits (e.g. tax '-')
-    or when the value is a percentage ('100%' is not an amount).
-    CORD-only: '12.5' would become 125 and '1.000' 1000; providers return numbers, not strings."""
+    # CORD-only: '12.5' would become 125; providers return numbers, not strings
     s = str(s)
     if '%' in s:
         return None
@@ -50,12 +44,10 @@ def parse_amount(s):
 
 
 def first_amount(d, key):
-    """First parseable amount under key (CORD sometimes repeats a value as a list)."""
     return next((a for a in (parse_amount(v) for v in as_list(d.get(key)) if isinstance(v, str)) if a is not None), None)
 
 
 def to_document(gt_parse):
-    """CORD ground truth as a schema Document (used to measure validation on real receipts)."""
     items = []
     for m in as_list(gt_parse.get('menu')):
         name = next((v for v in as_list(m.get('nm')) if isinstance(v, str)), None)
@@ -75,9 +67,6 @@ def to_document(gt_parse):
 
 
 def fields(gt_parse):
-    """Flatten the gt_parse into (field, value) pairs that match the PRD schema.
-    Not included: sub-items (menu[].sub, 36 lines in the test split; M3 decides how to score them),
-    service charge, cash/change/card amounts and counts (not in the PRD schema)."""
     out = []
     for item in as_list(gt_parse.get('menu')):
         if 'price' not in item and 'itemsubtotal' in item:
