@@ -19,6 +19,8 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: SUPABASE_SECRET_KEY  # lets users delete their account
+        sync: false
       - key: FRONTEND_ORIGIN  # the Vercel address of the web app
         sync: false
       - key: WEBHOOK_URL  # https://<crosscheck-n8n address>/webhook/crosscheck
