@@ -28,7 +28,7 @@ services:
         sync: false
       - key: WEBHOOK_SECRET  # same value as CROSSCHECK_WEBHOOK_SECRET below
         sync: false
-      - key: WEBHOOK_USER_ID  # the account whose documents go to n8n
+      - key: WEBHOOK_USER_ID  # the account(s) whose documents go to n8n, comma-separated
         sync: false
       - key: DAILY_UPLOAD_LIMIT
         value: "10"
