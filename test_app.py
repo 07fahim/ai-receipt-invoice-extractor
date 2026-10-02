@@ -6,6 +6,8 @@ from datetime import date
 import io
 import os
 import time
+import urllib.error
+import urllib.request
 import uuid
 
 os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
@@ -375,8 +377,16 @@ try:
     frank = as_user(FRANK := str(uuid.uuid4()))
     c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
     removed = []
+    real_delete = app.delete_auth_user
     app.delete_auth_user = lambda uid: (_ for _ in ()).throw(RuntimeError('supabase down'))
     assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 1
+    # a retry after Supabase already removed the account (its first answer lost) still counts as removed
+    real_urlopen = urllib.request.urlopen
+    def gone(*a, **k): raise urllib.error.HTTPError('u', 404, 'User not found', {}, None)
+    urllib.request.urlopen, os.environ['SUPABASE_SECRET_KEY'] = gone, 'test-key'
+    real_delete(FRANK)  # no exception
+    urllib.request.urlopen = real_urlopen
+    del os.environ['SUPABASE_SECRET_KEY']
     app.delete_auth_user = removed.append
     assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
     assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
