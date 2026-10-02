@@ -1,13 +1,4 @@
-"""Receipt & Invoice Extractor API.
-
-Run:  uvicorn app:app --reload        (docs at http://127.0.0.1:8000/docs)
-Needs DATABASE_URL (PostgreSQL, e.g. Supabase session pooler), SUPABASE_URL and GEMINI_API_KEY in .env.
-Every request except the docs needs a Supabase Auth access token ('Authorization: Bearer ...'); users only
-ever see their own documents. Optional DAILY_UPLOAD_LIMIT (default 10 files per user per 24 hours).
-Optional WEBHOOK_URL (+ WEBHOOK_SECRET, WEBHOOK_USER_ID): each status change of that one account's documents (passed,
-reviewed, needs_review, failed, deleted) is sent there, e.g. to n8n; other users' documents never are.
-Upload -> background extraction (vision LLM) -> checks -> review/correct -> history, stats, export.
-"""
+"""Crosscheck API: upload, AI reading, checks, review, export, webhook to n8n. Run: uvicorn app:app --reload"""
 import contextlib
 import csv
 import hashlib

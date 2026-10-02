@@ -1,10 +1,4 @@
-"""Synthetic Bangladeshi invoices (Mushak-6.3 layout, a supermarket and a restaurant receipt) with their answers.
-
-python make_bd_invoices.py   -> data/synthetic_bd/NN.html + truth.json; render the HTML to PNG in a browser.
-Fictional companies and BINs. The same numbers fill the page and the answer key, so they cannot disagree.
-Mushak-6.3: prices exclude tax, supplementary duty (SD) first, VAT on price + SD (VAT & SD Rules 2016, Rule 40).
-The answer key maps SD + VAT to `tax`, since the schema has one tax field.
-"""
+"""Synthetic Bangladeshi invoices (Mushak-6.3) with their answer key."""
 import json
 from decimal import ROUND_HALF_UP, Decimal as D
 from pathlib import Path

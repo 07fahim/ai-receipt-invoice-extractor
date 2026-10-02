@@ -1,8 +1,4 @@
-"""Send a document image to a vision LLM and get a schema Document back.
-
-Two API styles cover all providers: Gemini (generateContent) and OpenAI-compatible (Groq, Z.ai).
-Keys come from .env; nothing is logged except model output and token counts.
-"""
+"""Send a document image to a vision LLM (Gemini or OpenAI-compatible) and get a Document back."""
 import base64
 import json
 import os

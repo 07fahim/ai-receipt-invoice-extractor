@@ -1,15 +1,4 @@
-"""M3: extraction accuracy of vision LLMs on CORD-v2.
-
-python eval_extract.py MODEL [SPLIT] [LIMIT] [PROMPT_VERSION]     e.g.  python eval_extract.py gemini-3.5-flash-lite test 10
-PROMPT_VERSION re-scores cached answers of an older prompt without calling the API (0 for no limit).
-SPLIT: test / validation (CORD receipts), invoices_test / invoices_validation / invoices_train (katanaml invoices),
-or photos_indian / photos_us (unlabelled photos: only the checks are measured).
-The katanaml invoices are US format, so 'issue_date with vendor order' re-reads printed dates as MDY,
-like a user confirming the vendor's date format once in the app.
-Raw model responses are cached in data/llm_cache/<model>/<prompt version>/ so a rerun costs no quota
-and a changed prompt never reuses old answers.
-Writes results/extract_<model>_<split>[_first<N>]_p<prompt version>.json.
-"""
+"""Extraction accuracy on CORD and invoice splits. Run: python eval_extract.py MODEL [SPLIT] [LIMIT] [PROMPT_VERSION]"""
 import hashlib
 import io
 import json

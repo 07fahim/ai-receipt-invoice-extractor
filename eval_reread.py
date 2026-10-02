@@ -1,12 +1,4 @@
-"""Experiment: does a second, targeted reading fix documents that failed a check?
-
-python eval_reread.py        (the flagged 9edae16b invoice test runs: clean, very_bad_photo, rot90)
-Each flagged document gets one more call with the failed checks as a hint. Counted, with the answer key:
-fixed (was wrong, now fully correct), still_flagged (still wrong, still caught), silenced (still wrong but now passes
-every check: the dangerous case), broken (was correct, now wrong), kept (was correct, still correct).
-Dates are re-read as MDY first (the user confirms a vendor's date format once), so only reading errors count.
-Answers are cached in data/llm_cache/<model>/<prompt version>/reread/.
-"""
+"""Experiment: does a second, targeted reading fix documents that failed a check?"""
 import hashlib
 import json
 from pathlib import Path

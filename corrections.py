@@ -1,9 +1,4 @@
-"""How often people correct the AI's reading, from real use. Run: python corrections.py
-
-Compares each reviewed document (one a person opened and saved) with the AI's first reading (the
-`extracted` column). Prints how many were corrected, which fields changed most, and how many corrected
-documents had passed every check: mistakes the checks missed. Counts only, no document content.
-A mistake nobody noticed is never corrected, so the real error rate can only be equal or higher."""
+"""How often people correct the AI's reading (counts only). Run: python corrections.py"""
 from collections import Counter
 from decimal import Decimal
 

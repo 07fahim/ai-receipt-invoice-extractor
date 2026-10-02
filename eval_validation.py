@@ -1,10 +1,4 @@
-"""M2: how well the validation checks work on real receipts (CORD-v2 test ground truth).
-
-1. False alarms: correct (ground-truth) receipts that get flagged anyway.
-2. Catch rate: take receipts that pass, inject one typical extraction mistake, count how many get flagged.
-Writes results/validation.json, or results/validation_<split>.json for another split:
-    python eval_validation.py validation
-"""
+"""How well the checks work: false alarms and catch rate. Run: python eval_validation.py [SPLIT]"""
 import json
 import random
 import sys
