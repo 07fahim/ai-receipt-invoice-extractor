@@ -60,7 +60,7 @@ async def lifespan(_):
 
 app = FastAPI(title='Crosscheck API', lifespan=lifespan)
 # the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
-app.add_middleware(CORSMiddleware, allow_origins=os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(','),
+app.add_middleware(CORSMiddleware, allow_origins=[o.strip().rstrip('/') for o in os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(',')],
                    allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped', 'Content-Disposition'])  # export file names
 _jwks = None
 
@@ -132,22 +132,31 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
                 (*fields.values(), doc_id))
 
 
+def webhook_user():
+    return os.environ.get('WEBHOOK_USER_ID', '').strip().lower()
+
+
+EVENT_LOCK = threading.Lock()  # reading a document and queueing its event happen together, so a stale status never queues last
+
+
 def send_event(doc_id):
     """POST the document to WEBHOOK_URL (e.g. an n8n workflow that adds a Google Sheets row). Never raises."""
     if not os.environ.get('WEBHOOK_URL'):
         return
-    with store.conn() as con:
-        r = row_by_id(con, doc_id)
-    if r is None or str(r['user_id']) != os.environ.get('WEBHOOK_USER_ID'):
-        return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
-    post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
-                'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
+    with EVENT_LOCK:
+        with store.conn() as con:
+            r = row_by_id(con, doc_id)
+        if r is None or str(r['user_id']) != webhook_user():
+            return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
+        post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
+                    'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
 
 
 def send_deleted(doc_id, uid):
     """Tell the webhook a document is gone, so its spreadsheet row can be marked deleted."""
-    if os.environ.get('WEBHOOK_URL') and uid == os.environ.get('WEBHOOK_USER_ID'):
-        post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
+    if os.environ.get('WEBHOOK_URL') and uid == webhook_user():
+        with EVENT_LOCK:
+            post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
 
 
 EVENTS = queue.Queue()  # one worker delivers in order, so a retried 'passed' never lands after 'reviewed' or 'deleted'
@@ -173,13 +182,15 @@ threading.Thread(target=deliver_events, daemon=True).start()
 
 
 def post_event(payload):
-    """Queue one event, signed with HMAC-SHA256 of the body in X-Signature when WEBHOOK_SECRET is set.
+    """Queue one event, signed with HMAC-SHA256 of the body in X-Signature.
     The app does not wait; tests call EVENTS.join()."""
-    body = json.dumps(payload).encode()
-    headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1'}
     secret = os.environ.get('WEBHOOK_SECRET')
-    if secret:
-        headers['X-Signature'] = 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    if not secret:
+        print(f'webhook for document {payload["id"]} not sent: WEBHOOK_SECRET is not set')  # n8n would reject it anyway
+        return
+    body = json.dumps(payload).encode()
+    headers = {'Content-Type': 'application/json', 'User-Agent': 'receipt-extractor/0.1',
+               'X-Signature': 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()}
     EVENTS.put((os.environ['WEBHOOK_URL'], body, headers, payload['id']))
 
 
