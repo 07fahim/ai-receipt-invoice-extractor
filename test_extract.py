@@ -92,4 +92,8 @@ for window, tries in (('PerMinute', 4), ('PerDay', 1)):
     except RuntimeError as e:
         assert len(calls) == tries and (('daily quota used up' in str(e)) == (window == 'PerDay')), (window, calls, e)
 providers.urllib.request.urlopen, providers.time.sleep = real_open, real_sleep
+
+# seven decimals are rounded to six instead of failing the document
+d = parse('{"total": 1.0, "items": [{"description": "x", "unit_price": 0.3333333, "amount": 1.0}]}')
+assert str(d.items[0].unit_price) == '0.333333', d.items[0].unit_price
 print('ok')
