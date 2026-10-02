@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,12 @@ export function FormError({ message }: { message: string | null }) {
       {message}
     </p>
   ) : null;
+}
+
+/** The message for ?error=link: an emailed link or Google sign-in that failed or expired. Needs a Suspense boundary. */
+export function LinkError() {
+  const failed = useSearchParams().get("error") === "link";
+  return <FormError message={failed ? "This link has expired. Please try again." : null} />;
 }
 
 /** Runs an async action with a busy flag and a readable error message. */

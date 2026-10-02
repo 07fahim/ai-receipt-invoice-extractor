@@ -21,7 +21,7 @@ export default function SignupPage() {
       const { error } = await createClient().auth.signUp({
         email: address,
         password: String(form.get("password")),
-        // the email has a 6-digit code (custom template) or a link (Supabase's default); the link signs in here
+        // the email has a code (6-10 digits, custom template) or a link (Supabase's default); the link signs in here
         options: { emailRedirectTo: `${location.origin}/auth/callback` },
       });
       if (error) throw error;
@@ -46,12 +46,12 @@ export default function SignupPage() {
         <div>
           <h1 className="text-xl font-semibold">Check your email</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            We sent an email to <span className="font-medium text-foreground">{email}</span>. Enter the 6-digit code from it, or
+            We sent an email to <span className="font-medium text-foreground">{email}</span>. Enter the code from it, or
             click the link in it.
           </p>
         </div>
         <form onSubmit={verify} className="grid gap-4">
-          <Field id="code" label="Code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} autoFocus />
+          <Field id="code" label="Code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" maxLength={10} autoFocus />
           <FormError message={error} />
           <Button type="submit" className="h-10" disabled={busy}>
             {busy ? "Checking…" : "Confirm email"}
@@ -98,6 +98,10 @@ export default function SignupPage() {
       </form>
       <p className="text-sm text-muted-foreground">
         Already have an account? <Link href="/login" className="text-primary hover:underline">Log in</Link>
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Google&apos;s Gemini AI reads your files. Please use samples.{" "}
+        <Link href="/privacy" className="underline">Privacy</Link>
       </p>
     </div>
   );

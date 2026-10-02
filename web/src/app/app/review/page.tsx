@@ -5,16 +5,23 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getJSON, type DocumentRow } from "@/lib/api";
+import { clearSkipped, skippedIds } from "@/lib/utils";
 
-// The review queue: opens the oldest document waiting for review.
+// The review queue: opens the oldest document waiting for review that was not skipped.
+// Once every waiting document was skipped, it starts again from the oldest.
 export default function ReviewQueue() {
   const router = useRouter();
   const [empty, setEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getJSON<DocumentRow[]>("/documents?status=needs_review&limit=200")
-      .then((rows) => (rows.length ? router.replace(`/app/documents/${rows[rows.length - 1].id}`) : setEmpty(true)))
+    getJSON<DocumentRow[]>("/documents?status=needs_review&oldest=true&limit=200")
+      .then((rows) => {
+        if (!rows.length) return setEmpty(true);
+        const next = rows.find((r) => !skippedIds().includes(r.id));
+        if (!next) clearSkipped();
+        router.replace(`/app/documents/${(next ?? rows[0]).id}`);
+      })
       .catch((e) => setError(e.message));
   }, [router]);
 

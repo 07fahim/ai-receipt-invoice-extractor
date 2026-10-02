@@ -1,26 +1,26 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Archive, Calculator, ClipboardCheck, Download, Store, Upload, Wallet } from "lucide-react";
+import { Archive, Calculator, ClipboardCheck, Download, Lock, ScanText, Store, Trash2, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 const features = [
-  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are done in about five seconds." },
-  { icon: ClipboardCheck, title: "Review only what needs it", text: "Flagged fields are shown next to the original, with the reason." },
-  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import, or send rows to Google Sheets." },
+  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are read in about five seconds." },
+  { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. The reason is shown too." },
+  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import." },
 ];
 
 // Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
 const useCases = [
   { icon: Calculator, title: "Bookkeepers", docs: "Receipts · invoices",
-    text: "A client's month of paperwork in one upload. You only answer the questions where the numbers don't add up." },
+    text: "Upload a client's month of paperwork at once. You only check the ones that don't add up." },
   { icon: Store, title: "Restaurants and shops", docs: "Produce · meat · repairs",
-    text: "Every supplier bill looks different. They all end up in the same spreadsheet or QuickBooks import." },
+    text: "Every supplier bill looks different. They all end up in one spreadsheet." },
   { icon: Wallet, title: "Expense claims", docs: "Fuel · taxi · supplies",
-    text: "Staff photograph their receipts. You review the flagged ones and export the rest." },
+    text: "Staff photograph their receipts. You check the flagged ones and export the rest." },
   { icon: Archive, title: "Year-end and audits", docs: "Last year's receipts",
-    text: "Clear a backlog in batches of 20, with duplicates caught before they are counted twice." },
+    text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
 ];
 
 const checks = [
@@ -46,9 +46,9 @@ const TAPE: [string, string, "ok" | "flag" | ""][] = [
 ];
 
 const privacy = [
-  "Only you can see the documents you upload.",
-  "Delete any document, or your whole account, at any time.",
-  "Documents are processed by a third-party AI service. Please upload sample documents while this is a demo.",
+  { icon: Lock, title: "Only you see your files", text: "Other users can't see your documents." },
+  { icon: Trash2, title: "Delete anytime", text: "Remove one document or your whole account." },
+  { icon: ScanText, title: "Read by Google Gemini", text: "This demo uses Gemini's free plan. Google may use files to improve its AI. Please upload samples." },
 ];
 
 export default function Home() {
@@ -77,9 +77,8 @@ export default function Home() {
               Every receipt read <span className="text-primary">and checked</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-foreground/80">
-              Upload receipts and invoices, one or a whole batch. Crosscheck reads the vendor, dates, line items and totals,
-              checks that the numbers add up, and <span className="mark">highlights anything it is not sure about</span> so you
-              only look at those.
+              Upload one receipt or a whole batch. Crosscheck reads the vendor, date, items and totals. Then it checks the
+              numbers and <span className="mark">flags anything it is not sure about</span>. You only look at those.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button size="lg" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Get started</Link></Button>
@@ -118,8 +117,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">For the bills that come in</h2>
             <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              Your till and accounting software know what you sell. The receipts and invoices you receive from others
-              still get typed in by hand.
+              Your till knows what you sell. But the bills you receive still get typed in by hand.
             </p>
             <div className="mt-11 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {useCases.map(({ icon: Icon, title, docs, text }) => (
@@ -136,7 +134,25 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="border-t px-6 py-22">
+        <section id="review" className="border-t px-6 py-22">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
+            <p className="mt-4 max-w-2xl text-lg text-foreground/75">
+              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it. You fix one field.
+            </p>
+            <div className="mt-11 overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]">
+              <div className="flex gap-1.5 border-b bg-background px-4 py-3" aria-hidden>
+                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+              </div>
+              <Image src="/review-smoke-city.jpg" width={1340} height={880} className="h-auto w-full"
+                alt="The review screen: a Smoke City Market receipt next to its fields. The beef ribs line is flagged because 1 x 19.50 is not 36.86." />
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="border-t bg-background px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">From a pile of receipts to a clean spreadsheet</h2>
             <div className="mt-11 grid gap-5 md:grid-cols-3">
@@ -153,7 +169,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="checks" className="border-t bg-background px-6 py-22">
+        <section id="checks" className="border-t px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Every document is checked</h2>
             <p className="mt-4 text-lg text-foreground/75">A document that fails a check goes to your review list.</p>
@@ -173,14 +189,21 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="privacy" className="border-t px-6 py-22">
-          <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-[1fr_1.4fr] md:gap-12">
+        <section id="privacy" className="border-t bg-background px-6 py-22">
+          <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Privacy</h2>
-            <ul className="divide-y">
-              {privacy.map((p) => (
-                <li key={p} className="py-3 text-foreground/85 first:pt-0">{p}</li>
+            <div className="mt-11 grid gap-5 md:grid-cols-3">
+              {privacy.map(({ icon: Icon, title, text }) => (
+                <div key={title} className="rounded-xl border bg-card p-6 shadow-xs">
+                  <span className="mb-4 grid size-10 place-items-center rounded-lg bg-accent text-primary">
+                    <Icon className="size-5" aria-hidden />
+                  </span>
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>
+                </div>
               ))}
-            </ul>
+            </div>
+            <Link href="/privacy" className="mt-6 inline-block text-sm font-medium text-primary underline">Read the privacy page</Link>
           </div>
         </section>
 
@@ -188,15 +211,15 @@ export default function Home() {
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white md:p-12">
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt</h2>
-              <p className="mt-1.5 text-white/75">Results in seconds.</p>
+              <p className="mt-1.5 text-white/75">Sign up free. Sample receipts are ready to try.</p>
             </div>
-            <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Get started</Link></Button>
+            <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Try the demo</Link></Button>
           </div>
         </section>
       </main>
 
       <footer className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 border-t px-6 pt-6 pb-10 text-sm text-muted-foreground">
-        <span>© 2026 Crosscheck</span>
+        <span>© 2026 Crosscheck · <Link className="underline" href="/privacy">Privacy</Link></span>
         <span>
           Built by Fahim Faiyaz · <a className="underline" href="https://www.upwork.com/freelancers/~01958224446d5f1b49">Upwork</a> ·{" "}
           <a className="underline" href="https://www.fiverr.com/fahimfaiyaz325">Fiverr</a> ·{" "}

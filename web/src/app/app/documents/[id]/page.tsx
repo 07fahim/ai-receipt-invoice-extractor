@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type Suggestion } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, skip, skippedIds } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
 
@@ -41,6 +41,14 @@ function readAs(text: string | null, order: Order) {
 const blank = (v: string) => (v.trim() === "" ? null : v.trim());
 const EMPTY_ITEM: Item = { description: null, quantity: null, unit_price: null, amount: null, discount: null };
 
+// Show money with two decimals ("8.5" -> "8.50") by padding the text, so no value is ever rounded.
+const pad = (v: string | null) => (v && /^-?\d+(\.\d)?$/.test(v) ? (v.includes(".") ? v + "0" : v + ".00") : v);
+const cents = (d: Doc): Doc => ({
+  ...d,
+  subtotal: pad(d.subtotal), discount: pad(d.discount), tax: pad(d.tax), service_charge: pad(d.service_charge), total: pad(d.total),
+  items: d.items.map((it) => ({ ...it, unit_price: pad(it.unit_price), amount: pad(it.amount), discount: pad(it.discount) })),
+});
+
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -68,7 +76,7 @@ export default function ReviewPage() {
           setDetail(d);
           if (d.status === "processing") timer = setTimeout(load, 2000);
           else if (d.document) {
-            setDoc(d.document);
+            setDoc(cents(d.document));
             setChecks(d.checks ?? []);
             setSuggestion(d.suggestion ?? null);
             setOrder(null);
@@ -77,8 +85,8 @@ export default function ReviewPage() {
         })
         .catch((e) => setLoadError(e.message));
     load();
-    getJSON<DocumentRow[]>("/documents?status=needs_review&limit=200")
-      .then((rows) => setQueue(rows.map((r) => r.id).reverse())) // oldest first
+    getJSON<DocumentRow[]>("/documents?status=needs_review&oldest=true&limit=200")
+      .then((rows) => setQueue(rows.map((r) => r.id))) // the 200 oldest waiting
       .catch(() => {});
     return () => {
       left = true;
@@ -148,7 +156,7 @@ export default function ReviewPage() {
       const it = m && doc?.items[Number(m[1])];
       return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
     };
-    if (!s.changes.every((c) => current(c.field) === c.from)) {
+    if (!s.changes.every((c) => current(c.field) != null && Number(current(c.field)) === Number(c.from))) { // 280.00 is 280.0
       toast.error("The document changed. Wait a moment for the checks to update.");
       return;
     }
@@ -157,8 +165,8 @@ export default function ReviewPage() {
       const next = { ...d, items: d.items.map((it) => ({ ...it })) };
       for (const c of s.changes) {
         const m = c.field.match(ITEM_FIELD);
-        if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = c.to;
-        else (next as unknown as Record<string, string | null>)[c.field] = c.to;
+        if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = m[2] === "quantity" ? c.to : pad(c.to);
+        else (next as unknown as Record<string, string | null>)[c.field] = pad(c.to);
       }
       return next;
     });
@@ -175,12 +183,18 @@ export default function ReviewPage() {
     setConfirm(null);
     setSaving(true);
     try {
+      // the version this screen loaded: a change made meanwhile in another tab is not overwritten
+      const params = new URLSearchParams({ if_unchanged_since: detail!.updated_at });
+      if (order) params.set("date_order", order);
+      await sendJSON("PUT", `/documents/${id}?${params}`, doc);
+      // after the document: saving the vendor's date format re-checks the vendor's waiting documents
       if (order && applyToVendor && doc.vendor) {
         await sendJSON("PUT", `/vendors/${encodeURIComponent(doc.vendor)}/date-order`, { date_order: order });
       }
-      await sendJSON("PUT", `/documents/${id}${order ? `?date_order=${order}` : ""}`, doc);
       toast.success("Review saved");
-      const next = queue.filter((q) => q !== Number(id))[0];
+      // the oldest other waiting document not skipped in this tab, else any other
+      const others = queue.filter((q) => q !== Number(id));
+      const next = others.find((q) => !skippedIds().includes(q)) ?? others[0];
       router.push(next ? `/app/documents/${next}` : "/app/documents");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save.");
@@ -240,6 +254,21 @@ export default function ReviewPage() {
                 {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`} onClick={leaveCheck}><ArrowRight /></Link> : <ArrowRight />}
               </Button>
             </div>
+          )}
+          {pos >= 0 && queue.length > 1 && (
+            <Button
+              variant="outline"
+              className="h-9"
+              onClick={() => {
+                if (dirty && !window.confirm("Leave without saving your changes?")) return;
+                skip(Number(id)); // the review queue opens another one next time
+                // the next waiting document in line that was not skipped, else simply the next one
+                const after = [...queue.slice(pos + 1), ...queue.slice(0, pos)];
+                router.push(`/app/documents/${after.find((q) => !skippedIds().includes(q)) ?? after[0]}`);
+              }}
+            >
+              Skip
+            </Button>
           )}
           {doc && (
             <Button
@@ -421,11 +450,11 @@ export default function ReviewPage() {
             {suggestion && (
               <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p className="font-medium">Suggested fix</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message}. Compare with the photo before applying.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message} Compare with the photo before applying.</p>
                 {suggestion.changes.length <= 3 && (
                   <ul className="mt-1.5 text-xs">
                     {suggestion.changes.map((c) => (
-                      <li key={c.field}>{fieldLabel(c.field)}: <s>{c.from}</s> → <b>{c.to}</b></li>
+                      <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
                     ))}
                   </ul>
                 )}
@@ -437,8 +466,9 @@ export default function ReviewPage() {
                 const issue = checks.find((c) => names.includes(c.check));
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>
-                    <span className={cn("w-4 text-center", !issue && "text-ok")} aria-label={issue ? "Needs attention" : "Passed"}>
-                      {issue ? "!" : "✓"}
+                    <span className={cn("w-4 text-center", !issue && "text-ok")}>
+                      <span aria-hidden>{issue ? "!" : "✓"}</span>
+                      <span className="sr-only">{issue ? "Needs attention:" : "Passed:"}</span>
                     </span>
                     <span>
                       {label}
@@ -471,7 +501,7 @@ export default function ReviewPage() {
             <>
               <DialogHeader>
                 <DialogTitle>{otherFailing.length} {otherFailing.length === 1 ? "check still fails" : "checks still fail"}</DialogTitle>
-                <DialogDescription>{otherFailing.map((c) => c.message).join(". ")}. Save anyway?</DialogDescription>
+                <DialogDescription>{otherFailing.map((c) => c.message).join(" ")} Save anyway?</DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirm(null)}>Keep editing</Button>
@@ -580,11 +610,15 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
   // images need the access token, so they are fetched and shown from a blob URL
   useEffect(() => {
     let url: string | null = null;
+    let gone = false; // another page was chosen meanwhile: this image must not replace it
     api(`/documents/${id}/pages/${page}`)
       .then((r) => r.blob())
-      .then((b) => setSrc((url = URL.createObjectURL(b))))
-      .catch(() => setSrc(null));
+      .then((b) => {
+        if (!gone) setSrc((url = URL.createObjectURL(b)));
+      })
+      .catch(() => !gone && setSrc(null));
     return () => {
+      gone = true;
       if (url) URL.revokeObjectURL(url);
     };
   }, [id, page]);
@@ -616,8 +650,9 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
           <img
             src={src}
             alt={`Original: ${fileName}`}
-            className="mx-auto h-full w-full origin-top object-contain transition-transform"
-            style={{ transform: `scale(${zoom}) rotate(${turn}deg)`, transformOrigin: zoom > 1 ? "top center" : "center" }}
+            className="mx-auto max-w-none object-contain transition-transform"
+            // zoom by size, not scale(): a scaled image overflows to the left, where it can't be scrolled to
+            style={{ width: `${zoom * 100}%`, height: zoom > 1 ? "auto" : "100%", transform: `rotate(${turn}deg)` }}
           />
         ) : (
           <p className="p-6 text-sm text-muted-foreground">Loading the original…</p>

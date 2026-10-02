@@ -249,3 +249,17 @@ All runs used free tiers. Median tokens per call (Gemini 3.1 Flash Lite):
 - invoices: about 1,325 in / 480–540 out
 
 At paid Gemini 3.1 Flash-Lite prices ($0.25 / $1.50 per 1M tokens, read 2026-09-28), that is about $0.0007 per receipt and $0.001 per invoice. This is arithmetic from token counts, not a measured bill.
+
+### Photo-quality warning: measured, not built (2026-10-01)
+Image size, mean brightness (0-255) and an edge-variance sharpness score, 5th percentile:
+
+| Photos | Long side | Brightness | Sharpness (median) |
+|---|---|---|---|
+| CORD receipts (200, test + validation) | 648 px | 94 | 642 |
+| US receipt photos (200) | 348 px | 91 | 1,742 |
+| bad_photo copies of 60 US photos (read as well as clean, see above) | 129 px | 56 | 132 |
+| very_bad_photo copies of 60 US photos (69% -> 35% fully correct) | 640 px | 43 | 123 |
+
+Normal photos are often small, and the harmless bad_photo copies overlap the harmful very_bad_photo ones on
+every measure. A threshold would mostly warn on photos that read fine. The upload page shows a photo tip instead;
+the sum checks remain the guard against misread numbers.

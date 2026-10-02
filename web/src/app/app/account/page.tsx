@@ -54,7 +54,7 @@ export default function AccountPage() {
       <section className="mt-5 rounded-xl border border-bad/30 bg-card px-5 py-4 shadow-xs">
         <h2 className="font-semibold">Delete account</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Deletes your account, every document you uploaded and its data. This can&apos;t be undone.
+          Deletes your account and all your documents. This can&apos;t be undone.
         </p>
         <Button variant="destructive" className="mt-4" onClick={() => setOpen(true)}>Delete my account</Button>
       </section>

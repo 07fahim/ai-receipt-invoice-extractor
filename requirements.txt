@@ -1,6 +1,3 @@
-rapidocr==3.9.2
-onnxruntime==1.30.0
-pyarrow
 pillow
 pillow-heif==1.8.0  # iPhone HEIC photos are converted to JPEG on upload
 pydantic==2.13.5
@@ -10,5 +7,4 @@ python-multipart==0.0.32
 pypdfium2==5.13.0
 openpyxl==3.1.5
 psycopg[binary,pool]==3.3.6
-httpx==0.28.1  # for the API self-check (FastAPI TestClient)
 pyjwt[crypto]==2.15.0  # verifies Supabase Auth sign-in tokens
