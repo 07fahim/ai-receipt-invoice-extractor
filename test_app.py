@@ -62,7 +62,7 @@ def fake_call(model, data):
 providers.call = fake_call
 
 # a local webhook receiver standing in for n8n
-import hashlib, hmac, json, threading
+import contextlib, hashlib, hmac, http.client, json, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 events, own_events, arrived = [], [], []  # the server's n8n (/hook), one user's own address (/own), arrival order of both
 
@@ -72,6 +72,11 @@ class Hook(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers['Content-Length']))
+        if self.path == '/drip':  # answers one byte at a time, for 4 seconds
+            with contextlib.suppress(OSError):  # the sender cuts it off
+                for ch in b'HTTP/1.1 200 OK\r\nX-Slow: ' + b'x' * 8:
+                    self.wfile.write(bytes([ch])); self.wfile.flush(); time.sleep(0.25)
+            return
         if self.path == '/redirect':
             self.send_response(302); self.send_header('Location', '/hook'); self.end_headers()
             return
@@ -489,15 +494,22 @@ try:
         assert c.put('/account/webhook', json={'url': bad}, headers=judy).status_code == 400, bad
         assert not app.public_url(bad), bad
     assert app.public_url('https://8.8.8.8/hook') and not app.public_url('https://user:pw@8.8.8.8/hook')
-    # checked again when sending, and redirects are never followed
-    for url, own in (('https://127.0.0.1/x', True), (f'http://127.0.0.1:{hook.server_port}/redirect', False)):
+    # checked again when sending, redirects are never followed, and a whole send takes at most `timeout` seconds
+    started = time.monotonic()
+    for url, own in (('https://127.0.0.1/x', True), (f'http://127.0.0.1:{hook.server_port}/redirect', False),
+                     (f'http://127.0.0.1:{hook.server_port}/drip', False)):
         try:
-            app.open_webhook(url, {'event': 'x', 'id': None}, 's', own, 5)
+            app.open_webhook(url, {'event': 'x', 'id': None}, 's', own, 1)
             raise AssertionError(url)
-        except (ValueError, urllib.error.HTTPError):
+        except (ValueError, RuntimeError, OSError, http.client.HTTPException):
             pass
-    assert not any(e['event'] == 'x' for e, _, _ in events)
-    real_public_url, app.public_url = app.public_url, lambda url: url == own_url  # the local receiver stands in for a public address
+    assert time.monotonic() - started < 3 and not any(e['event'] == 'x' for e, _, _ in events)
+    # the local receiver stands in for a public address; sending connects to the IP that was checked,
+    # so a name that would resolve elsewhere (here: nowhere) can't change where the request goes
+    pinned = f'http://pinned.invalid:{hook.server_port}/own'
+    real_public_ip, app.public_ip = app.public_ip, lambda url: '127.0.0.1' if url in (own_url, pinned) else None
+    assert app.open_webhook(pinned, {'event': 'pinned', 'id': None}, 's', True, 5) == 200
+    assert own_events[-1][0]['event'] == 'pinned'
     saved = c.put('/account/webhook', json={'url': f' {own_url} '}, headers=judy).json()
     secret = saved['secret']
     shown = c.get('/account/webhook', headers=judy).json()
@@ -507,6 +519,12 @@ try:
     assert '127.0.0.1' not in stored['url'] and secret not in stored['secret']  # encrypted in the database
     tested = c.post('/account/webhook/test', headers=judy).json()
     assert tested == {'ok': True, 'status': 200} and own_events[-1][0] == {'event': 'test', 'id': None}
+    assert c.post('/account/webhook/test', headers=judy).status_code == 429  # one test every 10 s
+    # WEBHOOK_KEY changed: the address can't be read any more, and the Account page says so
+    os.environ['WEBHOOK_KEY'] = 'another-key'
+    gone = c.get('/account/webhook', headers=judy).json()
+    assert gone['url'] is None and 'Save it again' in gone['last_error']
+    os.environ['WEBHOOK_KEY'] = 'test-webhook-key'
     assert c.post('/account/webhook/test', headers=bob).status_code == 404
 
     # her documents go to her address, signed with her secret; the server's n8n never sees them
@@ -516,12 +534,15 @@ try:
     e, sig, raw = own_events[-1]
     assert e['event'] == 'document.passed' and e['id'] == judy_doc and len(events) == sent
     assert sig == 'sha256=' + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
-    assert all(ev['id'] == judy_doc or ev['event'] == 'test' for ev, _, _ in own_events)  # nobody else's documents
-    # a webhook problem never undoes the document change
-    real_for, app.webhook_for = app.webhook_for, lambda con, uid: (_ for _ in ()).throw(RuntimeError('webhook lookup broke'))
+    assert all(ev['id'] == judy_doc or ev['event'] in ('test', 'pinned') for ev, _, _ in own_events)  # nobody else's documents
+    # a failed event insert never undoes the document change (savepoint)
+    with store.conn() as con:
+        con.execute('ALTER TABLE webhook_events RENAME TO webhook_events_off')
     kept = c.post('/documents', files=[('files', ('k.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    with store.conn() as con:
+        con.execute('ALTER TABLE webhook_events_off RENAME TO webhook_events')
+        assert not con.execute("SELECT 1 FROM webhook_events WHERE payload->>'id' = %s", (str(kept),)).fetchone()
     assert c.get(f'/documents/{kept}', headers=judy).json()['status'] == 'passed'
-    app.webhook_for = real_for
     flush()
     # WEBHOOK_KEY missing after a deploy: events wait in the table instead of being dropped, and go once it is back
     del os.environ['WEBHOOK_KEY']
@@ -562,7 +583,7 @@ try:
     assert c.delete('/account', headers=judy).status_code == 204
     with store.conn() as con:
         assert con.execute('SELECT count(*) AS n FROM webhooks WHERE user_id = %s', (JUDY,)).fetchone()['n'] == 0
-    app.public_url = real_public_url
+    app.public_ip = real_public_ip
     print('ok')
 finally:
     import store

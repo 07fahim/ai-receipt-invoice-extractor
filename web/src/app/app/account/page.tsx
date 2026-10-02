@@ -95,6 +95,7 @@ function WebhookCard() {
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState(""); // shown once, right after saving
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(false); // the confirm dialog
 
   function show(h: Webhook) {
     setHook(h);
@@ -118,11 +119,12 @@ function WebhookCard() {
     }
   }
 
-  const save = () => run(async () => {
-    const r = await sendJSON<{ url: string; secret: string }>("PUT", "/account/webhook", { url });
+  // also used with the saved address for "New secret"
+  const save = (address: string) => run(async () => {
+    const r = await sendJSON<{ url: string; secret: string }>("PUT", "/account/webhook", { url: address });
     setSecret(r.secret);
     await load();
-    toast.success("Webhook saved.");
+    toast.success(address === hook?.url ? "New secret made. The old one no longer works." : "Webhook saved.");
   });
 
   const test = () => run(async () => {
@@ -132,6 +134,7 @@ function WebhookCard() {
   });
 
   const remove = () => run(async () => {
+    setRemoving(false);
     await sendJSON("DELETE", "/account/webhook");
     setSecret("");
     await load();
@@ -151,9 +154,10 @@ function WebhookCard() {
         <Label htmlFor="webhook-url">Address</Label>
         <div className="flex gap-2">
           <Input id="webhook-url" type="url" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <Button onClick={save} disabled={busy || !url.trim() || url.trim() === hook.url}>Save</Button>
+          <Button onClick={() => save(url)} disabled={busy || !url.trim() || url.trim() === hook.url}>Save</Button>
         </div>
       </div>
+      {!hook.url && hook.last_error && <p className="mt-3 text-sm text-bad">{hook.last_error}</p>}
 
       {secret && (
         <div className="mt-4 rounded-lg border bg-muted/40 p-3 text-sm">
@@ -182,10 +186,24 @@ function WebhookCard() {
           </p>
           <div className="flex gap-2">
             <Button variant="outline" onClick={test} disabled={busy}>Send test</Button>
-            <Button variant="outline" onClick={remove} disabled={busy}>Remove</Button>
+            <Button variant="outline" onClick={() => save(hook.url!)} disabled={busy}>New secret</Button>
+            <Button variant="outline" onClick={() => setRemoving(true)} disabled={busy}>Remove</Button>
           </div>
         </div>
       )}
+
+      <Dialog open={removing} onOpenChange={setRemoving}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove your webhook?</DialogTitle>
+            <DialogDescription>Documents stop going to this address. Events still waiting to be sent are dropped.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoving(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={remove} disabled={busy}>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
