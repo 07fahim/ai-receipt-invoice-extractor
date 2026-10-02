@@ -6,11 +6,13 @@ import io
 import json
 import os
 import queue
+import re
 import threading
 import time
 import urllib.parse
 import urllib.request
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 
 import jwt
@@ -186,6 +188,8 @@ def public_error(e):
         return 'The AI service did not answer. Try again.'
     if isinstance(e, ValueError):
         return 'The AI reply could not be read. Try again.'
+    if re.search(r'HTTP 4\d\d', text):
+        return 'The AI could not read this file. Try a clearer photo or another file.'
     return 'Reading failed. Try again.'
 
 
@@ -327,6 +331,9 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
 def get_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
         r = get_row(con, doc_id, uid)
+        if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []) \
+                and not store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id):
+            r['checks'] = [c for c in r['checks'] if c['check'] != 'duplicate']  # the original was deleted or corrected
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
     return r
 
@@ -530,20 +537,20 @@ def export_rows(uid, status):
 NUMERIC = {'subtotal', 'discount', 'tax', 'service_charge', 'total', 'quantity', 'unit_price', 'amount'}
 
 
-def cell(column, v):
+def cell(column, v, xlsx=False):
     # numbers stay numbers, text stays text (00123 keeps its zeros);
     # text starting with = + - @ tab or CR gets a leading ' so a spreadsheet never runs it
     if v is None:
         return None
     if column in NUMERIC:
-        return float(v)
-    if isinstance(v, str) and v[:1] in ('=', '+', '-', '@', '\t', '\r'):
+        return v if isinstance(v, Decimal) else Decimal(str(v))
+    if isinstance(v, str) and v[:1] in (('=',) if xlsx else ('=', '+', '-', '@', '\t', '\r')):
         return "'" + v
     return v
 
 
-def cells(columns, row_):
-    return [cell(c, v) for c, v in zip(columns, row_)]
+def cells(columns, row_, xlsx=False):
+    return [cell(c, v, xlsx) for c, v in zip(columns, row_)]
 
 
 # QuickBooks Online "Import bills" layout; headers are matched to QuickBooks fields during the import.
@@ -599,7 +606,7 @@ def export(format: str = 'xlsx', status: str | None = None, uid: str = Depends(c
     for ws, cols, rows in ((wb.active, DOC_COLUMNS, docs), (wb.create_sheet('Items'), ITEM_COLUMNS, items)):
         ws.append(cols)
         for row_ in rows:
-            ws.append([date.fromisoformat(v) if c in ('issue_date', 'due_date') and v else v for c, v in zip(cols, cells(cols, row_))])
+            ws.append([date.fromisoformat(v) if c in ('issue_date', 'due_date') and v else v for c, v in zip(cols, cells(cols, row_, xlsx=True))])
         for row_ in ws.iter_rows(min_row=2):  # real dates, so Excel's date filters and sorting work
             for x in row_:
                 if isinstance(x.value, date):

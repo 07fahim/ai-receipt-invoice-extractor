@@ -437,6 +437,12 @@ try:
     assert c.post('/documents', content=b'x', headers={'content-length': str(300 * 1024 * 1024),
                                                        'content-type': 'multipart/form-data; boundary=x'}).status_code == 413
     assert c.post('/documents', files=[('files', (f'{k}.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg')) for k in range(21)]).status_code == 400
+    # errors a retry won't fix say so; exports keep exact numbers; XLSX only escapes '='
+    assert app.public_error(RuntimeError('HTTP 400: image rejected')).startswith('The AI could not read this file')
+    assert app.public_error(RuntimeError('HTTP 429: slow down')).startswith('The AI service is busy')
+    assert str(app.cell('total', 12.5)) == '12.5' and str(app.cell('total', app.Decimal('12.50'))) == '12.50'
+    assert app.cell('vendor', '- Discount', xlsx=True) == '- Discount' and app.cell('vendor', '- Discount') == "'- Discount"
+    assert app.cell('vendor', '=1+1', xlsx=True) == "'=1+1"
     print('ok')
 finally:
     import store
