@@ -1,6 +1,9 @@
-<h1 align="center">
-  <img src="assets/logo.png" alt="Crosscheck" width="360">
-</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+    <img src="assets/logo.png" alt="Crosscheck" width="360">
+  </picture>
+</p>
 
 <p align="center">
   <b>Receipts and invoices read by AI, then checked by plain code.</b><br>
