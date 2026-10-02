@@ -44,22 +44,22 @@
  },
  "flagged_ground_truth": {
   "0": [
-   "subtotal + tax + service - discount = 5455, total is 60000"
+   "Subtotal + tax + service - discount = 5,455. The total is 60,000."
   ],
   "9": [
-   "No total found"
+   "No total found."
   ],
   "12": [
-   "1 x 880 = 880, line amount is 0"
+   "1 x 880 = 880. The line says 0."
   ],
   "39": [
-   "No total found"
+   "No total found."
   ],
   "57": [
-   "No total found"
+   "No total found."
   ],
   "76": [
-   "No total found"
+   "No total found."
   ]
  },
  "missed_examples": {

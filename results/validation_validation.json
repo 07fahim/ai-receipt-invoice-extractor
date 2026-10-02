@@ -44,25 +44,25 @@
  },
  "flagged_ground_truth": {
   "2": [
-   "Line items add up to 20000, subtotal is 18181"
+   "Line items add up to 20,000. The subtotal is 18,181."
   ],
   "13": [
-   "Line items add up to 41363, subtotal is 41364"
+   "Line items add up to 41,363. The subtotal is 41,364."
   ],
   "29": [
-   "No total found"
+   "No total found."
   ],
   "49": [
-   "No total found"
+   "No total found."
   ],
   "86": [
-   "Line items add up to 52000, subtotal is 26000"
+   "Line items add up to 52,000. The subtotal is 26,000."
   ],
   "94": [
-   "subtotal + tax + service - discount = 72795, total is 80100"
+   "Subtotal + tax + service - discount = 72,795. The total is 80,100."
   ],
   "95": [
-   "subtotal + tax + service - discount = 29972, total is 30000"
+   "Subtotal + tax + service - discount = 29,972. The total is 30,000."
   ]
  },
  "missed_examples": {
