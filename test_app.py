@@ -517,11 +517,14 @@ try:
     assert e['event'] == 'document.passed' and e['id'] == judy_doc and len(events) == sent
     assert sig == 'sha256=' + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
     assert all(ev['id'] == judy_doc or ev['event'] == 'test' for ev, _, _ in own_events)  # nobody else's documents
-    # a webhook problem never undoes the document change
-    real_for, app.webhook_for = app.webhook_for, lambda con, uid: (_ for _ in ()).throw(RuntimeError('webhook lookup broke'))
+    # a failed event insert never undoes the document change (savepoint)
+    with store.conn() as con:
+        con.execute('ALTER TABLE webhook_events RENAME TO webhook_events_off')
     kept = c.post('/documents', files=[('files', ('k.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy).json()[0]['id']
+    with store.conn() as con:
+        con.execute('ALTER TABLE webhook_events_off RENAME TO webhook_events')
+        assert not con.execute("SELECT 1 FROM webhook_events WHERE payload->>'id' = %s", (str(kept),)).fetchone()
     assert c.get(f'/documents/{kept}', headers=judy).json()['status'] == 'passed'
-    app.webhook_for = real_for
     flush()
     # WEBHOOK_KEY missing after a deploy: events wait in the table instead of being dropped, and go once it is back
     del os.environ['WEBHOOK_KEY']
