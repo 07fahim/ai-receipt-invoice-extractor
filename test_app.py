@@ -81,7 +81,7 @@ hook = HTTPServer(('127.0.0.1', 0), Hook)
 threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
-os.environ['WEBHOOK_USER_ID'] = ALICE  # only Alice's documents go to the webhook
+os.environ['WEBHOOK_USER_ID'] = f' {ALICE.upper()} ,'  # only Alice's documents go to the webhook (spaces, case, commas ignored)
 _post = app.post_event
 
 

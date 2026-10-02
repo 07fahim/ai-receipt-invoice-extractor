@@ -117,8 +117,8 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
                 (*fields.values(), doc_id))
 
 
-def webhook_user():
-    return os.environ.get('WEBHOOK_USER_ID', '').strip().lower()
+def webhook_users():  # comma-separated, so more than one of your own accounts can send events
+    return {u.strip().lower() for u in os.environ.get('WEBHOOK_USER_ID', '').split(',') if u.strip()}
 
 
 EVENT_LOCK = threading.Lock()  # reading a document and queueing its event happen together, so a stale status never queues last
@@ -130,14 +130,14 @@ def send_event(doc_id):
     with EVENT_LOCK:
         with store.conn() as con:
             r = row_by_id(con, doc_id)
-        if r is None or str(r['user_id']) != webhook_user():
+        if r is None or str(r['user_id']) not in webhook_users():
             return  # deleted meanwhile, or another user's document: the one webhook belongs to one account
         post_event({'event': f'document.{r["status"]}', 'id': r['id'], 'file_name': r['file_name'],
                     'status': r['status'], 'document': r['document'], 'checks': r['checks'], 'error': r['error']})
 
 
 def send_deleted(doc_id, uid):
-    if os.environ.get('WEBHOOK_URL') and uid == webhook_user():
+    if os.environ.get('WEBHOOK_URL') and uid in webhook_users():
         with EVENT_LOCK:
             post_event({'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
 
