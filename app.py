@@ -158,8 +158,8 @@ def deliver_events():
         url, body, headers, doc_id = EVENTS.get()
         for attempt in range(3):
             try:
-                # long timeout: a sleeping free-tier n8n (Render) takes about a minute to wake up
-                with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=120):
+                # long timeout: a sleeping free-tier n8n (Render) took 113 s to wake (measured 2026-10-02), then runs the workflow
+                with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=300):
                     break
             except Exception as e:
                 print(f'webhook for document {doc_id} failed (attempt {attempt + 1}): {e}')
