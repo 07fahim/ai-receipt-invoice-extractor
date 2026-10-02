@@ -1,4 +1,3 @@
-"""Experiment: does a second, targeted reading fix documents that failed a check?"""
 import hashlib
 import json
 from pathlib import Path

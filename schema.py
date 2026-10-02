@@ -1,4 +1,3 @@
-"""The extraction output: every provider must return this. Missing values are None, never guessed."""
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal, Optional

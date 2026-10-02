@@ -8,7 +8,6 @@ TODAY = date(2026, 9, 28)
 
 
 def checks(**kw):
-    """Failed check names; items_missing is ignored here and tested on its own below."""
     return [i['check'] for i in validate(Document(**kw), today=TODAY) if i['check'] != 'items_missing']
 
 

@@ -1,4 +1,3 @@
-"""API self-check with a fake model and a temporary schema. Run: python test_app.py"""
 import csv
 from datetime import date
 import io
