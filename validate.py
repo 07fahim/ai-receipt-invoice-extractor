@@ -221,7 +221,9 @@ def suggest(doc: Document) -> dict | None:
         return {'message': f'The amounts look 1,000 times too small. The total would be {num(doc.total * 1000)}.',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
 
-    if len(failing) < 2 or len(amounts) > 100:  # the search grows with amounts squared: 100 amounts take about a second
+    # The search grows with amounts squared: 33 amounts took 0.45 s, 99 took 2.9 s (laptop, 2026-10-02),
+    # and it runs on every open and every edit pause, so long documents get no digit suggestion.
+    if len(failing) < 2 or len(amounts) > 40:
         return None
     found = []
     for field, value in amounts:
