@@ -16,7 +16,9 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     const address = String(new FormData(e.currentTarget).get("email"));
     run(async () => {
-      const { error } = await createClient().auth.resetPasswordForEmail(address);
+      const { error } = await createClient().auth.resetPasswordForEmail(address, {
+        redirectTo: `${location.origin}/auth/callback?next=/reset-password`, // the email's link leads to a new-password form
+      });
       if (error) throw error;
       setEmail(address);
     });
@@ -42,15 +44,15 @@ export default function ForgotPasswordPage() {
         <h1 className="text-xl font-semibold">Reset your password</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {email ? (
-            <>Enter the 6-digit code we sent to <span className="font-medium text-foreground">{email}</span> and a new password.</>
+            <>We sent an email to <span className="font-medium text-foreground">{email}</span>. Open its link, or enter its code here with a new password.</>
           ) : (
-            "We'll email you a 6-digit code."
+            "We'll email you a link to reset it."
           )}
         </p>
       </div>
       {email ? (
         <form onSubmit={reset} className="grid gap-4">
-          <Field id="code" label="Code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} autoFocus />
+          <Field id="code" label="Code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" maxLength={10} autoFocus />
           <Field id="password" label="New password" type="password" autoComplete="new-password" minLength={8} />
           <FormError message={error} />
           <Button type="submit" className="h-10" disabled={busy}>
@@ -62,7 +64,7 @@ export default function ForgotPasswordPage() {
           <Field id="email" label="Email" type="email" autoComplete="email" />
           <FormError message={error} />
           <Button type="submit" className="h-10" disabled={busy}>
-            {busy ? "Sending…" : "Send code"}
+            {busy ? "Sending…" : "Send reset email"}
           </Button>
         </form>
       )}

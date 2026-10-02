@@ -2,9 +2,12 @@
 Needs DATABASE_URL in .env; runs in its own temporary schema, dropped at the end.
 Sign-in tokens are signed with a local test key instead of Supabase's."""
 import csv
+from datetime import date
 import io
 import os
 import time
+import urllib.error
+import urllib.request
 import uuid
 
 os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
@@ -82,17 +85,17 @@ threading.Thread(target=hook.serve_forever, daemon=True).start()
 os.environ['WEBHOOK_URL'] = f'http://127.0.0.1:{hook.server_port}/hook'
 os.environ['WEBHOOK_SECRET'] = 'test-secret'
 os.environ['WEBHOOK_USER_ID'] = ALICE  # only Alice's documents go to the webhook
-_send = app.send_event
+_post = app.post_event
 
 
-def send_and_wait(doc_id):  # the app delivers on a side thread; tests wait so events can be checked
-    worker = _send(doc_id)
-    if worker:
-        worker.join()
+def post_and_wait(payload):  # the app delivers on a side thread; tests wait so events can be checked
+    _post(payload)
+    app.EVENTS.join()
 
 
-app.send_event = send_and_wait
+app.post_event = post_and_wait
 c = TestClient(app.app, headers=as_user(ALICE))
+app.DAILY_UPLOAD_LIMIT = 50  # these tests upload more than the default 10; the limit test sets its own
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
 
@@ -163,17 +166,37 @@ try:
     doc['total'] = '60.00'
     d = c.put(f'/documents/{good_id}', json=doc).json()
     assert d['status'] == 'reviewed' and d['total'] == 60.0 and d['checks'][0]['check'] == 'total_math'
+    # the AI's first reading is kept apart from the correction, to measure how often people fix it
+    with app.store.conn() as con:
+        kept = con.execute('SELECT extracted, document FROM documents WHERE id = %s', (good_id,)).fetchone()
+    assert kept['extracted']['total'] == '56.58' and kept['document']['total'] == '60.00'
+    import corrections
+    assert corrections.report([(kept['extracted'], kept['document'])]) == [
+        '1 reviewed documents, 1 corrected (100%)', '1 of the corrected ones had passed every check (mistakes the checks missed)',
+        'Fields changed: total 1']
+    assert corrections.report([(kept['extracted'], kept['extracted'])])[0] == '1 reviewed documents, 0 corrected (0%)'
+    padded = {**kept['extracted'], 'subtotal': '51.90', 'vendor': ' Green Field '}  # how the review screen shows it: not a correction
+    assert corrections.report([(kept['extracted'], padded)])[0] == '1 reviewed documents, 0 corrected (0%)'
 
-    # webhook: sent for passed documents and after review, signed with the secret; not for needs_review/failed
+    # webhook: every reading (passed, needs_review, failed) and every review, signed with the secret
     kinds = [(e['event'], e['id']) for e, _, _ in events]
     # Dave's reviewed document and the resumed one belong to other users: not sent
-    assert kinds == [('document.passed', good_id), ('document.passed', amb_id), ('document.reviewed', good_id)], kinds
+    assert kinds == [('document.passed', good_id), ('document.needs_review', amb_id), ('document.passed', amb_id),
+                     ('document.failed', bad_id), ('document.failed', bad_id), ('document.reviewed', good_id)], kinds
+    failed_event = next(e for e, _, _ in events if e['event'] == 'document.failed')
+    assert 'busy' in failed_event['error'] and 'HTTP' not in failed_event['error']  # the short public message only
     e, sig, raw = events[-1]
     assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest() and e['document']['total'] == '60.00'
 
     # a reviewed document cannot be retried (the user's corrections would be lost)
     assert c.post(f'/documents/{good_id}/retry').status_code == 409
     assert c.get(f'/documents/{good_id}').json()['total'] == 60.0
+    # two tabs: a save based on an older version is refused, the current version saves
+    opened = c.get(f'/documents/{good_id}').json()
+    newer = c.put(f'/documents/{good_id}', json=opened['document'], params={'if_unchanged_since': opened['updated_at']})
+    assert newer.status_code == 200
+    stale = c.put(f'/documents/{good_id}', json=opened['document'], params={'if_unchanged_since': opened['updated_at']})
+    assert stale.status_code == 409 and 'another tab' in stale.json()['detail']
     # while a document is being read: no second read, no save; a late read never replaces saved corrections
     with store.conn() as con:
         con.execute("UPDATE documents SET status = 'processing' WHERE id = %s", (good_id,))
@@ -190,13 +213,22 @@ try:
 
     # history search and filters
     assert [x['id'] for x in c.get('/documents', params={'q': 'green'}).json()] == [good_id]
+    assert c.get('/documents', params={'q': '%'}).json() == [] and c.get('/documents', params={'q': '_'}).json() == []  # literal, not wildcards
     assert [x['id'] for x in c.get('/documents', params={'status': 'failed'}).json()] == [bad_id]
+    ids_newest = [x['id'] for x in c.get('/documents').json()]
+    assert [x['id'] for x in c.get('/documents', params={'oldest': 'true'}).json()] == ids_newest[::-1]  # review queue order
     assert [x['id'] for x in c.get('/documents', params={'date_from': '2021-01-01'}).json()] == [amb_id]
 
     # stats: spend counts only checked documents (passed or reviewed), never failed or waiting ones
     s = c.get('/stats').json()
     assert s['documents'] == 3 and s['by_status'] == {'reviewed': 1, 'passed': 1, 'failed': 1}
     assert {x['currency']: x['total'] for x in s['spend_by_currency']} == {'USD': 60.0, None: 10.0}
+    assert sum(x['total'] for x in s['tax_by_currency']) > 0
+    # a date range narrows the money figures (the 2016 receipt drops out) but not the counts
+    later = c.get('/stats', params={'date_from': '2021-01-01'}).json()
+    assert later['documents'] == 3 and later['by_status'] == s['by_status']
+    assert all(m['month'] >= '2021-01' for m in later['by_month']) and sum(x['n'] for x in later['spend_by_currency']) < sum(x['n'] for x in s['spend_by_currency'])
+    assert c.get('/stats', params={'date_from': 'soon'}).status_code == 422
     erin = as_user(str(uuid.uuid4()))  # a document waiting for review is not spend yet
     c.post('/documents', files=[('files', ('w.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=erin)
     s = c.get('/stats', headers=erin).json()
@@ -233,6 +265,9 @@ try:
     wb = load_workbook(io.BytesIO(c.get('/export').content))
     assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+    dates = {h.value: x for h, x in zip(wb['Documents'][1], wb['Documents'][2])}
+    assert dates['issue_date'].value.date() == date(2016, 5, 26) and dates['issue_date'].number_format == 'yyyy-mm-dd'  # a real date
+    assert dates['due_date'].value is None and '2016-05-26' in csv_text  # CSV keeps ISO text
     # text stays text (leading zeros kept) and a formula from a document is never run by the spreadsheet
     ANSWERS['formula'] = ('{"vendor": "=HYPERLINK(\\"http://evil\\")", "doc_number": "00123", "total": 5,'
                           ' "items": [{"description": "2023", "amount": 5}]}')
@@ -277,18 +312,21 @@ try:
     routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
               for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
               for m in rt.methods - {'HEAD'}]
-    assert len(routes) == 14, routes
+    assert len(routes) == 15, routes
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
-    for bad in ({'exp': int(time.time()) - 10}, {'aud': 'anon'}, {'key': OTHER_KEY}):
+    for bad in ({'exp': int(time.time()) - 60}, {'aud': 'anon'}, {'key': OTHER_KEY}):
         assert c.get('/documents', headers=as_user(ALICE, **bad)).status_code == 401, bad
     assert c.get('/documents', headers={'Authorization': 'Basic abc'}).status_code == 401
+    assert c.get('/documents', headers=as_user(ALICE, iat=int(time.time()) + 5)).status_code == 200  # clock skew
 
     # the web app's origin may call the API from the browser; other sites may not
     pre = {'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization'}
     assert anon.options('/documents', headers={'Origin': 'http://localhost:3000', **pre}).headers['access-control-allow-origin'] == 'http://localhost:3000'
     assert 'access-control-allow-origin' not in anon.options('/documents', headers={'Origin': 'https://evil.example', **pre}).headers
+    # the browser may read an export's file name (else QuickBooks bills download as documents.csv)
+    assert 'content-disposition' in c.get('/export', params={'format': 'quickbooks'}, headers={'Origin': 'http://localhost:3000'}).headers['access-control-expose-headers'].lower()
 
     # another user sees none of Alice's documents and cannot change them
     bob = as_user(BOB)
@@ -308,13 +346,22 @@ try:
     erin = as_user(str(uuid.uuid4()))
     passed = c.post('/documents', files=[('files', ('e.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]
     assert c.get(f"/documents/{passed['id']}", headers=erin).json()['status'] == 'passed' and len(events) == sent
+    assert c.delete(f"/documents/{passed['id']}", headers=erin).status_code == 204 and len(events) == sent  # nor her deletes
+
+    # refused uploads say why: not a supported type, or too large
+    r = c.post('/documents', files=[('files', ('n.txt', io.BytesIO(b'hello'), 'text/plain'))], headers=erin).json()
+    assert r[0]['error'] == 'Not a PDF, JPG, PNG, WebP or HEIC file.', r
+    app.MAX_BYTES, real_max = 20, app.MAX_BYTES
+    r = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'good' * 10), 'image/jpeg'))], headers=erin).json()
+    app.MAX_BYTES = real_max
+    assert r[0]['error'] == 'Larger than 10 MB.', r
 
     # daily upload limit per user: files over the limit are refused, then the whole request
     app.DAILY_UPLOAD_LIMIT = 2
     carol = as_user(CAROL)
     three = [('files', (f'{k}.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg')) for k in range(3)]
     r = c.post('/documents', files=three, headers=carol).json()
-    assert ['id' in x for x in r] == [True, True, False] and 'daily limit' in r[2]['error']
+    assert ['id' in x for x in r] == [True, True, False] and 'Daily limit' in r[2]['error']
     assert c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=carol).status_code == 429
     # deleting documents gives no quota back, and a retry counts as a read too
     for d in c.get('/documents', headers=carol).json():
@@ -323,14 +370,23 @@ try:
     app.DAILY_UPLOAD_LIMIT = 3
     flagged = c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'ambiguous'), 'image/jpeg'))], headers=carol).json()[0]['id']
     assert c.post(f'/documents/{flagged}/retry', headers=carol).status_code == 429
+    assert c.get('/usage', headers=carol).json() == {'used': 3, 'limit': 3}  # shown on the upload page
     app.DAILY_UPLOAD_LIMIT = 50
 
     # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
     frank = as_user(FRANK := str(uuid.uuid4()))
     c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
     removed = []
+    real_delete = app.delete_auth_user
     app.delete_auth_user = lambda uid: (_ for _ in ()).throw(RuntimeError('supabase down'))
     assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 1
+    # a retry after Supabase already removed the account (its first answer lost) still counts as removed
+    real_urlopen = urllib.request.urlopen
+    def gone(*a, **k): raise urllib.error.HTTPError('u', 404, 'User not found', {}, None)
+    urllib.request.urlopen, os.environ['SUPABASE_SECRET_KEY'] = gone, 'test-key'
+    real_delete(FRANK)  # no exception
+    urllib.request.urlopen = real_urlopen
+    del os.environ['SUPABASE_SECRET_KEY']
     app.delete_auth_user = removed.append
     assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
     assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
@@ -361,10 +417,17 @@ try:
     assert f.headers['content-type'] == 'image/jpeg' and f.content[:3] == b'\xff\xd8\xff'
     assert Image.open(io.BytesIO(f.content)).size == (60, 40)
 
-    # delete removes the record and the file
+    # delete removes the record and the file, and tells the webhook (the row gets marked deleted)
     assert c.delete(f'/documents/{good_id}').status_code == 204
+    e, sig, raw = events[-1]
+    assert e == {'event': 'document.deleted', 'id': good_id, 'status': 'deleted'}
+    assert sig == 'sha256=' + hmac.new(b'test-secret', raw, hashlib.sha256).hexdigest()
     assert c.get(f'/documents/{good_id}').status_code == 404 and c.get(f'/documents/{good_id}/file').status_code == 404
     assert c.delete(f'/documents/{good_id}').status_code == 404
+    unread = upload(('u.jpg', JPG + b'boom')).json()[0]['id']  # failed: never had a spreadsheet row
+    assert c.get(f'/documents/{unread}').json()['status'] == 'failed'
+    sent = len(events)
+    assert c.delete(f'/documents/{unread}').status_code == 204 and len(events) == sent  # so no deleted event
     assert c.post('/documents', files=[]).status_code in (400, 422)
     # size limits: an 11 MB file is refused; a request larger than 20 files x 10 MB is refused before reading
     over = c.post('/documents', files=[('files', ('big.jpg', io.BytesIO(JPG + b'0' * (10 * 1024 * 1024)), 'image/jpeg'))]).json()

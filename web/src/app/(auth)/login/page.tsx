@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { Divider, Field, FormError, GoogleButton, useAction } from "@/components/auth-form";
+import { Divider, Field, FormError, GoogleButton, LinkError, useAction } from "@/components/auth-form";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -30,6 +31,9 @@ export default function LoginPage() {
         <h1 className="text-xl font-semibold">Log in</h1>
         <p className="mt-1 text-sm text-muted-foreground">Welcome back.</p>
       </div>
+      <Suspense>
+        <LinkError />
+      </Suspense>
       <GoogleButton />
       <Divider />
       <form onSubmit={submit} className="grid gap-4">
