@@ -72,8 +72,9 @@ def _open_pool():
         con.commit()
 
     # prepare_threshold=None: no server-side prepared statements, so a transaction-mode pooler also works;
-    # check: drop connections the pooler closed while idle. max_size 10 of the pooler's free-tier limit.
-    new = ConnectionPool(os.environ['DATABASE_URL'], min_size=1, max_size=10, configure=configure,
+    # check: drop connections the pooler closed while idle. max_size 5: the free pooler's client limit is
+    # shared with n8n and any local API on the same database.
+    new = ConnectionPool(os.environ['DATABASE_URL'], min_size=1, max_size=5, configure=configure,
                          check=ConnectionPool.check_connection,
                          kwargs={'row_factory': dict_row, 'prepare_threshold': None}, open=True)
     with new.connection() as con:
