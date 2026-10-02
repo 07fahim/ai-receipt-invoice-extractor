@@ -79,7 +79,7 @@ def mime(data):
 
 
 def post(url, headers, body, retries=3, timeout=60):
-    # ponytail: 60 s per attempt suits Gemini; slower models (GLM, Gemma) need timeout=180
+    # 60 s per attempt suits Gemini; slower models (GLM, Gemma) need timeout=180.
     data = json.dumps(body).encode()
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json',
@@ -157,6 +157,8 @@ def parse(text):
         raise ValueError('amount given as text, not a number')
     if not isinstance(data.get('document_count'), int) or isinstance(data.get('document_count'), bool):
         data['document_count'] = None  # a hint only: "two" or "1-2" must not fail the whole document
+    if isinstance(data.get('currency'), str):
+        data['currency'] = data['currency'].strip().upper() or None  # 'usd' and 'USD' are one currency
     if not isinstance(data.get('tax_included'), bool):
         data['tax_included'] = None  # unknown: the checks accept tax either added or included
     if not isinstance(data.get('is_document'), bool):
