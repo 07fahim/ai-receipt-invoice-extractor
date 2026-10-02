@@ -247,6 +247,10 @@ Each Python test prints `ok`. GitHub Actions runs them on every push, with a thr
 
 What is stored, where, and who sees it: https://crosscheck-gamma.vercel.app/privacy
 
+## Licence
+
+All rights reserved. The code is public to read and evaluate; reuse needs written permission. See [LICENSE](LICENSE).
+
 ## Author
 
 Built by [Fahim Faiyaz](https://github.com/07fahim), ML engineer. I build document AI and automations for small
