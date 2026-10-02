@@ -145,12 +145,13 @@ function WebhookCard() {
       <h2 className="font-semibold">Webhook</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Send each document to your own address, like n8n, Zapier or Make. You get the data read from it, not the file.
+        Saving an address makes a new secret.
       </p>
       <div className="mt-4 grid gap-1.5">
         <Label htmlFor="webhook-url">Address</Label>
         <div className="flex gap-2">
           <Input id="webhook-url" type="url" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <Button onClick={save} disabled={busy || !url.trim() || (url.trim() === hook.url && !secret)}>Save</Button>
+          <Button onClick={save} disabled={busy || !url.trim() || url.trim() === hook.url}>Save</Button>
         </div>
       </div>
 
@@ -159,7 +160,7 @@ function WebhookCard() {
           <p className="font-medium">Your secret. Copy it now. It won&apos;t be shown again.</p>
           <div className="mt-2 flex gap-2">
             <code className="min-w-0 flex-1 truncate rounded bg-background px-2 py-1.5">{secret}</code>
-            <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(secret).then(() => toast.success("Copied."))}>
+            <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(secret).then(() => toast.success("Copied."), () => toast.error("Copy failed. Select the text instead."))}>
               Copy
             </Button>
           </div>
