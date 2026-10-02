@@ -119,6 +119,8 @@ try:
     d = c.get(f'/documents/{amb_id}').json()
     assert d['status'] == 'passed' and d['issue_date'] == '2021-05-11'
     assert c.put('/vendors/x/date-order', json={'date_order': 'YMD'}).status_code == 422
+    # a vendor printed with a slash (M/S Rahman Traders) still reaches the route
+    assert c.put('/vendors/M%2FS Rahman Traders/date-order', json={'date_order': 'DMY'}).status_code == 200
     # one vendor however it is printed (date memory and duplicates use this)
     vk = app.store.vendor_key
     assert vk('SHWAPNO') == vk('Shwapno Ltd.') == vk('Shwapno Limited') == vk('Shwapno Pvt. Ltd.') == 'shwapno'
@@ -133,6 +135,9 @@ try:
     d = c.put(f'/documents/{amb2}', json=live['document'], params={'date_order': 'DMY'}, headers=dave).json()
     assert d['status'] == 'reviewed' and d['checks'] == [] and d['issue_date'] == '2021-11-05'
     assert c.post('/check', json=doc2, params={'date_order': 'YMD'}).status_code == 422
+    # a document the user checks or saves counts as one document, whatever the model said
+    notdoc = c.post('/check', json={**doc2, 'is_document': False, 'document_count': 2}, params={'date_order': 'DMY'}, headers=dave).json()
+    assert not {x['check'] for x in notdoc['checks']} & {'not_a_document', 'one_document'}, notdoc['checks']
     # a misread digit that breaks two checks comes with a suggested fix; a clean document with none
     memo = {'subtotal': '1230', 'total': '1230', 'items': [{'quantity': '2', 'unit_price': '140', 'amount': '280'},
             {'quantity': '2', 'unit_price': '120', 'amount': '280'}, {'quantity': '1', 'unit_price': '710', 'amount': '710'}]}

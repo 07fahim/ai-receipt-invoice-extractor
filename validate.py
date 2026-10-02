@@ -27,7 +27,7 @@ WHOLE_UNIT_CASH = {'BDT', 'INR', 'PKR', 'LKR', 'NPR', 'IDR', 'VND', 'JPY', 'KRW'
 CENTS_PRINTED = re.compile(r'[.,]\d{2}\s*$')
 
 # VAT rates whose "VAT included" share can be recognised from the numbers alone (Bangladesh: 5, 7.5, 10, 15%).
-# ponytail: Bangladeshi rates only; 20% added on top misread as 25% included would pass, so check before adding rates.
+# Bangladeshi rates only: 20% added on top misread as 25% included would pass, so check before adding rates.
 INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
 
 
