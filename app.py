@@ -475,8 +475,12 @@ def delete_auth_user(uid):
     if not key:
         raise HTTPException(503, 'Account deletion is not set up on this server.')
     url = f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1/admin/users/{uid}'
-    urllib.request.urlopen(urllib.request.Request(url, method='DELETE', headers={'apikey': key, 'Authorization': f'Bearer {key}'}),
-                           timeout=15)
+    try:
+        urllib.request.urlopen(urllib.request.Request(url, method='DELETE', headers={'apikey': key, 'Authorization': f'Bearer {key}'}),
+                               timeout=15)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:  # 404: already removed by an earlier try whose answer was lost, so a retry still finishes
+            raise
 
 
 @app.delete('/account', status_code=204)
