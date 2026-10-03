@@ -51,7 +51,7 @@ export type DocumentRow = {
 };
 
 export type DocumentDetail = DocumentRow & {
-  mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null; second_reading?: SecondChange[]; updated_at: string;
+  mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null; second_reading?: SecondChange[]; second_read?: boolean; updated_at: string;
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL;

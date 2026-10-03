@@ -523,7 +523,8 @@ export default function ReviewPage() {
               </div>
             )}
             <ul className={cn("divide-y text-sm", checkError && "hidden")}>
-              {CHECK_GROUPS.map(([label, names]) => {
+              {CHECK_GROUPS.filter(([, names]) => !names.includes("second_reading") || detail.second_read
+                || checks.some((c) => names.includes(c.check))).map(([label, names]) => {
                 const issue = checks.find((c) => names.includes(c.check));
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>

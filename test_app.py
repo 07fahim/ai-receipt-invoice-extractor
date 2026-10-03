@@ -629,12 +629,17 @@ try:
     assert row['status'] == 'needs_review' and row['second_read_at'] is not None
     assert row['second_reading']['items'][1]['amount'] == '240' and row['second_reading']['issue_date'] == '2024-05-20'
     assert row['document'] == row['extracted'] and row['document']['items'][1]['amount'] == '280'  # untouched
+    # the second_reading check shows as soon as the reading is in, with no edit needed
+    assert any(ck['check'] == 'second_reading' for ck in row['checks']), row['checks']
+    assert c.get(f'/documents/{memo_id}', headers=erin).json()['second_read'] is True
     # passed, and flagged only for the date question: no second reading
     passed_id = c.post('/documents', files=[('files', ('g.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]['id']
     date_id = c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=erin).json()[0]['id']
     second_done()
     # passed documents now get a second reading too, from leftover quota (same answer as the first, so it stays passed)
     assert second_of(passed_id)['second_read_at'] is not None and second_of(date_id)['second_read_at'] is None
+    # date_id never got a second reading (only date_ambiguous, excluded): second_read says so
+    assert c.get(f'/documents/{date_id}', headers=erin).json()['second_read'] is False
     # the differences, field by field; a date comes with its printed text
     d = c.get(f'/documents/{memo_id}', headers=erin).json()
     assert {(x['field'], x['from'], x['to']) for x in d['second_reading']} == {('items[1].amount', '280', '240'), ('issue_date', '2024-06-20', '2024-05-20')}, d['second_reading']
@@ -665,6 +670,7 @@ try:
     capped = c.post('/documents', files=[('files', ('m2.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
     second_done()
     assert second_of(capped)['second_read_at'] is None
+    assert c.get(f'/documents/{capped}', headers=erin).json()['second_read'] is False  # capped: no reading, so no false tick
     app.SECOND_READ_DAILY_LIMIT = real_cap
     # retry keeps the first second reading: it read the same file blind, so it is still valid
     before = second_of(memo_id)
