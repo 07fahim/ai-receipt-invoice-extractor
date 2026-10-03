@@ -22,7 +22,7 @@ def amount(text):
         number = (re.sub(r'[.,]', '', number[:last]) or '0') + '.' + number[last + 1:]
     else:  # '13,990' or '50.000': thousands
         number = re.sub(r'[.,]', '', number)
-    return Decimal(number)
+    return Decimal(number)  # refunds printed '108.85-' or '($3.13)' stay positive, as the app stores them
 
 
 def one(values):
@@ -33,7 +33,7 @@ def one(values):
 
 def to_document(annotations):
     by = lambda label: [amount(a['text']) for a in annotations if a['label'] == label]
-    taxes = by(TAX)  # two tax lines (CGST and SGST, say) may be equal; their sum is the tax, so only a single line is scored
+    taxes = [v for v in by(TAX) if v is not None]  # two tax lines (CGST and SGST, say) may be equal; their sum is the tax, so only a single line is scored
     return Document(doc_type='receipt', subtotal=one(by(SUBTOTAL)), tax=taxes[0] if len(taxes) == 1 else None, total=one(by(TOTAL)),
                     items=[Item(amount=v) for v in by(PRICE) if v is not None])
 
@@ -53,6 +53,7 @@ if __name__ == '__main__':
     assert amount('4,50') == Decimal('4.50') and amount('1.234,50') == Decimal('1234.50') and amount('0,00') == 0
     assert amount('.80') == Decimal('0.80') and amount('$.99') == Decimal('0.99') and amount('-.50') == Decimal('-0.50')
     assert amount('50.000') == Decimal('50000') and amount('13,990') == Decimal('13990') and amount('12.5') == Decimal('12.5')
+    assert amount('108.85-') == Decimal('108.85') and amount('($3.13)') == Decimal('3.13')
     assert one([Decimal('5'), Decimal('5'), None]) == Decimal('5') and one([Decimal('5'), Decimal('6')]) is None
     for split in ('test', 'train'):
         total = sum(1 for _ in (DATA / f'{split}.txt').open(encoding='utf-8'))
