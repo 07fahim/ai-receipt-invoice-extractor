@@ -84,7 +84,7 @@ Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-0
 | CORD receipts, validation | 100 | 94% | 96.9% | 2 | 5 of 94 |
 | Invoices, test | 26 | 77% | 96.2% | 2 | 6 of 20 |
 | Invoices, validation | 48 | 64.6% | 100% | 3 | 8 of 31 |
-| WildReceipt receipts, test | 396 | 80.8% | 98.0% | 37 (0 misreads) | 103 of 320 |
+| WildReceipt receipts, test | 396 | 80.8% (97.0% checked) | 98.0% | 37 (0 real errors) | 103 of 320 |
 
 - **Fully correct** means every scored field is right (totals, tax, line items; on invoices also number, vendor,
   buyer, currency and dates). **Wrong and not flagged** means no check fired. That is the number that matters most,
@@ -98,10 +98,12 @@ Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-0
   model was right. Of the 4 unflagged CORD receipts, 2 are answer-key errors and 2 have the totals right and an
   error in a line item.
 - WildReceipt is an international receipt set (US, UK, Europe, Malaysia, India, the Gulf and more), measured
-  2026-10-03. The prompt and checks were not changed for it; the label converter was fixed on it. Scored: total, subtotal, tax and item amounts. All 37 unflagged differences
-  were checked against the images and none is a misread: 23 are answer-key errors or amounts the label converter
-  can't read, 9 are receipts with no line called "Subtotal" (the model left it empty), 3 are line discounts kept
-  apart by design, and 2 are rounding or a tip. Its licence is unclear, so only these numbers are published.
+  2026-10-03. The prompt and checks were not changed for it; the label converter was fixed on it. Scored: total,
+  subtotal, tax and item amounts. Its answer keys often differ from our format, so all 76 differences were checked
+  against the images. 12 are real model errors: 2 misread numbers and 10 coupon or discount lines listed as items.
+  The checks flagged all 12. The other 64 are answer-key errors, amounts the label converter can't read, receipts
+  with no line called "Subtotal", discounts and zero lines written differently, and rounding or a tip. That leaves 384 of 396
+  (97.0%) read right and no error unflagged. Its licence is unclear, so only these numbers are published.
 
 **Planted mistakes.** Each correct answer key was copied once per mistake type, with one realistic mistake planted
 in each copy (a misread digit, a dropped or doubled line, cash paid taken as the total, a missed tax line, and so
