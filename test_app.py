@@ -674,7 +674,7 @@ try:
     # the daily cap (whole app) stops further second readings
     real_cap = app.SECOND_READ_DAILY_LIMIT
     with store.conn() as con:
-        app.SECOND_READ_DAILY_LIMIT = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+        app.SECOND_READ_DAILY_LIMIT = con.execute("SELECT count(*) AS n FROM second_reads WHERE at > now() - interval '24 hours'").fetchone()['n']
     capped = c.post('/documents', files=[('files', ('m2.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
     second_done()
     assert second_of(capped)['second_read_at'] is None
@@ -718,7 +718,7 @@ try:
 
     # per-user cap: a user who already used today's personal quota gets no more second readings, another user still does
     with store.conn() as con:
-        alice_used = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND second_read_at > now() - interval '24 hours'",
+        alice_used = con.execute("SELECT count(*) AS n FROM second_reads WHERE user_id = %s AND at > now() - interval '24 hours'",
                                  (ALICE,)).fetchone()['n']
     real_per_user, app.SECOND_READ_PER_USER = app.SECOND_READ_PER_USER, alice_used
     alice_flagged = c.post('/documents', files=[('files', ('af.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))]).json()[0]['id']
@@ -730,7 +730,7 @@ try:
 
     # leftover rule: passed documents use only quota beyond SECOND_READ_FLAGGED_RESERVE; flagged ones still get theirs
     with store.conn() as con:
-        used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+        used = con.execute("SELECT count(*) AS n FROM second_reads WHERE at > now() - interval '24 hours'").fetchone()['n']
     real_cap2, app.SECOND_READ_DAILY_LIMIT = app.SECOND_READ_DAILY_LIMIT, used + app.SECOND_READ_FLAGGED_RESERVE
     grace = as_user(str(uuid.uuid4()))
     no_second_id = c.post('/documents', files=[('files', ('np.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=grace).json()[0]['id']
@@ -739,6 +739,24 @@ try:
     assert second_of(no_second_id)['second_read_at'] is None
     assert second_of(still_flagged_id)['second_read_at'] is not None
     app.SECOND_READ_DAILY_LIMIT = real_cap2
+
+    # deleting a document does not give second-reading quota back
+    frank = as_user(str(uuid.uuid4()))
+    real_per_user2, app.SECOND_READ_PER_USER = app.SECOND_READ_PER_USER, 1
+    gone_id = c.post('/documents', files=[('files', ('f1.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=frank).json()[0]['id']
+    second_done()
+    assert second_of(gone_id)['second_read_at'] is not None
+    assert c.delete(f'/documents/{gone_id}', headers=frank).status_code == 204
+    again_id = c.post('/documents', files=[('files', ('f2.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=frank).json()[0]['id']
+    second_done()
+    assert second_of(again_id)['second_read_at'] is None
+    app.SECOND_READ_PER_USER = real_per_user2
+
+    # the same lines in another order are no difference; a real one still is
+    two = app.Document(items=[{'amount': '10'}, {'amount': '20'}])
+    assert app.second_reading_changes(two, app.Document(items=[{'amount': '20.00'}, {'amount': '10'}])) == []
+    changed = app.second_reading_changes(two, app.Document(items=[{'amount': '20'}, {'amount': '11'}]))
+    assert [x['field'] for x in changed] == ['items[0].amount', 'items[1].amount'], changed
 
     # a race: the document is re-saved (e.g. a vendor date-order re-check) while the second model call is
     # in flight; second_read must decide on the document as it is now, not as it was before the call

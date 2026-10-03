@@ -41,6 +41,12 @@ CREATE TABLE IF NOT EXISTS reads (   -- one row per model read (upload or retry)
     at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS reads_user ON reads (user_id, at);
+CREATE TABLE IF NOT EXISTS second_reads (   -- one row per second reading asked for: both caps count these, so
+    user_id UUID,                            -- deleting documents does not give quota back (NULL once the account is deleted)
+    at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS second_reads_at ON second_reads (at);
+CREATE INDEX IF NOT EXISTS second_reads_user ON second_reads (user_id, at);
 CREATE TABLE IF NOT EXISTS webhooks (      -- the user's own address for document events (Account page)
     user_id UUID PRIMARY KEY,
     url TEXT NOT NULL,                    -- url and secret encrypted with WEBHOOK_KEY
