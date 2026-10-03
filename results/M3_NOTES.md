@@ -283,3 +283,16 @@ All 37 unflagged differences were checked against the images. None is a number G
 - 3 line discounts: the receipt prints price, then discount; Gemini keeps them apart (by design), the label has the net amount.
 - 2 readings of what "total" means: Malaysian 5-cent rounding (Gemini took the rounded amount due, the label the total before rounding) and a tip (Gemini's total excludes it).
 So on these 396 receipts no wrong total or amount reached the "passed" pile unflagged; the raw "wrong and not flagged" count is label noise and format differences.
+
+The 39 flagged differences were checked too (2026-10-03; 25 against the image, the rest where the model and label hold the same numbers in a different form). 14 of them were flagged only for the day/month question, which WildReceipt doesn't score, so for them the flag points elsewhere; none of the 14 is a model error.
+
+| Flagged difference | Receipts | Model error |
+|---|---|---|
+| Misread number (3.90 as 10.90; price and "SAVED" columns mixed up) | 2 | yes |
+| Coupon, discount or subtotal line listed as an item, numbers right | 10 | yes |
+| Our format: "was / now" price kept as price plus discount, discount lines signed differently, 0.00 lines, a priced add-on | 12 | no |
+| Meaning of total: handwritten tip, 5-cent rounding | 3 | judgment call |
+| Taxable base given as the subtotal, or no subtotal printed | 3 | no |
+| Answer-key error or converter limit (digits glued across a space, rupee/paise columns, price per gallon) | 9 | no, model right |
+
+Over all 76 differences: 12 real model errors, all flagged. Checked result: 384 of 396 (97.0%) read right, none wrong and unflagged.
