@@ -117,7 +117,7 @@ def main(name, split='test', limit=None, prompt_version=None):
     cache_dir.mkdir(parents=True, exist_ok=True)
     if split in invoices.PHOTO_SETS:
         docs = list(invoices.load_photos(invoices.PHOTO_SETS[split]))
-    elif split.startswith('wild_'):  # WildReceipt: English receipts, US and elsewhere
+    elif split.startswith('wild_'):  # WildReceipt: international receipts
         docs = list(wildreceipt.load(split.removeprefix('wild_')))
     elif split.startswith('invoices_'):
         docs = list(invoices.load(split.removeprefix('invoices_')))
