@@ -523,10 +523,10 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
-        second = doc_id and con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s',
+        second = doc_id and con.execute('SELECT status, second_reading FROM documents WHERE id = %s AND user_id = %s',
                                         (doc_id, uid)).fetchone()
         changes = second_reading_changes(doc, apply_date_order(Document(**second['second_reading']), order)) \
-            if second and second['second_reading'] else []
+            if second and second['status'] == 'needs_review' and second['second_reading'] else []
         return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc),
                 'second_reading': changes}
 

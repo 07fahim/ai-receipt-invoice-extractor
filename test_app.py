@@ -635,6 +635,9 @@ try:
     assert [x['field'] for x in left] == ['issue_date'], left
     assert c.post('/check', json=edited, params={'doc_id': memo_id}).json()['second_reading'] == []  # Alice: not her document
     assert c.get(f'/documents/{passed_id}', headers=erin).json()['second_reading'] == []
+    # once reviewed, /check no longer offers the second reading for it (GET already stops: status != needs_review)
+    c.put(f'/documents/{memo_id}', json=edited, headers=erin)
+    assert c.post('/check', json=edited, params={'doc_id': memo_id}, headers=erin).json()['second_reading'] == []
     # a different number of lines: one change that replaces the list
     four_id = c.post('/documents', files=[('files', ('m4.jpg', io.BytesIO(JPG + b'memo4'), 'image/jpeg'))], headers=erin).json()[0]['id']
     second_done()
