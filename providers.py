@@ -53,7 +53,11 @@ Rules:
   Use the document's own number format to decide whether "." or "," separates thousands.
 - amount is the line total as printed, before any line discount. Discounts are positive numbers.
 - total is the final amount due, not the cash paid or the change.
-- Include add-ons that have their own price as separate items."""
+- Include add-ons that have their own price as separate items.
+- Coupons, discounts, savings, promotions and price reductions are never items, even when printed on their own line
+  with a minus sign: put them in the discount of the item they belong to, or in the document discount if they apply
+  to the whole bill.
+- Lines that add up other lines (subtotal, "MDSE ST", net total) are never items."""
 
 
 def load_env():
