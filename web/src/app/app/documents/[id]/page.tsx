@@ -119,6 +119,7 @@ export default function ReviewPage() {
           if (stale) return;
           setCheckError(e.message); // never leave old ticks on screen as if they were current
           setSuggestion(null);
+          setSecond([]);
         });
     }, 400);
     return () => {
@@ -147,6 +148,13 @@ export default function ReviewPage() {
   const dateChoice = failed.has("date_ambiguous") || order !== null;
   const otherFailing = checks.filter((c) => c.check !== "date_ambiguous");
 
+  // the document's current value for a field, item field included (e.g. "items[0].amount")
+  function current(field: string) {
+    const m = field.match(ITEM_FIELD);
+    const it = m && doc?.items[Number(m[1])];
+    return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
+  }
+
   function edit(patch: Partial<Doc>) {
     setDoc((d) => d && { ...d, ...patch });
     setDirty(true);
@@ -154,11 +162,6 @@ export default function ReviewPage() {
   // fills in the suggested values; nothing is saved until the user saves
   function applySuggestion(s: Suggestion) {
     // only onto the values it was worked out from: after an edit it waits for the next check
-    const current = (field: string) => {
-      const m = field.match(ITEM_FIELD);
-      const it = m && doc?.items[Number(m[1])];
-      return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
-    };
     if (!s.changes.every((c) => current(c.field) != null && Number(current(c.field)) === Number(c.from))) { // 280.00 is 280.0
       toast.error("The document changed. Wait a moment for the checks to update.");
       return;
@@ -178,6 +181,14 @@ export default function ReviewPage() {
 
   // fills in the second reading's values the user picked; nothing is saved until the user saves
   function applySecond(changes: SecondChange[]) {
+    // only onto the values the second reading was compared against: stale otherwise
+    const stale = changes.some((c) =>
+      Array.isArray(c.to) ? doc?.items.length !== parseInt(c.from ?? "", 10) : !sameValue(current(c.field), c.from),
+    );
+    if (stale) {
+      toast.error("The document changed. Wait a moment for the checks to update.");
+      return;
+    }
     setDoc((d) => {
       if (!d) return d;
       const next = { ...d, items: d.items.map((it) => ({ ...it })) };
@@ -585,6 +596,15 @@ const inputClass =
 const flagClass = "border-warn-line ring-1 ring-warn-line";
 
 const ITEM_FIELD = /^items\[(\d+)\]\.(\w+)$/;
+
+// is the current value still what a change was computed from? null/empty match, else string or number equal
+function sameValue(cur: unknown, from: string | null) {
+  const curEmpty = cur === null || cur === undefined || cur === "";
+  const fromEmpty = from === null || from === "";
+  if (curEmpty || fromEmpty) return curEmpty === fromEmpty;
+  if (String(cur) === String(from)) return true;
+  return !isNaN(Number(cur)) && !isNaN(Number(from)) && Number(cur) === Number(from);
+}
 
 // "items[2].amount" -> "Line 3 amount", "service_charge" -> "Service charge"
 function fieldLabel(field: string) {
