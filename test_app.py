@@ -51,6 +51,10 @@ ANSWERS = {
     'memo': '{"vendor": "Fruit Store", "issue_date": "2024-06-20", "issue_date_text": "20/06/2024", "subtotal": 1230, "total": 1230,'
             ' "items": [{"quantity": 2, "unit_price": 140, "amount": 280}, {"quantity": 2, "unit_price": 120, "amount": 280},'
             ' {"quantity": 1, "unit_price": 710, "amount": 710}]}',
+    # a real check (item sum) fails, and 05/11/2021 is ambiguous: the two readings print the same text but take it the other way
+    'dateamb': '{"vendor": "Datevendor", "issue_date": "2021-11-05", "issue_date_text": "05/11/2021", "subtotal": 1230, "total": 1230,'
+               ' "items": [{"quantity": 2, "unit_price": 140, "amount": 280}, {"quantity": 2, "unit_price": 120, "amount": 280},'
+               ' {"quantity": 1, "unit_price": 710, "amount": 710}]}',
 }
 calls = []
 
@@ -58,6 +62,7 @@ SECOND = {  # what the second-reading model says, by file
     'memo': ANSWERS['memo'].replace('"amount": 280}, {"quantity": 1', '"amount": 240}, {"quantity": 1')
                            .replace('2024-06-20", "issue_date_text": "20/06/2024', '2024-05-20", "issue_date_text": "20/05/2024'),
     'memo4': ANSWERS['memo'].replace('"amount": 710}]', '"amount": 710}, {"quantity": 1, "unit_price": 0, "amount": 0}]'),
+    'dateamb': ANSWERS['dateamb'].replace('"issue_date": "2021-11-05"', '"issue_date": "2021-05-11"'),
 }
 
 
@@ -656,6 +661,12 @@ try:
     second_done()
     after = second_of(memo_id)
     assert after['second_read_at'] == before['second_read_at'] and after['second_reading'] == before['second_reading']
+    # dates are compared after the vendor's saved date order: same printed text, read the other way, is not a change
+    c.put('/vendors/Datevendor/date-order', json={'date_order': 'DMY'}, headers=erin)
+    dateamb_id = c.post('/documents', files=[('files', ('d.jpg', io.BytesIO(JPG + b'dateamb'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    d = c.get(f'/documents/{dateamb_id}', headers=erin).json()
+    assert d['status'] == 'needs_review' and 'issue_date' not in {x['field'] for x in d['second_reading']}, d['second_reading']
     print('ok')
 finally:
     import store

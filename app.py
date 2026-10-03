@@ -506,10 +506,12 @@ def get_document(doc_id: int, uid: str = Depends(current_user)):
             # the original may have been deleted or corrected since: drop the flag, or link the copy still there
             r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
                            for c in r['checks'] if dup or c['check'] != 'duplicate']
+        second = r.pop('second_reading')
+        has_second = r['status'] == 'needs_review' and second and r['document']
+        order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
-    second = r.pop('second_reading')
-    r['second_reading'] = second_reading_changes(Document(**r['document']), Document(**second)) \
-        if r['status'] == 'needs_review' and second and r['document'] else []
+    r['second_reading'] = second_reading_changes(Document(**r['document']), apply_date_order(Document(**second), order)) \
+        if has_second else []
     return r
 
 
@@ -523,7 +525,8 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
         doc = apply_date_order(doc, order)
         second = doc_id and con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s',
                                         (doc_id, uid)).fetchone()
-        changes = second_reading_changes(doc, Document(**second['second_reading'])) if second and second['second_reading'] else []
+        changes = second_reading_changes(doc, apply_date_order(Document(**second['second_reading']), order)) \
+            if second and second['second_reading'] else []
         return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc),
                 'second_reading': changes}
 
