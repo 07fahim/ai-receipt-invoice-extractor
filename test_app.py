@@ -339,6 +339,10 @@ try:
     dates = {h.value: x for h, x in zip(wb['Documents'][1], wb['Documents'][2])}
     assert dates['issue_date'].value.date() == date(2016, 5, 26) and dates['issue_date'].number_format == 'yyyy-mm-dd'  # a real date
     assert dates['due_date'].value is None and '2016-05-26' in csv_text  # CSV keeps ISO text
+    # columns fit their values (dates never show as ####) and the header row stays in view
+    letter, dims = dates['issue_date'].column_letter, wb['Documents'].column_dimensions
+    assert letter in dims and dims[letter].width >= 12  # unset columns are not saved at all
+    assert wb['Documents'].freeze_panes == 'A2' and wb['Items'].freeze_panes == 'A2'
     # text stays text (leading zeros kept) and a formula from a document is never run by the spreadsheet
     ANSWERS['formula'] = ('{"vendor": "=HYPERLINK(\\"http://evil\\")", "doc_number": "00123", "total": 5,'
                           ' "items": [{"description": "2023", "amount": 5}]}')
