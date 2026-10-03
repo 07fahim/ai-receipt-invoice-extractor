@@ -265,7 +265,7 @@ every measure. A threshold would mostly warn on photos that read fine. The uploa
 the sum checks remain the guard against misread numbers.
 
 ## WildReceipt test set (measured 2026-10-03, prompt be0376e0, held out: no prompt or check changes)
-`wildreceipt.py` loads the WildReceipt test labels (download.openmmlab.com/mmocr/data/wildreceipt.tar; no licence from the authors, so the images and per-receipt results stay local and only these numbers are published). Despite the usual description it is an international set: US, UK, Europe, Malaysia, Singapore, India, the Gulf and more. Scored: total, subtotal, tax and item amounts. 396 of 472 receipts have a labelled total and item prices; the rest are skipped. A tax labelled on two lines (CGST and SGST, say) is not scored.
+`wildreceipt.py` loads the WildReceipt test labels (download.openmmlab.com/mmocr/data/wildreceipt.tar; no licence from the authors, so the images and per-receipt results stay local and only these numbers are published). Despite the usual description it is an international set: US, UK, Europe, Malaysia, Singapore, India, the Gulf and more. Scored: total, subtotal, tax and item amounts. 396 of 472 receipts have a single labelled total and item prices; the rest are skipped. A tax labelled on two lines (CGST and SGST, say) is not scored.
 
 Label conversion bugs found before trusting any number (all fixed in the loader, re-scored from cache): European decimal commas ("4,50" read as 50), amounts without a leading zero (".80" read as 80), two equal tax lines merged.
 
@@ -278,8 +278,8 @@ Label conversion bugs found before trusting any number (all fixed in the loader,
 | Correct but sent to review | 103 of 320 (69 only for the day/month question) |
 
 All 37 unflagged differences were checked against the images. None is a number Gemini misread:
-- 23 label errors, or amounts the label converter can't read (3-decimal rials, fuel prices per gallon such as 2.679): Gemini right. Examples: total 136.95 labelled 136.5; subtotal 1,675.00 labelled 675.00; a tip labelled as tax; a service charge labelled as tax.
+- 23 label errors, or amounts the label converter can't read (3-decimal rials, fuel prices per gallon such as 2.679): Gemini right. Kinds: a total or subtotal labelled with a digit missing, a tip or a service charge labelled as tax.
 - 9 receipts with no line called "Subtotal" ("Net Total", "Taxable", "Prix HT", "Netto"): the label calls it the subtotal, Gemini left the subtotal empty. Total and tax right.
 - 3 line discounts: the receipt prints price, then discount; Gemini keeps them apart (by design), the label has the net amount.
-- 2 readings of what "total" means: Malaysian 5-cent rounding (Gemini took the amount due 63.90, the label the total before rounding 63.92) and a tip (Gemini's total excludes it).
+- 2 readings of what "total" means: Malaysian 5-cent rounding (Gemini took the rounded amount due, the label the total before rounding) and a tip (Gemini's total excludes it).
 So on these 396 receipts no wrong total or amount reached the "passed" pile unflagged; the raw "wrong and not flagged" count is label noise and format differences.
