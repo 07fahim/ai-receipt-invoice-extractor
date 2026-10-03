@@ -35,6 +35,10 @@
   exactly what failed and why.
 - **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
   decimal point), and nothing changes without the user's click.
+- **A second reading** by another model on flagged documents (and passed ones while free quota is left), offered
+  field by field. On a crumpled handwritten Bangla memo it found the misread date and two misread amounts.
+- **97% read right on 396 international receipts** (WildReceipt), after checking every difference against the image;
+  every real error was flagged.
 - **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
   Telegram, email) or the user's own address.
 
@@ -54,7 +58,7 @@
 - **Sends events** (`document.passed`, `needs_review`, `reviewed`, `failed`, `deleted`) to a webhook. The included
   n8n workflow writes each checked document to a Google Sheet and sends Telegram and email alerts for the ones that need
   review. Users can also add their own webhook address on the Account page.
-- **Accounts:** email or Google sign-in. Every document belongs to one user. Users can delete documents or their
+- **Accounts:** email or Google sign-in. Every document belongs to one user. Users can delete documents (one or many at once) or their
   whole account.
 - **Second reading** of flagged documents, and passed ones while quota is left, by another model. Offered field by
   field in the review screen; a passed document moves to review when the second reading differs on money, dates,
@@ -150,7 +154,7 @@ receipt set (CC0); the third sample is a synthetic Dhaka bill.
 |---|---|
 | Web app | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | API | Python 3.11, FastAPI, Pydantic |
-| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0 |
+| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings |
 | Data and sign-in | PostgreSQL and Auth on Supabase |
 | Automation | n8n (Google Sheets, Telegram, Gmail), signed webhooks |
 | Hosting and CI | Vercel, Render, GitHub Actions |
@@ -258,7 +262,10 @@ Each Python test prints `ok`. GitHub Actions runs them on every push, with a thr
 ## Known limits
 
 - Checks can pass on a wrong reading. A wrong name or invoice number has no arithmetic to check, and two misread
-  lines can cancel out. "Passed" means the numbers agree with each other.
+  lines can cancel out. "Passed" means the numbers agree with each other. A second reading catches some of these,
+  but only while its quota lasts.
+- Second readings are capped (15 a day for the whole app, 5 per user, 5 always kept for flagged documents) to stay
+  inside the free quota. Past the cap, documents go to normal review without one.
 - The demo uses Gemini's free tier. On it, Google may use uploaded files to improve its models, so the demo asks for
   sample receipts only.
 - The API assumes one process. Running several would need the background jobs to claim their rows first.
