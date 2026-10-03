@@ -705,7 +705,8 @@ try:
     # a passed receipt whose second reading differs only in vendor case and a 0.00 line stays passed
     pass3_id = c.post('/documents', files=[('files', ('p3.jpg', io.BytesIO(JPG + b'pass3'), 'image/jpeg'))]).json()[0]['id']
     second_done()
-    assert second_of(pass3_id)['status'] == 'passed'
+    row3 = second_of(pass3_id)
+    assert row3['second_read_at'] is not None and row3['status'] == 'passed'  # a reading ran; it just wasn't meaningful
 
     # per-user cap: a user who already used today's personal quota gets no more second readings, another user still does
     with store.conn() as con:
