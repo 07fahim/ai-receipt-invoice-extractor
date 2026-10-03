@@ -43,6 +43,14 @@ const EMPTY_ITEM: Item = { description: null, quantity: null, unit_price: null, 
 
 // Show money with two decimals ("8.5" -> "8.50") by padding the text, so no value is ever rounded.
 const pad = (v: string | null) => (v && /^-?\d+(\.\d)?$/.test(v) ? (v.includes(".") ? v + "0" : v + ".00") : v);
+// top-level fields that are money; padding an invoice number like "1042" would turn it into "1042.00"
+const MONEY_FIELDS = new Set(["subtotal", "discount", "tax", "service_charge", "total"]);
+// second-reading display: pad money fields and item money fields (not quantity), leave the rest as printed
+function secondText(field: string, v: string | null) {
+  const m = field.match(ITEM_FIELD);
+  if (m) return m[2] === "quantity" ? v : pad(v);
+  return MONEY_FIELDS.has(field) ? pad(v) : v;
+}
 const cents = (d: Doc): Doc => ({
   ...d,
   subtotal: pad(d.subtotal), discount: pad(d.discount), tax: pad(d.tax), service_charge: pad(d.service_charge), total: pad(d.total),
@@ -197,7 +205,7 @@ export default function ReviewPage() {
         if (Array.isArray(c.to)) next.items = cents({ ...next, items: c.to }).items;
         else if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = m[2] === "quantity" ? c.to : pad(c.to);
         else {
-          (next as unknown as Record<string, string | null>)[c.field] = pad(c.to);
+          (next as unknown as Record<string, string | null>)[c.field] = MONEY_FIELDS.has(c.field) ? pad(c.to) : c.to;
           if (c.text !== undefined) (next as unknown as Record<string, string | null>)[`${c.field}_text`] = c.text;
         }
       }
@@ -503,8 +511,8 @@ export default function ReviewPage() {
                   {second.map((c) => (
                     <li key={c.field} className="flex items-center justify-between gap-2">
                       <span>
-                        {fieldLabel(c.field)}: <s>{c.from === null ? "empty" : pad(c.from)}</s> →{" "}
-                        <b>{Array.isArray(c.to) ? `${c.to.length} lines` : pad(c.to)}</b>
+                        {fieldLabel(c.field)}: <s>{c.from === null ? "empty" : secondText(c.field, c.from)}</s> →{" "}
+                        <b>{Array.isArray(c.to) ? `${c.to.length} lines` : secondText(c.field, c.to)}</b>
                       </span>
                       <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => applySecond([c])}>Use</Button>
                     </li>
