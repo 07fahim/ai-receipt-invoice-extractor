@@ -78,9 +78,11 @@
 Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-09-30. The result files are in
 [`results/`](results), with notes in [`results/M3_NOTES.md`](results/M3_NOTES.md).
 
-The app now runs prompt `a19decf8`, which adds one rule: coupon and discount lines are never items. It was measured
-only on the receipts it can affect (117 WildReceipt receipts and 17 Bangladeshi samples): real errors on WildReceipt
-went from 12 to 5, all still flagged. The table below is from `be0376e0`.
+The app now runs prompt `a19decf8`, which adds two rules: coupon and discount lines are never items, and lines that
+add up other lines (a subtotal) are never items. It was measured on 117 WildReceipt receipts (the flagged wrong ones,
+and the right ones with a discount, coupon or savings line) and on 17 Bangladeshi samples. On those, real errors went
+from 12 to 5, all still flagged. The other WildReceipt receipts, CORD and the invoices were not re-run, so the table
+below is from `be0376e0`.
 
 | Set | Documents | Fully correct | Total amount correct | Wrong and not flagged | Correct but sent to review |
 |---|---|---|---|---|---|
