@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS documents (
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id UUID;   -- tables created before accounts existed
 ALTER TABLE documents ALTER COLUMN total TYPE NUMERIC(20, 6);  -- was (18, 2): 3-decimal currencies lost a digit
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted JSONB; -- the AI's reading as first saved, kept when the user corrects it
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS second_reading JSONB;          -- a second model's reading of a flagged document
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS second_read_at TIMESTAMPTZ;    -- when it was asked (failed asks count toward the cap)
 CREATE INDEX IF NOT EXISTS documents_user ON documents (user_id, id);
 CREATE INDEX IF NOT EXISTS documents_vendor ON documents (user_id, lower(vendor));
 CREATE INDEX IF NOT EXISTS documents_status ON documents (status);

@@ -47,8 +47,18 @@ ANSWERS = {
     'inv1042': '{"vendor": "ABC Ltd", "doc_number": "INV-1042", "total": 20, "items": [{"amount": 20}]}',
     'inv1042b': '{"vendor": "ABC Limited.", "doc_number": "#inv 1042", "total": 20, "items": [{"amount": 20}]}',
     'inv1043': '{"vendor": "ABC Ltd", "doc_number": "INV-1043", "total": 20, "items": [{"amount": 20}]}',
+    # a handwritten memo: line 2 read as 280 (2 x 120 is 240), date 20/06 (printed 20/05)
+    'memo': '{"vendor": "Fruit Store", "issue_date": "2024-06-20", "issue_date_text": "20/06/2024", "subtotal": 1230, "total": 1230,'
+            ' "items": [{"quantity": 2, "unit_price": 140, "amount": 280}, {"quantity": 2, "unit_price": 120, "amount": 280},'
+            ' {"quantity": 1, "unit_price": 710, "amount": 710}]}',
 }
 calls = []
+
+SECOND = {  # what the second-reading model says, by file
+    'memo': ANSWERS['memo'].replace('"amount": 280}, {"quantity": 1', '"amount": 240}, {"quantity": 1')
+                           .replace('2024-06-20", "issue_date_text": "20/06/2024', '2024-05-20", "issue_date_text": "20/05/2024'),
+    'memo4': ANSWERS['memo'].replace('"amount": 710}]', '"amount": 710}, {"quantity": 1, "unit_price": 0, "amount": 0}]'),
+}
 
 
 def fake_call(model, data):
@@ -56,7 +66,11 @@ def fake_call(model, data):
     key = data[8:].decode(errors='ignore').strip()
     if key == 'boom':
         raise RuntimeError('HTTP 503: high demand')
-    return ANSWERS[key], 100, 50, 1
+    if model == app.SECOND_MODEL:
+        if key == 'memoq':
+            raise RuntimeError('daily quota used up: HTTP 429')
+        return SECOND.get(key, ANSWERS[key.rstrip('q4') if key.startswith('memo') else key]), 100, 50, 1
+    return ANSWERS[key.rstrip('q4') if key.startswith('memo') else key], 100, 50, 1
 
 
 providers.call = fake_call
@@ -584,6 +598,32 @@ try:
     with store.conn() as con:
         assert con.execute('SELECT count(*) AS n FROM webhooks WHERE user_id = %s', (JUDY,)).fetchone()['n'] == 0
     app.public_ip = real_public_ip
+    # second reading: a flagged document is read again by a second model; nothing about the document changes
+    erin = as_user(str(uuid.uuid4()))
+    def second_of(doc_id):
+        with store.conn() as con:
+            return con.execute('SELECT second_reading, second_read_at, extracted, document, status FROM documents WHERE id = %s',
+                               (doc_id,)).fetchone()
+    memo_id = c.post('/documents', files=[('files', ('m.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    row = second_of(memo_id)
+    assert row['status'] == 'needs_review' and row['second_read_at'] is not None
+    assert row['second_reading']['items'][1]['amount'] == '240' and row['second_reading']['issue_date'] == '2024-05-20'
+    assert row['document'] == row['extracted'] and row['document']['items'][1]['amount'] == '280'  # untouched
+    # passed, and flagged only for the date question: no second reading
+    passed_id = c.post('/documents', files=[('files', ('g.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    date_id = c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    assert second_of(passed_id)['second_read_at'] is None and second_of(date_id)['second_read_at'] is None
+    # the quota runs out: the document is untouched, the attempt counts toward the cap
+    q_id = c.post('/documents', files=[('files', ('q.jpg', io.BytesIO(JPG + b'memoq'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    row = second_of(q_id)
+    assert row['second_read_at'] is not None and row['second_reading'] is None and row['status'] == 'needs_review'
+    # the daily cap (whole app) stops further second readings
+    real_cap = app.SECOND_READ_DAILY_LIMIT
+    with store.conn() as con:
+        app.SECOND_READ_DAILY_LIMIT = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+    capped = c.post('/documents', files=[('files', ('m2.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    assert second_of(capped)['second_read_at'] is None
+    app.SECOND_READ_DAILY_LIMIT = real_cap
     print('ok')
 finally:
     import store

@@ -45,6 +45,9 @@ MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 10))   # model reads (uploads + retries) per day: protects the quota
+SECOND_MODEL = os.environ.get('SECOND_MODEL', 'gemini-3.5-flash')
+SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   # whole app, any 24 hours: the free quota is shared
+REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate'}   # a second reading cannot settle these
 
 
 def reads_today(con, uid):
@@ -324,7 +327,7 @@ def process(doc_id):
         text, tin, tout, _ = providers.call(MODEL, bytes(row['file']))
         doc = providers.parse(text)
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
-                 'tokens_in': tin, 'tokens_out': tout}
+                 'tokens_in': tin, 'tokens_out': tout, 'second_reading': None}
         with store.conn() as con:
             save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
             queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted meanwhile)
@@ -335,6 +338,26 @@ def process(doc_id):
             if failed:
                 queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
     WAKE.set()
+    second_read(doc_id)   # after the events go out, so a slow second reading delays nothing
+
+
+def second_read(doc_id):
+    # a flagged document is read again, blind, by another model; its answer is only offered in the review screen
+    try:
+        with store.conn() as con:
+            row = con.execute('SELECT status, checks FROM documents WHERE id = %s', (doc_id,)).fetchone()
+            if not row or row['status'] != 'needs_review' or not {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED:
+                return
+            used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+            if used >= SECOND_READ_DAILY_LIMIT:  # soft cap: uploads at the same moment may pass it by one or two
+                return
+            file = con.execute('UPDATE documents SET second_read_at = now() WHERE id = %s RETURNING file', (doc_id,)).fetchone()['file']
+        second = providers.parse(providers.call(SECOND_MODEL, bytes(file))[0])
+        with store.conn() as con:
+            con.execute('UPDATE documents SET second_reading = %s WHERE id = %s',
+                        (Jsonb(second.model_dump(mode='json')), doc_id))
+    except Exception as e:  # quota used up, busy, bad reply: the document simply goes to normal review
+        print(f'second reading of document {doc_id} failed: {e!r}')
 
 
 def resume_stuck():
