@@ -263,3 +263,36 @@ Image size, mean brightness (0-255) and an edge-variance sharpness score, 5th pe
 Normal photos are often small, and the harmless bad_photo copies overlap the harmful very_bad_photo ones on
 every measure. A threshold would mostly warn on photos that read fine. The upload page shows a photo tip instead;
 the sum checks remain the guard against misread numbers.
+
+## WildReceipt test set (measured 2026-10-03, prompt be0376e0, held out: no prompt or check changes)
+`wildreceipt.py` loads the WildReceipt test labels (download.openmmlab.com/mmocr/data/wildreceipt.tar; no licence from the authors, so the images and per-receipt results stay local and only these numbers are published). Despite the usual description it is an international set: US, UK, Europe, Malaysia, Singapore, India, the Gulf and more. Scored: total, subtotal, tax and item amounts. 396 of 472 receipts have a single labelled total and item prices; the rest are skipped. A tax labelled on two lines (CGST and SGST, say) is not scored.
+
+Label conversion bugs found before trusting any number (all fixed in the loader, re-scored from cache): European decimal commas ("4,50" read as 50), amounts without a leading zero (".80" read as 80), two equal tax lines merged. Then (after the flagged check below) 3-decimal amounts: "2.619" per gallon next to "16.24" is now 2.619 (the receipt's own decimal point decides), a code typed onto a price ("$0.99101") is dropped, and receipts with no 2-decimal amount read 3 decimals when they name a Gulf place or currency ("CHILISMUSCAT": 19.729 Omani rials). 7 test answer keys changed; 2 receipts moved from wrong to right.
+
+| | Raw against the labels |
+|---|---|
+| Fully correct | 81.3% (396) |
+| Total amount correct | 98.2% (396) |
+| Subtotal / tax correct | 93.5% (293) / 96.9% (257) |
+| Wrong and not flagged | 36 |
+| Correct but sent to review | 104 of 322 (70 only for the day/month question) |
+
+All 36 unflagged differences were checked against the images. None is a number Gemini misread:
+- 22 label errors, or amounts the label converter can't use (fuel receipts label the price per gallon as the item price; Gemini gives the fuel sale): Gemini right. Kinds: a total or subtotal labelled with a digit missing, a tip or a service charge labelled as tax.
+- 9 receipts with no line called "Subtotal" ("Net Total", "Taxable", "Prix HT", "Netto"): the label calls it the subtotal, Gemini left the subtotal empty. Total and tax right.
+- 3 line discounts: the receipt prints price, then discount; Gemini keeps them apart (by design), the label has the net amount.
+- 2 readings of what "total" means: Malaysian 5-cent rounding (Gemini took the rounded amount due, the label the total before rounding) and a tip (Gemini's total excludes it).
+So on these 396 receipts no wrong total or amount reached the "passed" pile unflagged; the raw "wrong and not flagged" count is label noise and format differences.
+
+The 38 flagged differences were checked too (2026-10-03; 25 against the image, the rest where the model and label hold the same numbers in a different form). 14 of them were flagged only for the day/month question, which WildReceipt doesn't score, so for them the flag points elsewhere; none of the 14 is a model error.
+
+| Flagged difference | Receipts | Model error |
+|---|---|---|
+| Misread number (3.90 as 10.90; price and "SAVED" columns mixed up) | 2 | yes |
+| Coupon, discount or subtotal line listed as an item, numbers right | 10 | yes |
+| Our format: "was / now" price kept as price plus discount, discount lines signed differently, 0.00 lines, a priced add-on | 12 | no |
+| Meaning of total: handwritten tip, 5-cent rounding | 3 | judgment call |
+| Taxable base given as the subtotal, or no subtotal printed | 3 | no |
+| Answer-key error or converter limit (rupee/paise columns, price per gallon labelled as the item price) | 8 | no, model right |
+
+Over all 74 differences: 12 real model errors, all flagged. Checked result: 384 of 396 (97.0%) read right, none wrong and unflagged.

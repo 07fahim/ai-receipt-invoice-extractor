@@ -84,6 +84,7 @@ Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-0
 | CORD receipts, validation | 100 | 94% | 96.9% | 2 | 5 of 94 |
 | Invoices, test | 26 | 77% | 96.2% | 2 | 6 of 20 |
 | Invoices, validation | 48 | 64.6% | 100% | 3 | 8 of 31 |
+| WildReceipt receipts, test | 396 | 81.3% (97.0% checked) | 98.2% | 36 (0 real errors) | 104 of 322 |
 
 - **Fully correct** means every scored field is right (totals, tax, line items; on invoices also number, vendor,
   buyer, currency and dates). **Wrong and not flagged** means no check fired. That is the number that matters most,
@@ -96,6 +97,13 @@ Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-0
 - The unflagged invoices (2 on test, 3 on validation) are all answer-key errors: checked against the images, the
   model was right. Of the 4 unflagged CORD receipts, 2 are answer-key errors and 2 have the totals right and an
   error in a line item.
+- WildReceipt is an international receipt set (US, UK, Europe, Malaysia, India, the Gulf and more), measured
+  2026-10-03. The prompt and checks were not changed for it; the label converter was fixed on it. Scored: total,
+  subtotal, tax and item amounts. Its answer keys often differ from our format, so all 74 differences were checked
+  against the images. 12 are real model errors: 2 misread numbers and 10 coupon or discount lines listed as items.
+  The checks flagged all 12. The other 62 are answer-key errors, fuel receipts that label the price per gallon as the
+  item price, receipts with no line called "Subtotal", discounts and zero lines written differently, and rounding or
+  a tip. That leaves 384 of 396 (97.0%) read right and no error unflagged. Its licence is unclear, so only these numbers are published.
 
 **Planted mistakes.** Each correct answer key was copied once per mistake type, with one realistic mistake planted
 in each copy (a misread digit, a dropped or doubled line, cash paid taken as the total, a missed tax line, and so

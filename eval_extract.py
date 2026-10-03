@@ -12,6 +12,7 @@ from pathlib import Path
 import cord
 import invoices
 import providers
+import wildreceipt
 from validate import apply_date_order, validate
 
 ROOT = Path(__file__).parent
@@ -116,6 +117,8 @@ def main(name, split='test', limit=None, prompt_version=None):
     cache_dir.mkdir(parents=True, exist_ok=True)
     if split in invoices.PHOTO_SETS:
         docs = list(invoices.load_photos(invoices.PHOTO_SETS[split]))
+    elif split.startswith('wild_'):  # WildReceipt: international receipts
+        docs = list(wildreceipt.load(split.removeprefix('wild_')))
     elif split.startswith('invoices_'):
         docs = list(invoices.load(split.removeprefix('invoices_')))
     else:
