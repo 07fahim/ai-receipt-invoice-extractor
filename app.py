@@ -928,6 +928,9 @@ def export(format: str = 'xlsx', status: str | None = None, uid: str = Depends(c
             for x in row_:
                 if isinstance(x.value, date):
                     x.number_format = 'yyyy-mm-dd'
+        ws.freeze_panes = 'A2'  # the header row stays in view
+        for col in ws.columns:  # as wide as the longest value, so dates never show as ####
+            ws.column_dimensions[col[0].column_letter].width = min(max(len(str(x.value or '')) for x in col) + 2, 50)
     wb.active.title = 'Documents'
     buf = io.BytesIO()
     wb.save(buf)
