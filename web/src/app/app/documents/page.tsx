@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/status-badge";
-import { download, getJSON, money, type DocumentRow } from "@/lib/api";
+import { download, getJSON, money, sendJSON, type DocumentRow } from "@/lib/api";
 
 const PAGE = 50;
 const STATUSES = [
@@ -25,6 +26,9 @@ export default function DocumentsPage() {
   const [status, setStatus] = useState("");
   const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const filters = useRef(0); // bumped when the filters change: answers for older filters are dropped
 
   function query(offset: number) {
@@ -43,6 +47,7 @@ export default function DocumentsPage() {
             if (current !== filters.current) return;
             setError(null);
             setRows(r);
+            setSelected(new Set()); // a new list: nothing hidden stays selected
             setMore(r.length === PAGE);
           })
           .catch((e) => current === filters.current && setError(e.message)),
@@ -62,7 +67,34 @@ export default function DocumentsPage() {
     }
   }
 
+  // one request per document (the same delete as the review page); the ones that fail stay listed
+  async function deleteSelected() {
+    setDeleting(true);
+    const gone: number[] = [];
+    for (const id of selected) {
+      try {
+        await sendJSON("DELETE", `/documents/${id}`);
+        gone.push(id);
+      } catch {}
+    }
+    setRows((prev) => prev && prev.filter((r) => !gone.includes(r.id)));
+    setSelected((prev) => new Set([...prev].filter((id) => !gone.includes(id))));
+    setDeleting(false);
+    setConfirmDelete(false);
+    if (gone.length === selected.size) toast.success(`${gone.length} document${gone.length > 1 ? "s" : ""} deleted`);
+    else toast.error(`${gone.length} deleted, ${selected.size - gone.length} could not be deleted. Try again.`);
+  }
+
+  function toggle(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
   const filtered = q.trim() !== "" || status !== "";
+  const allSelected = !!rows?.length && rows.every((r) => selected.has(r.id));
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -71,6 +103,12 @@ export default function DocumentsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Everything you have uploaded, newest first</p>
         </div>
+        <div className="flex gap-2">
+        {selected.size > 0 && (
+          <Button variant="destructive" className="h-9" onClick={() => setConfirmDelete(true)}>
+            <Trash2 /> Delete {selected.size} selected
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="h-9"><Download /> Export</Button>
@@ -81,6 +119,7 @@ export default function DocumentsPage() {
             <DropdownMenuItem onSelect={() => exportAs("quickbooks")}>QuickBooks bills (.csv)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -117,6 +156,16 @@ export default function DocumentsPage() {
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="w-10 py-2.5 pl-4">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    className="size-4 align-middle"
+                    checked={allSelected}
+                    disabled={deleting}
+                    onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
+                  />
+                </th>
                 <th className="px-4 py-2.5 font-medium">Vendor</th>
                 <th className="px-4 py-2.5 font-medium">Date</th>
                 <th className="px-4 py-2.5 text-right font-medium">Total</th>
@@ -127,6 +176,16 @@ export default function DocumentsPage() {
             <tbody className="divide-y">
               {rows.map((r) => (
                 <tr key={r.id} className="hover:bg-secondary/60">
+                  <td className="w-10 py-2.5 pl-4">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${r.vendor ?? r.file_name}`}
+                      className="size-4 align-middle"
+                      checked={selected.has(r.id)}
+                      disabled={deleting}
+                      onChange={() => toggle(r.id)}
+                    />
+                  </td>
                   <td className="px-4 py-2.5">
                     <Link href={`/app/documents/${r.id}`} className="font-medium text-primary hover:underline">
                       {r.vendor ?? (r.status === "processing" ? "Being read" : "Unknown vendor")}
@@ -161,6 +220,18 @@ export default function DocumentsPage() {
           </Button>
         </div>
       )}
+      <Dialog open={confirmDelete} onOpenChange={(o) => !o && !deleting && setConfirmDelete(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selected.size} document{selected.size > 1 ? "s" : ""}?</DialogTitle>
+            <DialogDescription>The files and their fields are removed. This can&apos;t be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={deleting} onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" disabled={deleting} onClick={deleteSelected}>{deleting ? "Deleting…" : "Delete"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
