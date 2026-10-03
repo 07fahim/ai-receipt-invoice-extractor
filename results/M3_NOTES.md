@@ -309,3 +309,22 @@ New prompt rule: coupons, discounts, savings and price reductions are never item
 Real model errors on WildReceipt test, from these runs: 12 to 5, all flagged. CORD and the invoice sets were not re-run with this prompt; their numbers in the README belong to be0376e0.
 
 Tried after the code review and rejected, prompt 0fc977c3 (same 134 receipts): "the only sums you make are tax ... and a discount when several apply", "promotional savings" instead of "promotions", "an item with a price stays an item, even when it is free", "returns, refunds and deposits stay items", and "you saved" lines are never items or discounts. It fixed the free IGA item and kept 74 of the 79 right receipts, but added 2 errors no check catches: a total calculated as 201 + 12.06 = 213.06 where RM213.05 is printed, and the handwritten memo's date read as 20/06 (printed 20/05). The Five Guys refund also got worse (returned items listed as negative items with the discount counted again; flagged). One flagged miss is better than unflagged errors, so a19decf8 stays.
+
+## Second reading: Gemini 3.5 Flash (thinking low) on the 17 Bangladeshi samples (2026-10-03)
+
+Script `bd_second.py` (local), answers in `bd_second2.out`. Same prompt as the first reading. The first reading is
+Gemini 3.1 Flash-Lite. "Flags" are the checks that failed (`date_ambiguous` only asks the user to confirm a date
+order, so it is not counted as a failure).
+
+| Image | First reading (3.1 Flash-Lite) | Second reading (3.5 Flash) | Checked against the photo |
+|---|---|---|---|
+| handwritten.png (memo, handwritten) | items_sum, line_math | none; line 3 280 -> 240 | yes, the memo says 240 |
+| memo.png (same memo, printed) | items_sum, line_math | none; line 3 280 -> 240 | yes, the memo says 240 |
+| raw handwriiten.png (same memo, real photo) | items_sum, line_math | same flags; date 06-20 -> 05-20, line 6 60 -> 80 | yes, both right; line 3 is still 280 (photo: 240) |
+| Tax.png | total_math | total_math; discount 846.52 -> 800 | not yet |
+| utility bill.png | items_sum, total_math | items_sum; total 9983196.7 -> 9983196.0 | not yet |
+| electric bill.png | (passed) | items_sum: two zero lines read as 0.93 and -0.69 | worse than the first reading |
+| other 11 images | no failed checks | no failed checks | |
+
+Each answer took 5 to 18 s. The second model is slower and has a small free quota, so the app uses it only on
+flagged documents (and passed ones from leftover quota), and never applies its values without the user's choice.

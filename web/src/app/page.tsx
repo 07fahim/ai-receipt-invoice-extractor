@@ -186,6 +186,9 @@ export default function Home() {
                 </li>
               ))}
             </ul>
+            <p className="mt-6 text-foreground/75">
+              When a check fails, a second AI model can read the document again and suggest fixes. Nothing changes until you choose.
+            </p>
           </div>
         </section>
 
