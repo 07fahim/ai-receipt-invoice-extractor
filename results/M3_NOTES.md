@@ -296,3 +296,14 @@ The 38 flagged differences were checked too (2026-10-03; 25 against the image, t
 | Answer-key error or converter limit (rupee/paise columns, price per gallon labelled as the item price) | 8 | no, model right |
 
 Over all 74 differences: 12 real model errors, all flagged. Checked result: 384 of 396 (97.0%) read right, none wrong and unflagged.
+
+## Discount-line rule, prompt a19decf8 (2026-10-03, Gemini 3.1 Flash-Lite)
+New prompt rule: coupons, discounts, savings and price reductions are never items (they go in the item or document discount), and lines that add up other lines ("MDSE ST", subtotal) are never items. Found on WildReceipt test receipts, so WildReceipt is no longer held out for this prompt. Not a full re-run: only the receipts the rule can affect were measured.
+
+| Set (WildReceipt test unless named) | Receipts | Result |
+|---|---|---|
+| Flagged wrong under be0376e0 | 38 | 8 of the 10 "coupon or discount line listed as an item" errors fixed; 2 left (both flagged). The 2 misread numbers unchanged (flagged). No new model error; 5 lost their flag because the sums now add up (what's left is the answer key's format) |
+| Right under be0376e0, with a discount, coupon or savings line | 79 | 73 still right (5 lost a false alarm, 1 gained one). 5 now differ only in format: discount lines moved into the discount field where the answer key lists them as negative items, or 0.00 lines dropped; totals unchanged. 1 real new error, flagged: a free item dropped and its discount counted twice |
+| Bangladeshi samples | 17 | No money field worse. Handwritten memo and memo now read 240 (were 280); counted as prompt-change variance, not the rule. Utility bill total is now the amount to be paid. Text fields: Swiss Bakery currency empty (not printed), faded café name guessed differently, fruit memo branch is now its market address (worse) |
+
+Real model errors on WildReceipt test, from these runs: 12 → 5, all flagged. CORD and the invoice sets were not re-run with this prompt; their numbers in the README belong to be0376e0.
