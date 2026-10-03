@@ -98,7 +98,7 @@ Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-0
   model was right. Of the 4 unflagged CORD receipts, 2 are answer-key errors and 2 have the totals right and an
   error in a line item.
 - WildReceipt is an international receipt set (US, UK, Europe, Malaysia, India, the Gulf and more), measured
-  2026-10-03 with nothing tuned on it. Scored: total, subtotal, tax and item amounts. All 37 unflagged differences
+  2026-10-03. The prompt and checks were not changed for it; the label converter was fixed on it. Scored: total, subtotal, tax and item amounts. All 37 unflagged differences
   were checked against the images and none is a misread: 23 are answer-key errors or amounts the label converter
   can't read, 9 are receipts with no line called "Subtotal" (the model left it empty), 3 are line discounts kept
   apart by design, and 2 are rounding or a tip. Its licence is unclear, so only these numbers are published.
