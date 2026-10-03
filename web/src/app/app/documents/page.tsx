@@ -82,7 +82,7 @@ export default function DocumentsPage() {
     setDeleting(false);
     setConfirmDelete(false);
     if (gone.length === selected.size) toast.success(`${gone.length} document${gone.length > 1 ? "s" : ""} deleted`);
-    else toast.error(`${selected.size - gone.length} could not be deleted. Try again.`);
+    else toast.error(`${gone.length} deleted, ${selected.size - gone.length} could not be deleted. Try again.`);
   }
 
   function toggle(id: number) {
@@ -162,6 +162,7 @@ export default function DocumentsPage() {
                     aria-label="Select all"
                     className="size-4 align-middle"
                     checked={allSelected}
+                    disabled={deleting}
                     onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
                   />
                 </th>
@@ -181,6 +182,7 @@ export default function DocumentsPage() {
                       aria-label={`Select ${r.vendor ?? r.file_name}`}
                       className="size-4 align-middle"
                       checked={selected.has(r.id)}
+                      disabled={deleting}
                       onChange={() => toggle(r.id)}
                     />
                   </td>
