@@ -16,6 +16,7 @@ ROOT = Path(__file__).parent
 MODELS = {
     'gemini-3.5-flash-lite': ('gemini', None, 'gemini-3.5-flash-lite', 'GEMINI_API_KEY', 4.5),
     'gemini-3.1-flash-lite': ('gemini', None, 'gemini-3.1-flash-lite', 'GEMINI_API_KEY', 4.5),
+    'gemini-3.5-flash': ('gemini', None, 'gemini-3.5-flash', 'GEMINI_API_KEY', 13),  # second reading of flagged documents
     'gemini-3.8-flash': ('gemini', None, 'gemini-3.8-flash', 'GEMINI_API_KEY', 13),  # free tier: 5/min, 20/day
     'gemma-4-31b': ('gemini', None, 'gemma-4-31b-it', 'GEMINI_API_KEY', 10),
     'groq-qwen3.8-27b': ('openai', 'https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY', 20),
@@ -30,6 +31,9 @@ MODELS = {
     'or-dots-3-note': ('openai', 'https://openrouter.ai/api/v1', 'dots-studio/dots-3-note-preview:free', 'OPENROUTER_API_KEY', 3.5),
     'or-nemotron-omni': ('openai', 'https://openrouter.ai/api/v1', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'OPENROUTER_API_KEY', 3.5),
 }
+
+# thinking level per model id; "low" measured on hard cases 2026-10-03 (results/M3_NOTES.md): 5-9 s instead of 45-146 s
+THINKING = {'gemini-3.5-flash': 'low'}
 
 PROMPT = """Extract the data from this receipt or invoice image.
 Return only one JSON object with exactly these keys:
@@ -114,6 +118,8 @@ def call(name, image, prompt=PROMPT):
         config = {'temperature': 0}
         if model.startswith('gemini'):
             config['responseMimeType'] = 'application/json'
+        if model in THINKING:
+            config['thinkingConfig'] = {'thinkingLevel': THINKING[model]}
         r, attempts = post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
                  {'x-goog-api-key': key},
                  {'contents': [{'parts': [{'inline_data': {'mime_type': mime(image), 'data': b64}}, {'text': prompt}]}],

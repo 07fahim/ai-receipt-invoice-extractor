@@ -56,6 +56,9 @@
   review. Users can also add their own webhook address on the Account page.
 - **Accounts:** email or Google sign-in. Every document belongs to one user. Users can delete documents or their
   whole account.
+- **Second reading** of flagged documents, and passed ones while quota is left, by another model. Offered field by
+  field in the review screen; a passed document moves to review when the second reading differs on money, dates,
+  line amounts or the vendor. Nothing changes until the user picks a value.
 
 ## How it works
 
@@ -167,6 +170,9 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
    | `FRONTEND_ORIGIN` | The web app address(es), comma-separated. Default `http://localhost:3000` |
    | `DAILY_UPLOAD_LIMIT` | Model reads per user in any 24 hours. Default 10 |
    | `EXTRACT_MODEL` | Optional. Default `gemini-3.1-flash-lite` |
+   | `SECOND_MODEL` | Optional. Reads flagged documents a second time, and passed ones from leftover quota. Default `gemini-3.5-flash` (thinking low) |
+   | `SECOND_READ_DAILY_LIMIT` | Optional. Second readings for the whole app in any 24 hours. Default 15 |
+   | `SECOND_READ_PER_USER` | Optional. Second readings per user in any 24 hours. Default 5 |
    | `APP_SCHEMA` | Optional. Database schema for the app's tables. Default `app` |
    | `WEBHOOK_KEY` | Optional. Any long random text; turns on users' own webhooks and encrypts their addresses |
    | `WEBHOOK_URL`, `WEBHOOK_SECRET`, `WEBHOOK_USER_ID` | Optional. Your own n8n webhook and the account(s) whose documents go there |

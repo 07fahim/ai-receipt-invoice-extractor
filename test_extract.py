@@ -96,4 +96,16 @@ providers.urllib.request.urlopen, providers.time.sleep = real_open, real_sleep
 # seven decimals are rounded to six instead of failing the document
 d = parse('{"total": 1.0, "items": [{"description": "x", "unit_price": 0.3333333, "amount": 1.0}]}')
 assert str(d.items[0].unit_price) == '0.333333', d.items[0].unit_price
+
+# the second-reading model thinks at the level we measured ("low"); other models send no thinking setting
+sent = []
+real_post = providers.post
+providers.post = lambda url, headers, body, **kw: (sent.append(body), ({'candidates': [{'content': {'parts': [{'text': '{}'}]}}]}, 1))[1]
+providers.os.environ.setdefault('GEMINI_API_KEY', 'test')
+providers.call('gemini-3.5-flash', b'\xff\xd8\xff\xe0')
+providers.call('gemini-3.1-flash-lite', b'\xff\xd8\xff\xe0')
+providers.post = real_post
+assert sent[0]['generationConfig']['thinkingConfig'] == {'thinkingLevel': 'low'}, sent[0]
+assert 'thinkingConfig' not in sent[1]['generationConfig'], sent[1]
+
 print('ok')

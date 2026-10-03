@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type Suggestion } from "@/lib/api";
+import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type SecondChange, type Suggestion } from "@/lib/api";
 import { cn, skip, skippedIds } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
@@ -25,6 +25,7 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Not a duplicate", ["duplicate"]],
   ["One document per file", ["one_document"]],
   ["Looks like a receipt or invoice", ["is_document"]],
+  ["Second reading agrees", ["second_reading"]],
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -43,6 +44,14 @@ const EMPTY_ITEM: Item = { description: null, quantity: null, unit_price: null, 
 
 // Show money with two decimals ("8.5" -> "8.50") by padding the text, so no value is ever rounded.
 const pad = (v: string | null) => (v && /^-?\d+(\.\d)?$/.test(v) ? (v.includes(".") ? v + "0" : v + ".00") : v);
+// top-level fields that are money; padding an invoice number like "1042" would turn it into "1042.00"
+const MONEY_FIELDS = new Set(["subtotal", "discount", "tax", "service_charge", "total"]);
+// second-reading display: pad money fields and item money fields (not quantity), leave the rest as printed
+function secondText(field: string, v: string | null) {
+  const m = field.match(ITEM_FIELD);
+  if (m) return m[2] === "quantity" ? v : pad(v);
+  return MONEY_FIELDS.has(field) ? pad(v) : v;
+}
 const cents = (d: Doc): Doc => ({
   ...d,
   subtotal: pad(d.subtotal), discount: pad(d.discount), tax: pad(d.tax), service_charge: pad(d.service_charge), total: pad(d.total),
@@ -56,6 +65,7 @@ export default function ReviewPage() {
   const [doc, setDoc] = useState<Doc | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [second, setSecond] = useState<SecondChange[]>([]);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [applyToVendor, setApplyToVendor] = useState(false);
@@ -79,6 +89,7 @@ export default function ReviewPage() {
             setDoc(cents(d.document));
             setChecks(d.checks ?? []);
             setSuggestion(d.suggestion ?? null);
+            setSecond(d.second_reading ?? []);
             setOrder(null);
             setDirty(false);
           }
@@ -104,18 +115,20 @@ export default function ReviewPage() {
     }
     let stale = false; // a newer edit came in: an older answer must not overwrite the newer one
     const timer = setTimeout(() => {
-      sendJSON<{ document: Doc; checks: Check[]; suggestion: Suggestion | null }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
+      sendJSON<{ document: Doc; checks: Check[]; suggestion: Suggestion | null; second_reading: SecondChange[] }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
         .then((r) => {
           if (stale) return;
           setCheckError(null);
           setChecks(r.checks);
           setSuggestion(r.suggestion);
+          setSecond(r.second_reading ?? []);
           if (order && r.document.issue_date !== doc.issue_date) setDoc((d) => d && { ...d, issue_date: r.document.issue_date, due_date: r.document.due_date });
         })
         .catch((e) => {
           if (stale) return;
           setCheckError(e.message); // never leave old ticks on screen as if they were current
           setSuggestion(null);
+          setSecond([]);
         });
     }, 400);
     return () => {
@@ -144,6 +157,13 @@ export default function ReviewPage() {
   const dateChoice = failed.has("date_ambiguous") || order !== null;
   const otherFailing = checks.filter((c) => c.check !== "date_ambiguous");
 
+  // the document's current value for a field, item field included (e.g. "items[0].amount")
+  function current(field: string) {
+    const m = field.match(ITEM_FIELD);
+    const it = m && doc?.items[Number(m[1])];
+    return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
+  }
+
   function edit(patch: Partial<Doc>) {
     setDoc((d) => d && { ...d, ...patch });
     setDirty(true);
@@ -151,11 +171,6 @@ export default function ReviewPage() {
   // fills in the suggested values; nothing is saved until the user saves
   function applySuggestion(s: Suggestion) {
     // only onto the values it was worked out from: after an edit it waits for the next check
-    const current = (field: string) => {
-      const m = field.match(ITEM_FIELD);
-      const it = m && doc?.items[Number(m[1])];
-      return m ? (it ? (it as Record<string, string | null>)[m[2]] : undefined) : (doc as unknown as Record<string, string | null>)?.[field];
-    };
     if (!s.changes.every((c) => current(c.field) != null && Number(current(c.field)) === Number(c.from))) { // 280.00 is 280.0
       toast.error("The document changed. Wait a moment for the checks to update.");
       return;
@@ -170,6 +185,34 @@ export default function ReviewPage() {
       }
       return next;
     });
+    setDirty(true);
+  }
+
+  // fills in the second reading's values the user picked; nothing is saved until the user saves
+  function applySecond(changes: SecondChange[]) {
+    // only onto the values the second reading was compared against: stale otherwise
+    const stale = changes.some((c) =>
+      Array.isArray(c.to) ? doc?.items.length !== parseInt(c.from ?? "", 10) : !sameValue(current(c.field), c.from),
+    );
+    if (stale) {
+      toast.error("The document changed. Wait a moment for the checks to update.");
+      return;
+    }
+    setDoc((d) => {
+      if (!d) return d;
+      const next = { ...d, items: d.items.map((it) => ({ ...it })) };
+      for (const c of changes) {
+        const m = c.field.match(ITEM_FIELD);
+        if (Array.isArray(c.to)) next.items = cents({ ...next, items: c.to }).items;
+        else if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = m[2] === "quantity" ? c.to : pad(c.to);
+        else {
+          (next as unknown as Record<string, string | null>)[c.field] = MONEY_FIELDS.has(c.field) ? pad(c.to) : c.to;
+          if (c.text !== undefined) (next as unknown as Record<string, string | null>)[`${c.field}_text`] = c.text;
+        }
+      }
+      return next;
+    });
+    setSecond((s) => s.filter((x) => !changes.includes(x)));
     setDirty(true);
   }
 
@@ -461,8 +504,27 @@ export default function ReviewPage() {
                 <Button size="sm" className="mt-2" onClick={() => applySuggestion(suggestion)}>Apply</Button>
               </div>
             )}
+            {second.length > 0 && (
+              <div className="mb-3 rounded-md border p-3 text-sm">
+                <p className="font-medium">Second reading</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">A second AI read this receipt. Compare with the photo first.</p>
+                <ul className="mt-1.5 space-y-1 text-xs">
+                  {second.map((c) => (
+                    <li key={c.field} className="flex items-center justify-between gap-2">
+                      <span>
+                        {fieldLabel(c.field)}: <s>{c.from === null ? "empty" : secondText(c.field, c.from)}</s> →{" "}
+                        <b>{Array.isArray(c.to) ? `${c.to.length} lines` : secondText(c.field, c.to)}</b>
+                      </span>
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => applySecond([c])}>Use</Button>
+                    </li>
+                  ))}
+                </ul>
+                {second.length > 1 && <Button size="sm" className="mt-2" onClick={() => applySecond(second)}>Use all</Button>}
+              </div>
+            )}
             <ul className={cn("divide-y text-sm", checkError && "hidden")}>
-              {CHECK_GROUPS.map(([label, names]) => {
+              {CHECK_GROUPS.filter(([, names]) => !names.includes("second_reading") || detail.second_read
+                || checks.some((c) => names.includes(c.check))).map(([label, names]) => {
                 const issue = checks.find((c) => names.includes(c.check));
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>
@@ -544,6 +606,15 @@ const inputClass =
 const flagClass = "border-warn-line ring-1 ring-warn-line";
 
 const ITEM_FIELD = /^items\[(\d+)\]\.(\w+)$/;
+
+// is the current value still what a change was computed from? null/empty match, else string or number equal
+function sameValue(cur: unknown, from: string | null) {
+  const curEmpty = cur === null || cur === undefined || cur === "";
+  const fromEmpty = from === null || from === "";
+  if (curEmpty || fromEmpty) return curEmpty === fromEmpty;
+  if (String(cur) === String(from)) return true;
+  return !isNaN(Number(cur)) && !isNaN(Number(from)) && Number(cur) === Number(from);
+}
 
 // "items[2].amount" -> "Line 3 amount", "service_charge" -> "Service charge"
 function fieldLabel(field: string) {

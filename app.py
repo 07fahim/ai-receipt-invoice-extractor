@@ -45,6 +45,11 @@ MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 10))   # model reads (uploads + retries) per day: protects the quota
+SECOND_MODEL = os.environ.get('SECOND_MODEL', 'gemini-3.5-flash')
+SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   # whole app, any 24 hours: the free quota is shared
+SECOND_READ_PER_USER = int(os.environ.get('SECOND_READ_PER_USER', 5))   # per user, any 24 hours, on top of the app-wide cap
+SECOND_READ_FLAGGED_RESERVE = 5   # passed receipts use only leftover quota: this many stay for flagged ones
+REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate'}   # a second reading cannot settle these
 
 
 def reads_today(con, uid):
@@ -84,7 +89,7 @@ def current_user(authorization: str | None = Header(None)) -> str:
 
 
 COLUMNS = 'id, user_id, file_name, mime, status, document, checks, error, vendor, currency, issue_date, total, model, ' \
-          'prompt_version, tokens_in, tokens_out, created_at, updated_at'
+          'prompt_version, tokens_in, tokens_out, created_at, updated_at, second_reading'
 
 
 def row_by_id(con, doc_id, with_file=False):
@@ -106,6 +111,14 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
     if dup:
         checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
                        'message': f'Same vendor, number and total as {dup["doc_number"]}. It was uploaded earlier.'})
+    if doc_id is not None:
+        row = con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).fetchone()
+        if row and row['second_reading']:
+            second = apply_date_order(Document(**row['second_reading']), order)
+            changes = meaningful_changes(doc, second)
+            if changes:
+                checks.append({'check': 'second_reading', 'fields': sorted({c['field'].split('[')[0] for c in changes}),
+                               'message': 'A second AI reading differs. Compare with the photo.'})
     return checks
 
 
@@ -230,6 +243,7 @@ WAKE = threading.Event()  # set after a commit that queued events
 SENDING = set()  # users with an event in flight: one at a time per user keeps their events in order
 SENDING_LOCK = threading.Lock()
 SENDERS = ThreadPoolExecutor(8)  # a slow address holds one sender, never the others
+SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a batch upload's first readings never wait on them
 
 
 def deliver_events():
@@ -335,6 +349,60 @@ def process(doc_id):
             if failed:
                 queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
     WAKE.set()
+    SECOND_WORKER.submit(second_read, doc_id)   # queued on its own single worker, so it never delays the next file's first reading
+
+
+def second_read(doc_id):
+    # a flagged document is read again, blind, by another model; a passed one too, while quota is left.
+    # Its answer is offered in the review screen; on a passed document a meaningful disagreement sends it to review.
+    # A document gets at most one second reading: a retry keeps it, since it read the same file blind and is still valid.
+    try:
+        with store.conn() as con:
+            row = con.execute('SELECT status, checks, second_read_at, user_id, vendor, document FROM documents WHERE id = %s',
+                              (doc_id,)).fetchone()
+            if not row or row['second_read_at'] is not None:
+                return
+            passed = row['status'] == 'passed'
+            flagged = row['status'] == 'needs_review' and {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED
+            if not passed and not flagged:
+                return
+            uid = str(row['user_id'])
+            per_user = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND second_read_at > now() - interval '24 hours'",
+                                   (uid,)).fetchone()['n']
+            if per_user >= SECOND_READ_PER_USER:
+                return
+            used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+            limit = SECOND_READ_DAILY_LIMIT - SECOND_READ_FLAGGED_RESERVE if passed else SECOND_READ_DAILY_LIMIT
+            if used >= limit:  # exact: only one second reading runs at a time
+                return
+            file = con.execute('UPDATE documents SET second_read_at = now() WHERE id = %s RETURNING file', (doc_id,)).fetchone()['file']
+        second = providers.parse(providers.call(SECOND_MODEL, bytes(file))[0])
+        changed = False
+        with store.conn() as con:
+            con.execute('UPDATE documents SET second_reading = %s WHERE id = %s',
+                        (Jsonb(second.model_dump(mode='json')), doc_id))
+            # re-read: the document may have been re-saved while the model call was in flight
+            # (a vendor date-order re-check, a retry's new first reading), so decide on it as it is now
+            fresh = con.execute('SELECT status, document, user_id FROM documents WHERE id = %s FOR UPDATE', (doc_id,)).fetchone()
+            if fresh and fresh['document']:
+                uid = str(fresh['user_id'])
+                order = store.date_order(con, uid, fresh['document']['vendor'])
+                doc = apply_date_order(Document(**fresh['document']), order)
+                if fresh['status'] == 'passed':
+                    if meaningful_changes(doc, apply_date_order(second, order)):
+                        checks = run_checks(con, uid, doc, order, doc_id)
+                        changed = con.execute("UPDATE documents SET status = 'needs_review', checks = %s, updated_at = now() "
+                                              "WHERE id = %s AND status = 'passed'", (Jsonb(checks), doc_id)).rowcount
+                        if changed:
+                            queue_document_event(con, doc_id)
+                elif fresh['status'] == 'needs_review':  # the check needs the just-stored second reading to show without an edit first
+                    checks = run_checks(con, uid, doc, order, doc_id)
+                    con.execute("UPDATE documents SET checks = %s WHERE id = %s AND status = 'needs_review'",
+                               (Jsonb(checks), doc_id))
+        if changed:
+            WAKE.set()
+    except Exception as e:  # quota used up, busy, bad reply: the document simply goes to normal review
+        print(f'second reading of document {doc_id} failed: {e!r}')
 
 
 def resume_stuck():
@@ -446,6 +514,55 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
         return con.execute(sql, (*args, limit, offset)).fetchall()
 
 
+SECOND_FIELDS = ('vendor', 'doc_number', 'issue_date', 'due_date', 'currency', 'subtotal', 'discount', 'tax', 'service_charge', 'total')
+LINE_FIELDS = ('quantity', 'unit_price', 'amount', 'discount')
+
+
+def second_reading_changes(doc: Document, second: Document) -> list[dict]:
+    # what the second reading would change, field by field; values the document already has drop off
+    text = lambda v: None if v is None else str(v)
+    out = []
+    for f in SECOND_FIELDS:
+        new = getattr(second, f)
+        if new is not None and new != getattr(doc, f):
+            out.append({'field': f, 'from': text(getattr(doc, f)), 'to': str(new),
+                        **({'text': getattr(second, f + '_text')} if f.endswith('_date') else {})})
+    if len(second.items) != len(doc.items):
+        if second.items:
+            out.append({'field': 'items', 'from': f'{len(doc.items)} lines', 'to': [i.model_dump(mode='json') for i in second.items]})
+        return out
+    for n, (mine, theirs) in enumerate(zip(doc.items, second.items)):
+        for f in LINE_FIELDS:
+            new = getattr(theirs, f)
+            if new is not None and new != getattr(mine, f):
+                out.append({'field': f'items[{n}].{f}', 'from': text(getattr(mine, f)), 'to': str(new)})
+    return out
+
+
+MEANINGFUL_TOP = ('subtotal', 'discount', 'tax', 'service_charge', 'total', 'issue_date', 'due_date')
+
+
+def meaningful_changes(doc: Document, second: Document) -> list[dict]:
+    # differences worth a person's look: money, dates, line amounts, and the vendor beyond case and punctuation;
+    # 0.00 lines, letter case, currency or branch alone do not count
+    def money_lines(d):
+        return sorted(v for i in d.items for v in (i.amount, i.discount) if v)
+
+    out = []
+    for c in second_reading_changes(doc, second):
+        f = c['field']
+        if f == 'items':
+            if money_lines(doc) != money_lines(second):
+                out.append(c)
+        elif f in MEANINGFUL_TOP or (f.startswith('items[') and not f.endswith('.quantity')):
+            out.append(c)
+        elif f == 'vendor' and store.vendor_key(c['from']) != store.vendor_key(c['to']):
+            out.append(c)
+        elif f == 'doc_number' and c['from'] and store.same_number(c['from']) != store.same_number(c['to']):
+            out.append(c)
+    return out
+
+
 @app.get('/documents/{doc_id}')
 def get_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
@@ -455,7 +572,13 @@ def get_document(doc_id: int, uid: str = Depends(current_user)):
             # the original may have been deleted or corrected since: drop the flag, or link the copy still there
             r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
                            for c in r['checks'] if dup or c['check'] != 'duplicate']
+        second = r.pop('second_reading')
+        r['second_read'] = second is not None  # true once a second-reading answer is stored, even if nothing meaningful differs
+        has_second = r['status'] == 'needs_review' and second and r['document']
+        order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
+    r['second_reading'] = second_reading_changes(Document(**r['document']), apply_date_order(Document(**second), order)) \
+        if has_second else []
     return r
 
 
@@ -467,7 +590,12 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
-        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc)}
+        second = doc_id and con.execute('SELECT status, second_reading FROM documents WHERE id = %s AND user_id = %s',
+                                        (doc_id, uid)).fetchone()
+        changes = second_reading_changes(doc, apply_date_order(Document(**second['second_reading']), order)) \
+            if second and second['status'] == 'needs_review' and second['second_reading'] else []
+        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc),
+                'second_reading': changes}
 
 
 @app.put('/documents/{doc_id}')

@@ -47,8 +47,33 @@ ANSWERS = {
     'inv1042': '{"vendor": "ABC Ltd", "doc_number": "INV-1042", "total": 20, "items": [{"amount": 20}]}',
     'inv1042b': '{"vendor": "ABC Limited.", "doc_number": "#inv 1042", "total": 20, "items": [{"amount": 20}]}',
     'inv1043': '{"vendor": "ABC Ltd", "doc_number": "INV-1043", "total": 20, "items": [{"amount": 20}]}',
+    # a handwritten memo: line 2 read as 280 (2 x 120 is 240), date 20/06 (printed 20/05)
+    'memo': '{"vendor": "Fruit Store", "issue_date": "2024-06-20", "issue_date_text": "20/06/2024", "subtotal": 1230, "total": 1230,'
+            ' "items": [{"quantity": 2, "unit_price": 140, "amount": 280}, {"quantity": 2, "unit_price": 120, "amount": 280},'
+            ' {"quantity": 1, "unit_price": 710, "amount": 710}]}',
+    # a real check (item sum) fails, and 05/11/2021 is ambiguous: the two readings print the same text but take it the other way
+    'dateamb': '{"vendor": "Datevendor", "issue_date": "2021-11-05", "issue_date_text": "05/11/2021", "subtotal": 1230, "total": 1230,'
+               ' "items": [{"quantity": 2, "unit_price": 140, "amount": 280}, {"quantity": 2, "unit_price": 120, "amount": 280},'
+               ' {"quantity": 1, "unit_price": 710, "amount": 710}]}',
+    # passes every check; the second reading disagrees on the total (meaningful)
+    'pass2': '{"vendor": "Acme Co", "subtotal": 100, "tax": 10, "total": 110, "items": [{"amount": 100}]}',
+    # passes every check; the second reading differs only in vendor case and an extra 0.00 line (not meaningful)
+    'pass3': '{"vendor": "Beta Inc", "subtotal": 50, "tax": 5, "total": 55, "items": [{"amount": 50}]}',
+    # a real check (items_sum) fails; fake_call fixes the stored document (simulating a concurrent re-save)
+    # while the second model call is "in flight", so second_read must decide on the fixed document, not the stale one
+    'race': '{"vendor": "Race Co", "subtotal": 100, "total": 100, "items": [{"amount": 90}]}',
 }
 calls = []
+
+SECOND = {  # what the second-reading model says, by file
+    'memo': ANSWERS['memo'].replace('"amount": 280}, {"quantity": 1', '"amount": 240}, {"quantity": 1')
+                           .replace('2024-06-20", "issue_date_text": "20/06/2024', '2024-05-20", "issue_date_text": "20/05/2024'),
+    'memo4': ANSWERS['memo'].replace('"amount": 710}]', '"amount": 710}, {"quantity": 1, "unit_price": 0, "amount": 0}]'),
+    'dateamb': ANSWERS['dateamb'].replace('"issue_date": "2021-11-05"', '"issue_date": "2021-05-11"'),
+    'pass2': ANSWERS['pass2'].replace('"total": 110', '"total": 120'),
+    'pass3': ANSWERS['pass3'].replace('"vendor": "Beta Inc"', '"vendor": "BETA INC"')
+                             .replace('"items": [{"amount": 50}]', '"items": [{"amount": 50}, {"amount": 0}]'),
+}
 
 
 def fake_call(model, data):
@@ -56,10 +81,24 @@ def fake_call(model, data):
     key = data[8:].decode(errors='ignore').strip()
     if key == 'boom':
         raise RuntimeError('HTTP 503: high demand')
-    return ANSWERS[key], 100, 50, 1
+    if model == app.SECOND_MODEL:
+        if key == 'memoq':
+            raise RuntimeError('daily quota used up: HTTP 429')
+        if key == 'race':
+            # a concurrent re-save (e.g. a vendor date-order re-check) lands while this call is in flight
+            with store.conn() as con:
+                con.execute("UPDATE documents SET document = jsonb_set(document, '{items,0,amount}', '\"100\"'::jsonb) "
+                           "WHERE document->>'vendor' = 'Race Co'")
+        return SECOND.get(key, ANSWERS[key.rstrip('q4') if key.startswith('memo') else key]), 100, 50, 1
+    return ANSWERS[key.rstrip('q4') if key.startswith('memo') else key], 100, 50, 1
 
 
 providers.call = fake_call
+
+
+def second_done():
+    # SECOND_WORKER is a single FIFO worker: waiting for a no-op submitted now waits for everything queued before it
+    app.SECOND_WORKER.submit(lambda: None).result()
 
 # a local webhook receiver standing in for n8n
 import contextlib, hashlib, hmac, http.client, json, threading
@@ -118,6 +157,8 @@ def flush():
     raise AssertionError('webhook events were not sent')
 c = TestClient(app.app, headers=as_user(ALICE))
 app.DAILY_UPLOAD_LIMIT = 50  # these tests upload more than the default 10; the limit test sets its own
+app.SECOND_READ_DAILY_LIMIT = 200  # passed documents now also queue second reads; avoid tripping the cap in unrelated tests
+app.SECOND_READ_PER_USER = 50
 import store
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
@@ -584,6 +625,130 @@ try:
     with store.conn() as con:
         assert con.execute('SELECT count(*) AS n FROM webhooks WHERE user_id = %s', (JUDY,)).fetchone()['n'] == 0
     app.public_ip = real_public_ip
+    # second reading: a flagged document is read again by a second model; nothing about the document changes
+    erin = as_user(str(uuid.uuid4()))
+    def second_of(doc_id):
+        with store.conn() as con:
+            return con.execute('SELECT second_reading, second_read_at, extracted, document, status, checks FROM documents WHERE id = %s',
+                               (doc_id,)).fetchone()
+    memo_id = c.post('/documents', files=[('files', ('m.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    row = second_of(memo_id)
+    assert row['status'] == 'needs_review' and row['second_read_at'] is not None
+    assert row['second_reading']['items'][1]['amount'] == '240' and row['second_reading']['issue_date'] == '2024-05-20'
+    assert row['document'] == row['extracted'] and row['document']['items'][1]['amount'] == '280'  # untouched
+    # the second_reading check shows as soon as the reading is in, with no edit needed
+    assert any(ck['check'] == 'second_reading' for ck in row['checks']), row['checks']
+    assert c.get(f'/documents/{memo_id}', headers=erin).json()['second_read'] is True
+    # passed, and flagged only for the date question: no second reading
+    passed_id = c.post('/documents', files=[('files', ('g.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    date_id = c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    # passed documents now get a second reading too, from leftover quota (same answer as the first, so it stays passed)
+    assert second_of(passed_id)['second_read_at'] is not None and second_of(date_id)['second_read_at'] is None
+    # date_id never got a second reading (only date_ambiguous, excluded): second_read says so
+    assert c.get(f'/documents/{date_id}', headers=erin).json()['second_read'] is False
+    # the differences, field by field; a date comes with its printed text
+    d = c.get(f'/documents/{memo_id}', headers=erin).json()
+    assert {(x['field'], x['from'], x['to']) for x in d['second_reading']} == {('items[1].amount', '280', '240'), ('issue_date', '2024-06-20', '2024-05-20')}, d['second_reading']
+    assert [x['text'] for x in d['second_reading'] if x['field'] == 'issue_date'] == ['20/05/2024']
+    # a value the user already took drops off; other documents' readings are not shown
+    edited = {**d['document'], 'items': [*d['document']['items'][:1], {**d['document']['items'][1], 'amount': '240.00'}, d['document']['items'][2]]}
+    left = c.post('/check', json=edited, params={'doc_id': memo_id}, headers=erin).json()['second_reading']
+    assert [x['field'] for x in left] == ['issue_date'], left
+    assert c.post('/check', json=edited, params={'doc_id': memo_id}).json()['second_reading'] == []  # Alice: not her document
+    assert c.get(f'/documents/{passed_id}', headers=erin).json()['second_reading'] == []
+    # once reviewed, /check no longer offers the second reading for it (GET already stops: status != needs_review)
+    c.put(f'/documents/{memo_id}', json=edited, headers=erin)
+    assert c.post('/check', json=edited, params={'doc_id': memo_id}, headers=erin).json()['second_reading'] == []
+    # a different number of lines: one change that replaces the list
+    four_id = c.post('/documents', files=[('files', ('m4.jpg', io.BytesIO(JPG + b'memo4'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    changes = c.get(f'/documents/{four_id}', headers=erin).json()['second_reading']
+    assert [x['field'] for x in changes] == ['items'] and len(changes[0]['to']) == 4 and changes[0]['from'] == '3 lines'
+    # the quota runs out: the document is untouched, the attempt counts toward the cap
+    q_id = c.post('/documents', files=[('files', ('q.jpg', io.BytesIO(JPG + b'memoq'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    row = second_of(q_id)
+    assert row['second_read_at'] is not None and row['second_reading'] is None and row['status'] == 'needs_review'
+    # the daily cap (whole app) stops further second readings
+    real_cap = app.SECOND_READ_DAILY_LIMIT
+    with store.conn() as con:
+        app.SECOND_READ_DAILY_LIMIT = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+    capped = c.post('/documents', files=[('files', ('m2.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    assert second_of(capped)['second_read_at'] is None
+    assert c.get(f'/documents/{capped}', headers=erin).json()['second_read'] is False  # capped: no reading, so no false tick
+    app.SECOND_READ_DAILY_LIMIT = real_cap
+    # retry keeps the first second reading: it read the same file blind, so it is still valid
+    before = second_of(memo_id)
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'failed' WHERE id = %s", (memo_id,))
+    assert c.post(f'/documents/{memo_id}/retry', headers=erin).status_code == 202
+    second_done()
+    after = second_of(memo_id)
+    assert after['second_read_at'] == before['second_read_at'] and after['second_reading'] == before['second_reading']
+    # dates are compared after the vendor's saved date order: same printed text, read the other way, is not a change
+    c.put('/vendors/Datevendor/date-order', json={'date_order': 'DMY'}, headers=erin)
+    dateamb_id = c.post('/documents', files=[('files', ('d.jpg', io.BytesIO(JPG + b'dateamb'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    d = c.get(f'/documents/{dateamb_id}', headers=erin).json()
+    assert d['status'] == 'needs_review' and 'issue_date' not in {x['field'] for x in d['second_reading']}, d['second_reading']
+
+    # a passed receipt whose second reading meaningfully differs (total) moves to needs_review with a new check;
+    # Alice's documents go to the server's webhook (WEBHOOK_USER_ID), so the event can be checked directly
+    pass2_id = c.post('/documents', files=[('files', ('p2.jpg', io.BytesIO(JPG + b'pass2'), 'image/jpeg'))]).json()[0]['id']
+    second_done()
+    row = second_of(pass2_id)
+    assert row['status'] == 'needs_review'
+    assert {ck['check'] for ck in row['checks']} == {'second_reading'}, row['checks']
+    assert row['document'] == row['extracted']  # the AI's reading and the user's document are never touched
+    flush()
+    e, _, _ = events[-1]
+    assert e['id'] == pass2_id and e['event'] == 'document.needs_review'
+    # the check is live: applying the second reading's total makes it pass again
+    d2 = c.get(f'/documents/{pass2_id}').json()
+    fixed = {**d2['document'], 'total': '120'}
+    assert not any(x['check'] == 'second_reading' for x in c.post('/check', json=fixed, params={'doc_id': pass2_id}).json()['checks'])
+    # a passed receipt whose second reading differs only in vendor case and a 0.00 line stays passed
+    pass3_id = c.post('/documents', files=[('files', ('p3.jpg', io.BytesIO(JPG + b'pass3'), 'image/jpeg'))]).json()[0]['id']
+    second_done()
+    row3 = second_of(pass3_id)
+    assert row3['second_read_at'] is not None and row3['status'] == 'passed'  # a reading ran; it just wasn't meaningful
+
+    # per-user cap: a user who already used today's personal quota gets no more second readings, another user still does
+    with store.conn() as con:
+        alice_used = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND second_read_at > now() - interval '24 hours'",
+                                 (ALICE,)).fetchone()['n']
+    real_per_user, app.SECOND_READ_PER_USER = app.SECOND_READ_PER_USER, alice_used
+    alice_flagged = c.post('/documents', files=[('files', ('af.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))]).json()[0]['id']
+    bob_flagged = c.post('/documents', files=[('files', ('bf.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=bob).json()[0]['id']
+    second_done()
+    assert second_of(alice_flagged)['second_read_at'] is None
+    assert second_of(bob_flagged)['second_read_at'] is not None
+    app.SECOND_READ_PER_USER = real_per_user
+
+    # leftover rule: passed documents use only quota beyond SECOND_READ_FLAGGED_RESERVE; flagged ones still get theirs
+    with store.conn() as con:
+        used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+    real_cap2, app.SECOND_READ_DAILY_LIMIT = app.SECOND_READ_DAILY_LIMIT, used + app.SECOND_READ_FLAGGED_RESERVE
+    grace = as_user(str(uuid.uuid4()))
+    no_second_id = c.post('/documents', files=[('files', ('np.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=grace).json()[0]['id']
+    still_flagged_id = c.post('/documents', files=[('files', ('sf.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=grace).json()[0]['id']
+    second_done()
+    assert second_of(no_second_id)['second_read_at'] is None
+    assert second_of(still_flagged_id)['second_read_at'] is not None
+    app.SECOND_READ_DAILY_LIMIT = real_cap2
+
+    # a race: the document is re-saved (e.g. a vendor date-order re-check) while the second model call is
+    # in flight; second_read must decide on the document as it is now, not as it was before the call
+    race_id = c.post('/documents', files=[('files', ('rc.jpg', io.BytesIO(JPG + b'race'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    race_row = second_of(race_id)
+    assert race_row['status'] == 'needs_review'
+    assert race_row['document']['items'][0]['amount'] == '100'  # the concurrent fix; second_read never touches document
+    # on the fixed document, items_sum now passes; only the (stale) second reading still disagrees with the fix
+    assert {ck['check'] for ck in race_row['checks']} == {'second_reading'}, race_row['checks']
     print('ok')
 finally:
     import store
