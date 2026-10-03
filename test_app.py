@@ -59,6 +59,9 @@ ANSWERS = {
     'pass2': '{"vendor": "Acme Co", "subtotal": 100, "tax": 10, "total": 110, "items": [{"amount": 100}]}',
     # passes every check; the second reading differs only in vendor case and an extra 0.00 line (not meaningful)
     'pass3': '{"vendor": "Beta Inc", "subtotal": 50, "tax": 5, "total": 55, "items": [{"amount": 50}]}',
+    # a real check (items_sum) fails; fake_call fixes the stored document (simulating a concurrent re-save)
+    # while the second model call is "in flight", so second_read must decide on the fixed document, not the stale one
+    'race': '{"vendor": "Race Co", "subtotal": 100, "total": 100, "items": [{"amount": 90}]}',
 }
 calls = []
 
@@ -81,6 +84,11 @@ def fake_call(model, data):
     if model == app.SECOND_MODEL:
         if key == 'memoq':
             raise RuntimeError('daily quota used up: HTTP 429')
+        if key == 'race':
+            # a concurrent re-save (e.g. a vendor date-order re-check) lands while this call is in flight
+            with store.conn() as con:
+                con.execute("UPDATE documents SET document = jsonb_set(document, '{items,0,amount}', '\"100\"'::jsonb) "
+                           "WHERE document->>'vendor' = 'Race Co'")
         return SECOND.get(key, ANSWERS[key.rstrip('q4') if key.startswith('memo') else key]), 100, 50, 1
     return ANSWERS[key.rstrip('q4') if key.startswith('memo') else key], 100, 50, 1
 
@@ -731,6 +739,16 @@ try:
     assert second_of(no_second_id)['second_read_at'] is None
     assert second_of(still_flagged_id)['second_read_at'] is not None
     app.SECOND_READ_DAILY_LIMIT = real_cap2
+
+    # a race: the document is re-saved (e.g. a vendor date-order re-check) while the second model call is
+    # in flight; second_read must decide on the document as it is now, not as it was before the call
+    race_id = c.post('/documents', files=[('files', ('rc.jpg', io.BytesIO(JPG + b'race'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    race_row = second_of(race_id)
+    assert race_row['status'] == 'needs_review'
+    assert race_row['document']['items'][0]['amount'] == '100'  # the concurrent fix; second_read never touches document
+    # on the fixed document, items_sum now passes; only the (stale) second reading still disagrees with the fix
+    assert {ck['check'] for ck in race_row['checks']} == {'second_reading'}, race_row['checks']
     print('ok')
 finally:
     import store

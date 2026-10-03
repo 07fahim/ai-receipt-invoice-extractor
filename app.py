@@ -381,19 +381,24 @@ def second_read(doc_id):
         with store.conn() as con:
             con.execute('UPDATE documents SET second_reading = %s WHERE id = %s',
                         (Jsonb(second.model_dump(mode='json')), doc_id))
-            order = store.date_order(con, uid, row['vendor'])
-            doc = apply_date_order(Document(**row['document']), order)
-            if passed:
-                if meaningful_changes(doc, apply_date_order(second, order)):
+            # re-read: the document may have been re-saved while the model call was in flight
+            # (a vendor date-order re-check, a retry's new first reading), so decide on it as it is now
+            fresh = con.execute('SELECT status, document, user_id FROM documents WHERE id = %s FOR UPDATE', (doc_id,)).fetchone()
+            if fresh and fresh['document']:
+                uid = str(fresh['user_id'])
+                order = store.date_order(con, uid, fresh['document']['vendor'])
+                doc = apply_date_order(Document(**fresh['document']), order)
+                if fresh['status'] == 'passed':
+                    if meaningful_changes(doc, apply_date_order(second, order)):
+                        checks = run_checks(con, uid, doc, order, doc_id)
+                        changed = con.execute("UPDATE documents SET status = 'needs_review', checks = %s, updated_at = now() "
+                                              "WHERE id = %s AND status = 'passed'", (Jsonb(checks), doc_id)).rowcount
+                        if changed:
+                            queue_document_event(con, doc_id)
+                elif fresh['status'] == 'needs_review':  # the check needs the just-stored second reading to show without an edit first
                     checks = run_checks(con, uid, doc, order, doc_id)
-                    changed = con.execute("UPDATE documents SET status = 'needs_review', checks = %s, updated_at = now() "
-                                          "WHERE id = %s AND status = 'passed'", (Jsonb(checks), doc_id)).rowcount
-                    if changed:
-                        queue_document_event(con, doc_id)
-            else:  # flagged: the check needs the just-stored second reading to show up without an edit first
-                checks = run_checks(con, uid, doc, order, doc_id)
-                con.execute("UPDATE documents SET checks = %s WHERE id = %s AND status = 'needs_review'",
-                           (Jsonb(checks), doc_id))
+                    con.execute("UPDATE documents SET checks = %s WHERE id = %s AND status = 'needs_review'",
+                               (Jsonb(checks), doc_id))
         if changed:
             WAKE.set()
     except Exception as e:  # quota used up, busy, bad reply: the document simply goes to normal review
