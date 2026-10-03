@@ -75,6 +75,11 @@ def fake_call(model, data):
 
 providers.call = fake_call
 
+
+def second_done():
+    # SECOND_WORKER is a single FIFO worker: waiting for a no-op submitted now waits for everything queued before it
+    app.SECOND_WORKER.submit(lambda: None).result()
+
 # a local webhook receiver standing in for n8n
 import contextlib, hashlib, hmac, http.client, json, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -605,6 +610,7 @@ try:
             return con.execute('SELECT second_reading, second_read_at, extracted, document, status FROM documents WHERE id = %s',
                                (doc_id,)).fetchone()
     memo_id = c.post('/documents', files=[('files', ('m.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
     row = second_of(memo_id)
     assert row['status'] == 'needs_review' and row['second_read_at'] is not None
     assert row['second_reading']['items'][1]['amount'] == '240' and row['second_reading']['issue_date'] == '2024-05-20'
@@ -612,6 +618,7 @@ try:
     # passed, and flagged only for the date question: no second reading
     passed_id = c.post('/documents', files=[('files', ('g.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]['id']
     date_id = c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
     assert second_of(passed_id)['second_read_at'] is None and second_of(date_id)['second_read_at'] is None
     # the differences, field by field; a date comes with its printed text
     d = c.get(f'/documents/{memo_id}', headers=erin).json()
@@ -625,10 +632,12 @@ try:
     assert c.get(f'/documents/{passed_id}', headers=erin).json()['second_reading'] == []
     # a different number of lines: one change that replaces the list
     four_id = c.post('/documents', files=[('files', ('m4.jpg', io.BytesIO(JPG + b'memo4'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
     changes = c.get(f'/documents/{four_id}', headers=erin).json()['second_reading']
     assert [x['field'] for x in changes] == ['items'] and len(changes[0]['to']) == 4 and changes[0]['from'] == '3 lines'
     # the quota runs out: the document is untouched, the attempt counts toward the cap
     q_id = c.post('/documents', files=[('files', ('q.jpg', io.BytesIO(JPG + b'memoq'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
     row = second_of(q_id)
     assert row['second_read_at'] is not None and row['second_reading'] is None and row['status'] == 'needs_review'
     # the daily cap (whole app) stops further second readings
@@ -636,6 +645,7 @@ try:
     with store.conn() as con:
         app.SECOND_READ_DAILY_LIMIT = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
     capped = c.post('/documents', files=[('files', ('m2.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
     assert second_of(capped)['second_read_at'] is None
     app.SECOND_READ_DAILY_LIMIT = real_cap
     print('ok')

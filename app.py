@@ -233,6 +233,7 @@ WAKE = threading.Event()  # set after a commit that queued events
 SENDING = set()  # users with an event in flight: one at a time per user keeps their events in order
 SENDING_LOCK = threading.Lock()
 SENDERS = ThreadPoolExecutor(8)  # a slow address holds one sender, never the others
+SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a batch upload's first readings never wait on them
 
 
 def deliver_events():
@@ -327,7 +328,7 @@ def process(doc_id):
         text, tin, tout, _ = providers.call(MODEL, bytes(row['file']))
         doc = providers.parse(text)
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
-                 'tokens_in': tin, 'tokens_out': tout, 'second_reading': None}
+                 'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
             save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
             queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted meanwhile)
@@ -338,7 +339,7 @@ def process(doc_id):
             if failed:
                 queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
     WAKE.set()
-    second_read(doc_id)   # after the events go out, so a slow second reading delays nothing
+    SECOND_WORKER.submit(second_read, doc_id)   # queued on its own single worker, so it never delays the next file's first reading
 
 
 def second_read(doc_id):
@@ -349,7 +350,7 @@ def second_read(doc_id):
             if not row or row['status'] != 'needs_review' or not {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED:
                 return
             used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
-            if used >= SECOND_READ_DAILY_LIMIT:  # soft cap: uploads at the same moment may pass it by one or two
+            if used >= SECOND_READ_DAILY_LIMIT:  # exact: only one second reading runs at a time
                 return
             file = con.execute('UPDATE documents SET second_read_at = now() WHERE id = %s RETURNING file', (doc_id,)).fetchone()['file']
         second = providers.parse(providers.call(SECOND_MODEL, bytes(file))[0])
