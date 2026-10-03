@@ -377,6 +377,7 @@ def second_read(doc_id):
                 return
             file = con.execute('UPDATE documents SET second_read_at = now() WHERE id = %s RETURNING file', (doc_id,)).fetchone()['file']
         second = providers.parse(providers.call(SECOND_MODEL, bytes(file))[0])
+        changed = False
         with store.conn() as con:
             con.execute('UPDATE documents SET second_reading = %s WHERE id = %s',
                         (Jsonb(second.model_dump(mode='json')), doc_id))
@@ -389,7 +390,8 @@ def second_read(doc_id):
                                           "WHERE id = %s AND status = 'passed'", (Jsonb(checks), doc_id)).rowcount
                     if changed:
                         queue_document_event(con, doc_id)
-                        WAKE.set()
+        if changed:
+            WAKE.set()
     except Exception as e:  # quota used up, busy, bad reply: the document simply goes to normal review
         print(f'second reading of document {doc_id} failed: {e!r}')
 
