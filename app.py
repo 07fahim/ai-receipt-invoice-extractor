@@ -47,6 +47,8 @@ DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 10))   # model reads (uploads + retries) per day: protects the quota
 SECOND_MODEL = os.environ.get('SECOND_MODEL', 'gemini-3.5-flash')
 SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   # whole app, any 24 hours: the free quota is shared
+SECOND_READ_PER_USER = int(os.environ.get('SECOND_READ_PER_USER', 5))   # per user, any 24 hours, on top of the app-wide cap
+SECOND_READ_FLAGGED_RESERVE = 5   # passed receipts use only leftover quota: this many stay for flagged ones
 REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate'}   # a second reading cannot settle these
 
 
@@ -109,6 +111,14 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
     if dup:
         checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
                        'message': f'Same vendor, number and total as {dup["doc_number"]}. It was uploaded earlier.'})
+    if doc_id is not None:
+        row = con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).fetchone()
+        if row and row['second_reading']:
+            second = apply_date_order(Document(**row['second_reading']), order)
+            changes = meaningful_changes(doc, second)
+            if changes:
+                checks.append({'check': 'second_reading', 'fields': sorted({c['field'].split('[')[0] for c in changes}),
+                               'message': 'A second AI reading differs. Compare with the photo.'})
     return checks
 
 
@@ -343,22 +353,43 @@ def process(doc_id):
 
 
 def second_read(doc_id):
-    # a flagged document is read again, blind, by another model; its answer is only offered in the review screen.
+    # a flagged document is read again, blind, by another model; a passed one too, while quota is left.
+    # Its answer is offered in the review screen; on a passed document a meaningful disagreement sends it to review.
     # A document gets at most one second reading: a retry keeps it, since it read the same file blind and is still valid.
     try:
         with store.conn() as con:
-            row = con.execute('SELECT status, checks, second_read_at FROM documents WHERE id = %s', (doc_id,)).fetchone()
-            if not row or row['second_read_at'] is not None or row['status'] != 'needs_review' \
-                    or not {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED:
+            row = con.execute('SELECT status, checks, second_read_at, user_id, vendor, document FROM documents WHERE id = %s',
+                              (doc_id,)).fetchone()
+            if not row or row['second_read_at'] is not None:
+                return
+            passed = row['status'] == 'passed'
+            flagged = row['status'] == 'needs_review' and {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED
+            if not passed and not flagged:
+                return
+            uid = str(row['user_id'])
+            per_user = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND second_read_at > now() - interval '24 hours'",
+                                   (uid,)).fetchone()['n']
+            if per_user >= SECOND_READ_PER_USER:
                 return
             used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
-            if used >= SECOND_READ_DAILY_LIMIT:  # exact: only one second reading runs at a time
+            limit = SECOND_READ_DAILY_LIMIT - SECOND_READ_FLAGGED_RESERVE if passed else SECOND_READ_DAILY_LIMIT
+            if used >= limit:  # exact: only one second reading runs at a time
                 return
             file = con.execute('UPDATE documents SET second_read_at = now() WHERE id = %s RETURNING file', (doc_id,)).fetchone()['file']
         second = providers.parse(providers.call(SECOND_MODEL, bytes(file))[0])
         with store.conn() as con:
             con.execute('UPDATE documents SET second_reading = %s WHERE id = %s',
                         (Jsonb(second.model_dump(mode='json')), doc_id))
+            if passed:
+                order = store.date_order(con, uid, row['vendor'])
+                doc = Document(**row['document'])
+                if meaningful_changes(doc, apply_date_order(second, order)):
+                    checks = run_checks(con, uid, doc, order, doc_id)
+                    changed = con.execute("UPDATE documents SET status = 'needs_review', checks = %s, updated_at = now() "
+                                          "WHERE id = %s AND status = 'passed'", (Jsonb(checks), doc_id)).rowcount
+                    if changed:
+                        queue_document_event(con, doc_id)
+                        WAKE.set()
     except Exception as e:  # quota used up, busy, bad reply: the document simply goes to normal review
         print(f'second reading of document {doc_id} failed: {e!r}')
 
@@ -494,6 +525,30 @@ def second_reading_changes(doc: Document, second: Document) -> list[dict]:
             new = getattr(theirs, f)
             if new is not None and new != getattr(mine, f):
                 out.append({'field': f'items[{n}].{f}', 'from': text(getattr(mine, f)), 'to': str(new)})
+    return out
+
+
+MEANINGFUL_TOP = ('subtotal', 'discount', 'tax', 'service_charge', 'total', 'issue_date', 'due_date')
+
+
+def meaningful_changes(doc: Document, second: Document) -> list[dict]:
+    # differences worth a person's look: money, dates, line amounts, and the vendor beyond case and punctuation;
+    # 0.00 lines, letter case, currency or branch alone do not count
+    def money_lines(d):
+        return sorted(v for i in d.items for v in (i.amount, i.discount) if v)
+
+    out = []
+    for c in second_reading_changes(doc, second):
+        f = c['field']
+        if f == 'items':
+            if money_lines(doc) != money_lines(second):
+                out.append(c)
+        elif f in MEANINGFUL_TOP or (f.startswith('items[') and not f.endswith('.quantity')):
+            out.append(c)
+        elif f == 'vendor' and store.vendor_key(c['from']) != store.vendor_key(c['to']):
+            out.append(c)
+        elif f == 'doc_number' and c['from'] and store.same_number(c['from']) != store.same_number(c['to']):
+            out.append(c)
     return out
 
 

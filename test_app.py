@@ -55,6 +55,10 @@ ANSWERS = {
     'dateamb': '{"vendor": "Datevendor", "issue_date": "2021-11-05", "issue_date_text": "05/11/2021", "subtotal": 1230, "total": 1230,'
                ' "items": [{"quantity": 2, "unit_price": 140, "amount": 280}, {"quantity": 2, "unit_price": 120, "amount": 280},'
                ' {"quantity": 1, "unit_price": 710, "amount": 710}]}',
+    # passes every check; the second reading disagrees on the total (meaningful)
+    'pass2': '{"vendor": "Acme Co", "subtotal": 100, "tax": 10, "total": 110, "items": [{"amount": 100}]}',
+    # passes every check; the second reading differs only in vendor case and an extra 0.00 line (not meaningful)
+    'pass3': '{"vendor": "Beta Inc", "subtotal": 50, "tax": 5, "total": 55, "items": [{"amount": 50}]}',
 }
 calls = []
 
@@ -63,6 +67,9 @@ SECOND = {  # what the second-reading model says, by file
                            .replace('2024-06-20", "issue_date_text": "20/06/2024', '2024-05-20", "issue_date_text": "20/05/2024'),
     'memo4': ANSWERS['memo'].replace('"amount": 710}]', '"amount": 710}, {"quantity": 1, "unit_price": 0, "amount": 0}]'),
     'dateamb': ANSWERS['dateamb'].replace('"issue_date": "2021-11-05"', '"issue_date": "2021-05-11"'),
+    'pass2': ANSWERS['pass2'].replace('"total": 110', '"total": 120'),
+    'pass3': ANSWERS['pass3'].replace('"vendor": "Beta Inc"', '"vendor": "BETA INC"')
+                             .replace('"items": [{"amount": 50}]', '"items": [{"amount": 50}, {"amount": 0}]'),
 }
 
 
@@ -142,6 +149,8 @@ def flush():
     raise AssertionError('webhook events were not sent')
 c = TestClient(app.app, headers=as_user(ALICE))
 app.DAILY_UPLOAD_LIMIT = 50  # these tests upload more than the default 10; the limit test sets its own
+app.SECOND_READ_DAILY_LIMIT = 200  # passed documents now also queue second reads; avoid tripping the cap in unrelated tests
+app.SECOND_READ_PER_USER = 50
 import store
 try:
     JPG = b'\xff\xd8\xff\xe0\x00\x10JF'  # 8-byte JPEG header, then the answer key
@@ -612,7 +621,7 @@ try:
     erin = as_user(str(uuid.uuid4()))
     def second_of(doc_id):
         with store.conn() as con:
-            return con.execute('SELECT second_reading, second_read_at, extracted, document, status FROM documents WHERE id = %s',
+            return con.execute('SELECT second_reading, second_read_at, extracted, document, status, checks FROM documents WHERE id = %s',
                                (doc_id,)).fetchone()
     memo_id = c.post('/documents', files=[('files', ('m.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=erin).json()[0]['id']
     second_done()
@@ -624,7 +633,8 @@ try:
     passed_id = c.post('/documents', files=[('files', ('g.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]['id']
     date_id = c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=erin).json()[0]['id']
     second_done()
-    assert second_of(passed_id)['second_read_at'] is None and second_of(date_id)['second_read_at'] is None
+    # passed documents now get a second reading too, from leftover quota (same answer as the first, so it stays passed)
+    assert second_of(passed_id)['second_read_at'] is not None and second_of(date_id)['second_read_at'] is None
     # the differences, field by field; a date comes with its printed text
     d = c.get(f'/documents/{memo_id}', headers=erin).json()
     assert {(x['field'], x['from'], x['to']) for x in d['second_reading']} == {('items[1].amount', '280', '240'), ('issue_date', '2024-06-20', '2024-05-20')}, d['second_reading']
@@ -670,6 +680,50 @@ try:
     second_done()
     d = c.get(f'/documents/{dateamb_id}', headers=erin).json()
     assert d['status'] == 'needs_review' and 'issue_date' not in {x['field'] for x in d['second_reading']}, d['second_reading']
+
+    # a passed receipt whose second reading meaningfully differs (total) moves to needs_review with a new check;
+    # Alice's documents go to the server's webhook (WEBHOOK_USER_ID), so the event can be checked directly
+    pass2_id = c.post('/documents', files=[('files', ('p2.jpg', io.BytesIO(JPG + b'pass2'), 'image/jpeg'))]).json()[0]['id']
+    second_done()
+    row = second_of(pass2_id)
+    assert row['status'] == 'needs_review'
+    assert {ck['check'] for ck in row['checks']} == {'second_reading'}, row['checks']
+    assert row['document'] == row['extracted']  # the AI's reading and the user's document are never touched
+    flush()
+    e, _, _ = events[-1]
+    assert e['id'] == pass2_id and e['event'] == 'document.needs_review'
+    # the check is live: applying the second reading's total makes it pass again
+    d2 = c.get(f'/documents/{pass2_id}').json()
+    fixed = {**d2['document'], 'total': '120'}
+    assert not any(x['check'] == 'second_reading' for x in c.post('/check', json=fixed, params={'doc_id': pass2_id}).json()['checks'])
+    # a passed receipt whose second reading differs only in vendor case and a 0.00 line stays passed
+    pass3_id = c.post('/documents', files=[('files', ('p3.jpg', io.BytesIO(JPG + b'pass3'), 'image/jpeg'))]).json()[0]['id']
+    second_done()
+    assert second_of(pass3_id)['status'] == 'passed'
+
+    # per-user cap: a user who already used today's personal quota gets no more second readings, another user still does
+    with store.conn() as con:
+        alice_used = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND second_read_at > now() - interval '24 hours'",
+                                 (ALICE,)).fetchone()['n']
+    real_per_user, app.SECOND_READ_PER_USER = app.SECOND_READ_PER_USER, alice_used
+    alice_flagged = c.post('/documents', files=[('files', ('af.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))]).json()[0]['id']
+    bob_flagged = c.post('/documents', files=[('files', ('bf.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=bob).json()[0]['id']
+    second_done()
+    assert second_of(alice_flagged)['second_read_at'] is None
+    assert second_of(bob_flagged)['second_read_at'] is not None
+    app.SECOND_READ_PER_USER = real_per_user
+
+    # leftover rule: passed documents use only quota beyond SECOND_READ_FLAGGED_RESERVE; flagged ones still get theirs
+    with store.conn() as con:
+        used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+    real_cap2, app.SECOND_READ_DAILY_LIMIT = app.SECOND_READ_DAILY_LIMIT, used + app.SECOND_READ_FLAGGED_RESERVE
+    grace = as_user(str(uuid.uuid4()))
+    no_second_id = c.post('/documents', files=[('files', ('np.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=grace).json()[0]['id']
+    still_flagged_id = c.post('/documents', files=[('files', ('sf.jpg', io.BytesIO(JPG + b'memo'), 'image/jpeg'))], headers=grace).json()[0]['id']
+    second_done()
+    assert second_of(no_second_id)['second_read_at'] is None
+    assert second_of(still_flagged_id)['second_read_at'] is not None
+    app.SECOND_READ_DAILY_LIMIT = real_cap2
     print('ok')
 finally:
     import store
