@@ -367,15 +367,17 @@ def second_read(doc_id):
             if not passed and not flagged:
                 return
             uid = str(row['user_id'])
-            per_user = con.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s AND second_read_at > now() - interval '24 hours'",
+            # counted from their own log, so deleting a document does not give the quota back
+            per_user = con.execute("SELECT count(*) AS n FROM second_reads WHERE user_id = %s AND at > now() - interval '24 hours'",
                                    (uid,)).fetchone()['n']
             if per_user >= SECOND_READ_PER_USER:
                 return
-            used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
+            used = con.execute("SELECT count(*) AS n FROM second_reads WHERE at > now() - interval '24 hours'").fetchone()['n']
             limit = SECOND_READ_DAILY_LIMIT - SECOND_READ_FLAGGED_RESERVE if passed else SECOND_READ_DAILY_LIMIT
             if used >= limit:  # exact: only one second reading runs at a time
                 return
             file = con.execute('UPDATE documents SET second_read_at = now() WHERE id = %s RETURNING file', (doc_id,)).fetchone()['file']
+            con.execute('INSERT INTO second_reads (user_id) VALUES (%s)', (uid,))
         second = providers.parse(providers.call(SECOND_MODEL, bytes(file))[0])
         changed = False
         with store.conn() as con:
@@ -735,6 +737,7 @@ def delete_account(uid: str = Depends(current_user)):
         con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
+        con.execute('UPDATE second_reads SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts toward the app-wide cap
         con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
         try:
