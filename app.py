@@ -343,11 +343,13 @@ def process(doc_id):
 
 
 def second_read(doc_id):
-    # a flagged document is read again, blind, by another model; its answer is only offered in the review screen
+    # a flagged document is read again, blind, by another model; its answer is only offered in the review screen.
+    # A document gets at most one second reading: a retry keeps it, since it read the same file blind and is still valid.
     try:
         with store.conn() as con:
-            row = con.execute('SELECT status, checks FROM documents WHERE id = %s', (doc_id,)).fetchone()
-            if not row or row['status'] != 'needs_review' or not {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED:
+            row = con.execute('SELECT status, checks, second_read_at FROM documents WHERE id = %s', (doc_id,)).fetchone()
+            if not row or row['second_read_at'] is not None or row['status'] != 'needs_review' \
+                    or not {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED:
                 return
             used = con.execute("SELECT count(*) AS n FROM documents WHERE second_read_at > now() - interval '24 hours'").fetchone()['n']
             if used >= SECOND_READ_DAILY_LIMIT:  # exact: only one second reading runs at a time

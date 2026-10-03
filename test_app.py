@@ -648,6 +648,14 @@ try:
     second_done()
     assert second_of(capped)['second_read_at'] is None
     app.SECOND_READ_DAILY_LIMIT = real_cap
+    # retry keeps the first second reading: it read the same file blind, so it is still valid
+    before = second_of(memo_id)
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'failed' WHERE id = %s", (memo_id,))
+    assert c.post(f'/documents/{memo_id}/retry', headers=erin).status_code == 202
+    second_done()
+    after = second_of(memo_id)
+    assert after['second_read_at'] == before['second_read_at'] and after['second_reading'] == before['second_reading']
     print('ok')
 finally:
     import store
