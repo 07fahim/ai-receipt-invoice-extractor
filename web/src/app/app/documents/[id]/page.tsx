@@ -25,6 +25,7 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Not a duplicate", ["duplicate"]],
   ["One document per file", ["one_document"]],
   ["Looks like a receipt or invoice", ["is_document"]],
+  ["Second reading agrees", ["second_reading"]],
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
