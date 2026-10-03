@@ -613,6 +613,20 @@ try:
     passed_id = c.post('/documents', files=[('files', ('g.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=erin).json()[0]['id']
     date_id = c.post('/documents', files=[('files', ('a.jpg', io.BytesIO(JPG + b'ambiguous2'), 'image/jpeg'))], headers=erin).json()[0]['id']
     assert second_of(passed_id)['second_read_at'] is None and second_of(date_id)['second_read_at'] is None
+    # the differences, field by field; a date comes with its printed text
+    d = c.get(f'/documents/{memo_id}', headers=erin).json()
+    assert {(x['field'], x['from'], x['to']) for x in d['second_reading']} == {('items[1].amount', '280', '240'), ('issue_date', '2024-06-20', '2024-05-20')}, d['second_reading']
+    assert [x['text'] for x in d['second_reading'] if x['field'] == 'issue_date'] == ['20/05/2024']
+    # a value the user already took drops off; other documents' readings are not shown
+    edited = {**d['document'], 'items': [*d['document']['items'][:1], {**d['document']['items'][1], 'amount': '240.00'}, d['document']['items'][2]]}
+    left = c.post('/check', json=edited, params={'doc_id': memo_id}, headers=erin).json()['second_reading']
+    assert [x['field'] for x in left] == ['issue_date'], left
+    assert c.post('/check', json=edited, params={'doc_id': memo_id}).json()['second_reading'] == []  # Alice: not her document
+    assert c.get(f'/documents/{passed_id}', headers=erin).json()['second_reading'] == []
+    # a different number of lines: one change that replaces the list
+    four_id = c.post('/documents', files=[('files', ('m4.jpg', io.BytesIO(JPG + b'memo4'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    changes = c.get(f'/documents/{four_id}', headers=erin).json()['second_reading']
+    assert [x['field'] for x in changes] == ['items'] and len(changes[0]['to']) == 4 and changes[0]['from'] == '3 lines'
     # the quota runs out: the document is untouched, the attempt counts toward the cap
     q_id = c.post('/documents', files=[('files', ('q.jpg', io.BytesIO(JPG + b'memoq'), 'image/jpeg'))], headers=erin).json()[0]['id']
     row = second_of(q_id)

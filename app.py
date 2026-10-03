@@ -87,7 +87,7 @@ def current_user(authorization: str | None = Header(None)) -> str:
 
 
 COLUMNS = 'id, user_id, file_name, mime, status, document, checks, error, vendor, currency, issue_date, total, model, ' \
-          'prompt_version, tokens_in, tokens_out, created_at, updated_at'
+          'prompt_version, tokens_in, tokens_out, created_at, updated_at, second_reading'
 
 
 def row_by_id(con, doc_id, with_file=False):
@@ -469,6 +469,31 @@ def list_documents(status: str | None = None, q: str | None = None, date_from: d
         return con.execute(sql, (*args, limit, offset)).fetchall()
 
 
+SECOND_FIELDS = ('vendor', 'doc_number', 'issue_date', 'due_date', 'currency', 'subtotal', 'discount', 'tax', 'service_charge', 'total')
+LINE_FIELDS = ('quantity', 'unit_price', 'amount', 'discount')
+
+
+def second_reading_changes(doc: Document, second: Document) -> list[dict]:
+    # what the second reading would change, field by field; values the document already has drop off
+    text = lambda v: None if v is None else str(v)
+    out = []
+    for f in SECOND_FIELDS:
+        new = getattr(second, f)
+        if new is not None and new != getattr(doc, f):
+            out.append({'field': f, 'from': text(getattr(doc, f)), 'to': str(new),
+                        **({'text': getattr(second, f + '_text')} if f.endswith('_date') else {})})
+    if len(second.items) != len(doc.items):
+        if second.items:
+            out.append({'field': 'items', 'from': f'{len(doc.items)} lines', 'to': [i.model_dump(mode='json') for i in second.items]})
+        return out
+    for n, (mine, theirs) in enumerate(zip(doc.items, second.items)):
+        for f in LINE_FIELDS:
+            new = getattr(theirs, f)
+            if new is not None and new != getattr(mine, f):
+                out.append({'field': f'items[{n}].{f}', 'from': text(getattr(mine, f)), 'to': str(new)})
+    return out
+
+
 @app.get('/documents/{doc_id}')
 def get_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
@@ -479,6 +504,9 @@ def get_document(doc_id: int, uid: str = Depends(current_user)):
             r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
                            for c in r['checks'] if dup or c['check'] != 'duplicate']
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
+    second = r.pop('second_reading')
+    r['second_reading'] = second_reading_changes(Document(**r['document']), Document(**second)) \
+        if r['status'] == 'needs_review' and second and r['document'] else []
     return r
 
 
@@ -490,7 +518,11 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
-        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc)}
+        second = doc_id and con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s',
+                                        (doc_id, uid)).fetchone()
+        changes = second_reading_changes(doc, Document(**second['second_reading'])) if second and second['second_reading'] else []
+        return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc),
+                'second_reading': changes}
 
 
 @app.put('/documents/{doc_id}')
