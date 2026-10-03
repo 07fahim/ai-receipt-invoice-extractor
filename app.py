@@ -531,6 +531,9 @@ def second_reading_changes(doc: Document, second: Document) -> list[dict]:
         if second.items:
             out.append({'field': 'items', 'from': f'{len(doc.items)} lines', 'to': [i.model_dump(mode='json') for i in second.items]})
         return out
+    line = lambda i: tuple('' if getattr(i, f) is None else str(getattr(i, f).normalize()) for f in LINE_FIELDS)
+    if sorted(map(line, doc.items)) == sorted(map(line, second.items)):
+        return out  # the same lines in another order
     for n, (mine, theirs) in enumerate(zip(doc.items, second.items)):
         for f in LINE_FIELDS:
             new = getattr(theirs, f)
