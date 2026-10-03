@@ -382,7 +382,7 @@ def second_read(doc_id):
                         (Jsonb(second.model_dump(mode='json')), doc_id))
             if passed:
                 order = store.date_order(con, uid, row['vendor'])
-                doc = Document(**row['document'])
+                doc = apply_date_order(Document(**row['document']), order)
                 if meaningful_changes(doc, apply_date_order(second, order)):
                     checks = run_checks(con, uid, doc, order, doc_id)
                     changed = con.execute("UPDATE documents SET status = 'needs_review', checks = %s, updated_at = now() "
