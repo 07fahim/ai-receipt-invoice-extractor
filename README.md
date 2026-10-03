@@ -140,6 +140,23 @@ The weak spot is one misread digit in a CORD total (66% and 73% caught), mostly 
   ($0.25 in / $1.50 out per million tokens, read 2026-09-28), worked out from the median token counts. The runs
   themselves used the free tier, so this is an estimate and not a measured bill.
 
+**Why two models.** Gemini 3.1 Flash-Lite reads every document: it was the most accurate model in a 10-receipt
+trial (9 of 10) and answers in about 5 seconds within the free quota. Gemini 3.5 Flash with thinking set
+to low is more careful on hard images, but it is slower and its free daily quota is small. So it only rereads
+documents that fail a check, plus passed ones from leftover quota (15 a day for the whole app, 5 per user). On the
+17 Bangladeshi sample images, the first reading failed a check on 5:
+- The same fruit-shop memo comes in three versions: printed, handwritten, and a real photo of the handwritten one.
+  On the printed and handwritten versions, the second reading read a line amount as 240 where the first read 280,
+  and every check passed. The memo says 240.
+- On the real photo it corrected the date and one line amount (both checked against the photo). One line is still
+  misread, so the document stays flagged.
+- On a tax invoice and a utility bill it changed the discount and the total. These are not yet checked against the
+  images.
+
+It is not always right: on one bill that had passed, its own answer failed a check. That is why its values are only
+offered field by field and nothing changes until the user picks one. Details in
+[`results/M3_NOTES.md`](results/M3_NOTES.md).
+
 **Data and how it was used.** [CORD-v2](https://huggingface.co/datasets/naver-clova-ix/cord-v2) (CC BY 4.0,
 Indonesian receipts) and [katanaml invoices](https://huggingface.co/datasets/katanaml-org/invoices-donut-data-v1)
 (synthetic English invoices, tagged MIT). Prompt changes were tried on training samples first. CORD test and a few
