@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type Suggestion } from "@/lib/api";
+import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type SecondChange, type Suggestion } from "@/lib/api";
 import { cn, skip, skippedIds } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
@@ -56,6 +56,7 @@ export default function ReviewPage() {
   const [doc, setDoc] = useState<Doc | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [second, setSecond] = useState<SecondChange[]>([]);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [applyToVendor, setApplyToVendor] = useState(false);
@@ -79,6 +80,7 @@ export default function ReviewPage() {
             setDoc(cents(d.document));
             setChecks(d.checks ?? []);
             setSuggestion(d.suggestion ?? null);
+            setSecond(d.second_reading ?? []);
             setOrder(null);
             setDirty(false);
           }
@@ -104,12 +106,13 @@ export default function ReviewPage() {
     }
     let stale = false; // a newer edit came in: an older answer must not overwrite the newer one
     const timer = setTimeout(() => {
-      sendJSON<{ document: Doc; checks: Check[]; suggestion: Suggestion | null }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
+      sendJSON<{ document: Doc; checks: Check[]; suggestion: Suggestion | null; second_reading: SecondChange[] }>("POST", `/check?doc_id=${id}${order ? `&date_order=${order}` : ""}`, doc)
         .then((r) => {
           if (stale) return;
           setCheckError(null);
           setChecks(r.checks);
           setSuggestion(r.suggestion);
+          setSecond(r.second_reading ?? []);
           if (order && r.document.issue_date !== doc.issue_date) setDoc((d) => d && { ...d, issue_date: r.document.issue_date, due_date: r.document.due_date });
         })
         .catch((e) => {
@@ -170,6 +173,26 @@ export default function ReviewPage() {
       }
       return next;
     });
+    setDirty(true);
+  }
+
+  // fills in the second reading's values the user picked; nothing is saved until the user saves
+  function applySecond(changes: SecondChange[]) {
+    setDoc((d) => {
+      if (!d) return d;
+      const next = { ...d, items: d.items.map((it) => ({ ...it })) };
+      for (const c of changes) {
+        const m = c.field.match(ITEM_FIELD);
+        if (Array.isArray(c.to)) next.items = cents({ ...next, items: c.to }).items;
+        else if (m) (next.items[Number(m[1])] as Record<string, string | null>)[m[2]] = m[2] === "quantity" ? c.to : pad(c.to);
+        else {
+          (next as unknown as Record<string, string | null>)[c.field] = pad(c.to);
+          if (c.text !== undefined) (next as unknown as Record<string, string | null>)[`${c.field}_text`] = c.text;
+        }
+      }
+      return next;
+    });
+    setSecond((s) => s.filter((x) => !changes.includes(x)));
     setDirty(true);
   }
 
@@ -459,6 +482,24 @@ export default function ReviewPage() {
                   </ul>
                 )}
                 <Button size="sm" className="mt-2" onClick={() => applySuggestion(suggestion)}>Apply</Button>
+              </div>
+            )}
+            {second.length > 0 && (
+              <div className="mb-3 rounded-md border p-3 text-sm">
+                <p className="font-medium">Second reading</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">A second AI read this receipt. Compare with the photo first.</p>
+                <ul className="mt-1.5 space-y-1 text-xs">
+                  {second.map((c) => (
+                    <li key={c.field} className="flex items-center justify-between gap-2">
+                      <span>
+                        {fieldLabel(c.field)}: <s>{c.from === null ? "empty" : pad(c.from)}</s> →{" "}
+                        <b>{Array.isArray(c.to) ? `${c.to.length} lines` : pad(c.to)}</b>
+                      </span>
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => applySecond([c])}>Use</Button>
+                    </li>
+                  ))}
+                </ul>
+                {second.length > 1 && <Button size="sm" className="mt-2" onClick={() => applySecond(second)}>Use all</Button>}
               </div>
             )}
             <ul className={cn("divide-y text-sm", checkError && "hidden")}>

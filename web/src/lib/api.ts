@@ -36,6 +36,9 @@ export type Check = { check: string; fields: string[]; message: string; duplicat
 // A fix worked out from the numbers (e.g. 280 read for 240): shown in review, applied only when the user clicks.
 export type Suggestion = { message: string; changes: { field: string; from: string; to: string }[] };
 
+/** One field where a second AI reading differs. `to` is a list of lines when the number of lines differs. */
+export type SecondChange = { field: string; from: string | null; to: string | Item[]; text?: string | null };
+
 export type DocumentRow = {
   id: number;
   file_name: string;
@@ -48,7 +51,7 @@ export type DocumentRow = {
 };
 
 export type DocumentDetail = DocumentRow & {
-  mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null; updated_at: string;
+  mime: string; document: Doc | null; checks: Check[] | null; error: string | null; suggestion?: Suggestion | null; second_reading?: SecondChange[]; updated_at: string;
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL;
