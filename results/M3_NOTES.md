@@ -352,4 +352,4 @@ Its two repeat readings give the same suggestion. No other suggestion changed on
 WildReceipt test was used to find a problem: the first version (any quantity) fired on 2 WildReceipt readings and both
 were wrong against the photos. 1.76 lb @ 0.99/3 lb (the unit price was wrong, not the quantity) got 0.59, and a fuel
 receipt read as 6.281 gal (printed 6.201) got 6.2. The rule now skips quantities already read with decimals, so the
-WildReceipt rows above are not an unseen test. The rule fires rarely: one real case in 914 readings.
+WildReceipt rows above are not an unseen test. The rule fires rarely: one real case in 884 readings.
