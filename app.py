@@ -51,7 +51,7 @@ SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   #
 SECOND_READ_PER_USER = int(os.environ.get('SECOND_READ_PER_USER', 5))   # per user, any 24 hours, on top of the app-wide cap
 SECOND_READ_FLAGGED_RESERVE = 5   # passed receipts use only leftover quota: this many stay for flagged ones
 ASSISTANT_PER_USER = int(os.environ.get('ASSISTANT_PER_USER', 30))         # answered messages per user, any 24 hours
-ASSISTANT_DAILY_LIMIT = int(os.environ.get('ASSISTANT_DAILY_LIMIT', 60))   # whole app: Groq's free tokens are shared
+ASSISTANT_DAILY_LIMIT = int(os.environ.get('ASSISTANT_DAILY_LIMIT', 40))   # whole app: Groq's free tokens are shared; measured max 4436 tokens/question (results/ASSISTANT_NOTES.md)
 REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate'}   # a second reading cannot settle these
 
 
