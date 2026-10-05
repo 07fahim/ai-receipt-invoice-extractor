@@ -112,7 +112,8 @@ def post(url, headers, body, retries=3, timeout=60):
 
 # the assistant's chat models, tried in order: a busy or failing one passes the question to the next
 CHAT_MODELS = [('https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY'),
-               ('https://openrouter.ai/api/v1', 'qwen/qwen3.8-27b:free', 'OPENROUTER_API_KEY')]
+               # OpenRouter's router picks any free model that is up; single free models get withdrawn (Qwen, Kimi)
+               ('https://openrouter.ai/api/v1', 'openrouter/free', 'OPENROUTER_API_KEY')]
 
 
 def chat(messages, tools, tool_choice='auto'):

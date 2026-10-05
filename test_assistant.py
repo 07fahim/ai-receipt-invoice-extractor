@@ -23,7 +23,7 @@ def chat_fallback():
     try:
         msg, usage = providers.chat([{'role': 'user', 'content': 'x'}], [])
         assert msg['content'] == 'hi' and usage == {'total_tokens': 7}
-        assert [s[1] for s in seen] == ['qwen/qwen3.8-27b', 'qwen/qwen3.8-27b:free'], seen
+        assert [s[1] for s in seen] == ['qwen/qwen3.8-27b', 'openrouter/free'], seen
         assert all(s[2] == 0 and s[3] == 20 for s in seen)  # no waiting retries: the fallback is the retry
 
         def down(*a, **k):

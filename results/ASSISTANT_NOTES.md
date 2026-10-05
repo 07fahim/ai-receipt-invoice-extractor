@@ -167,3 +167,10 @@ count is of the printed (truncated) lines only.
 - The vendor-name spelling slip (#1) recurs across runs with different model samples (স্বাপ্ন vs
   শ্বাপন vs the correct স্বপ্ন সুপারশপ). It never affected a number, but it is worth watching if
   this vendor name is used in product-facing text.
+
+## Fallback change (2026-10-05, after the Bangla run)
+The two failed questions in the Bangla run (#10, #13) were Groq per-minute limits (HTTP 429) that the fallback did not catch:
+OpenRouter withdrew `qwen/qwen3.8-27b:free` the same day (HTTP 404 "This model is unavailable for free"), as it did with
+the free Kimi K2 earlier. The fallback is now `openrouter/free`, OpenRouter's router to any free model that is up. One
+check that day: a Bangla question with a tool returned the right tool call in 3.5 s. Which model answers through the router
+varies, so fallback answers were not measured for quality.
