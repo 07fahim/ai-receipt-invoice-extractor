@@ -328,3 +328,28 @@ order, so it is not counted as a failure).
 
 Each answer took 5 to 18 s. The second model is slower and has a small free quota, so the app uses it only on
 flagged documents (and passed ones from leftover quota), and never applies its values without the user's choice.
+
+## Quantity suggestion for weighed lines read as 1 (2026-10-06)
+
+New suggestion: when exactly one line fails `line_math`, its quantity is a whole number, and one quantity (fewest
+decimals, up to 3) gives the line amount to the cent with no sum check left failing, the review screen offers it.
+Run over cached Gemini 3.1 Flash-Lite readings (no new model calls). Quantities compared with the answer key's line
+of the same amount, and the firings checked against the photos.
+
+| Set (prompt version) | Readings | Fires | Right | Wrong |
+|---|---|---|---|---|
+| CORD test (be0376e0) | 100 | 0 | 0 | 0 |
+| CORD validation (be0376e0) | 100 | 0 | 0 | 0 |
+| Invoices test / validation / train (be0376e0) | 26 / 48 / 50 | 0 | 0 | 0 |
+| WildReceipt test (be0376e0) | 396 | 0 | 0 | 0 |
+| WildReceipt test (a19decf8) | 117 | 0 | 0 | 0 |
+| US receipts, no answer key (9edae16b, first readings) | 30 | 1 | 1 (photo) | 0 |
+| Bangladeshi samples, no answer key (a19decf8) | 17 | 0 | 0 | 0 |
+
+The one firing is photos_us_11 (1011-receipt.jpg): "Beef Ribs: is the quantity 1.89?", printed "1.89 lbs @ $19.50/lbs".
+Its two repeat readings give the same suggestion. No other suggestion changed on any of these sets.
+
+WildReceipt test was used to find a problem: the first version (any quantity) fired on 2 WildReceipt readings and both
+were wrong against the photos. 1.76 lb @ 0.99/3 lb (the unit price was wrong, not the quantity) got 0.59, and a fuel
+receipt read as 6.281 gal (printed 6.201) got 6.2. The rule now skips quantities already read with decimals, so the
+WildReceipt rows above are not an unseen test. The rule fires rarely: one real case in 884 readings.

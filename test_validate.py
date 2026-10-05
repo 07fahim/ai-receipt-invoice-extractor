@@ -119,6 +119,22 @@ assert suggest(Document(subtotal=D('100'), total=D('180'))) is None  # one faile
 assert suggest(Document(subtotal=D('21'), total=D('21'), items=[Item(amount=D('10')), Item(amount=D('10'))])) is None  # items_sum alone: one check, no guess
 k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
 assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
+# a weighed item read as quantity 1 ("Beef Ribs 1.89 lb @ 19.50 = 36.86")
+ribs = dict(subtotal=D('42.86'), total=D('42.86'), items=[Item(description='Beef Ribs', quantity=1, unit_price=D('19.50'), amount=D('36.86')),
+            Item(description='Bread', quantity=2, unit_price=D('3'), amount=D('6'))])
+s = suggest(Document(**ribs))
+assert s == {'message': 'Beef Ribs: is the quantity 1.89? Then the line adds up.',
+             'changes': [{'field': 'items[0].quantity', 'from': '1', 'to': '1.89'}]}, s
+assert checks(**{**ribs, 'items': [ribs['items'][0].model_copy(update={'quantity': D('1.89')}), ribs['items'][1]]}) == []
+s = suggest(Document(total=D('7.50'), items=[Item(quantity=1, unit_price=D('2.50'), amount=D('7.50'))]))
+assert s['changes'] == [{'field': 'items[0].quantity', 'from': '1', 'to': '3'}] and s['message'].startswith('Line 1:'), s
+assert suggest(Document(total=D('10'), items=[Item(quantity=1, unit_price=D('7'), amount=D('10'))])) is None  # 1.428 and 1.429 both fit
+two = [Item(quantity=1, unit_price=D('2.50'), amount=D('7.50')), Item(quantity=1, unit_price=D('2'), amount=D('4'))]
+assert suggest(Document(total=D('11.50'), items=two)) is None  # two lines fail
+assert suggest(Document(**memo)) == {'message': 'Did you mean 240 instead of 280? Then every sum adds up.',
+                                     'changes': [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]}  # amount wrong, not 2.333
+assert suggest(Document(**{**ribs, 'total': D('50')})) is None  # the total would still be off
+assert suggest(Document(total=D('0.58'), items=[Item(quantity=D('1.76'), unit_price=D('0.99'), amount=D('0.58'))])) is None  # 0.99/3 lb: the price is wrong
 # a total printed with cents gets no whole-unit rounding room, except where cash is rounded to whole units
 cents = dict(subtotal=D('1199.60'), total=D('1200.00'), total_text='1,200.00', items=[Item(amount=D('1199.60'))])
 assert checks(**cents, currency='USD') == ['total_math'] and checks(**cents) == []  # unknown currency: lenient

@@ -199,10 +199,11 @@ ITEM_AMOUNTS = ('unit_price', 'amount', 'discount')
 def suggest(doc: Document) -> dict | None:
     # never applied by itself. A digit fix needs two failed sum checks: on planted mistakes
     # that gave 384 right and 0 wrong; with one failed check, 52 of 333 were wrong
-    def sums_fail(d):
-        return {i['check'] for i in validate(d)} & SUM_CHECKS  # dates play no part in the sums
+    def sums_fail(d, issues=None):
+        return {i['check'] for i in issues or validate(d)} & SUM_CHECKS  # dates play no part in the sums
 
-    failing = sums_fail(doc)
+    issues = validate(doc)  # once: the quantity rule below reads the same list
+    failing = sums_fail(doc, issues)
     if not failing:
         return None
     amounts = [(f, getattr(doc, f)) for f in DOC_AMOUNTS if getattr(doc, f) is not None] + [
@@ -214,19 +215,37 @@ def suggest(doc: Document) -> dict | None:
                  for n, i in enumerate(doc.items)]
         return doc.model_copy(update={**top, 'items': items})
 
-    if 'total_format' in failing:
+    if 'total_format' in failing:  # decides alone: the rules below never run when the total looks 1,000 times off
         updates = {f: v * 1000 for f, v in amounts}
         if sums_fail(changed(updates)):
             return None
         return {'message': f'The amounts look 1,000 times too small. The total would be {num(doc.total * 1000)}.',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
 
+    # A weighed item read as a whole quantity (1.89 lb @ 19.50 = 36.86 read as 1 x 19.50): the quantity with the fewest
+    # decimals (up to 3) that gives the amount to the cent, if only one does. The line check's own room would let
+    # almost any 3-decimal quantity fit. A quantity already read with decimals is left alone: on WildReceipt the
+    # wrong number was the unit price (1.76 lb @ 0.99/3 lb) or a digit of it (6.281 gal for 6.201).
+    # Checked first; if the digit search also finds a fix, neither is shown.
+    found = []
+    lines = [i['fields'][0] for i in issues if i['check'] == 'line_math']
+    n = int(lines[0][6:-1]) if len(lines) == 1 else None
+    item = doc.items[n] if n is not None else None
+    if item and item.quantity > 0 and item.quantity == item.quantity.to_integral_value() and item.unit_price > 0 and item.amount > 0:
+        for places in range(4):
+            step = Decimal(1).scaleb(-places)
+            q = (item.amount / item.unit_price).quantize(step)
+            fits = [c for c in (q - step, q, q + step) if c > 0 and abs(c * item.unit_price - item.amount) <= Decimal('0.005')]
+            if fits:
+                break
+        field = f'items[{n}].quantity'
+        if len(fits) == 1 and fits[0] != item.quantity and not sums_fail(changed({field: fits[0]})):
+            q = Decimal(format(fits[0].normalize(), 'f'))
+            found.append((field, item.quantity, q, f'{item.description or f"Line {n + 1}"}: is the quantity {num(q)}? Then the line adds up.'))
+
     # The search grows with amounts squared: 33 amounts took 0.45 s, 99 took 2.9 s (laptop, 2026-10-02),
     # and it runs on every open and every edit pause, so long documents get no digit suggestion.
-    if len(failing) < 2 or len(amounts) > 40:
-        return None
-    found = []
-    for field, value in amounts:
+    for field, value in amounts if len(failing) >= 2 and len(amounts) <= 40 else ():
         text = format(value, 'f')
         for pos, old in enumerate(text):
             for new in '0123456789' if old.isdigit() else ():
@@ -234,11 +253,10 @@ def suggest(doc: Document) -> dict | None:
                     continue
                 candidate = Decimal(text[:pos] + new + text[pos + 1:])
                 if not sums_fail(changed({field: candidate})):
-                    found.append((field, value, candidate))
+                    found.append((field, value, candidate, f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.'))
                     if len(found) > 1:
                         return None  # two different fixes both fit: the numbers can't tell which is right
     if not found:
         return None
-    field, value, candidate = found[0]
-    return {'message': f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.',
-            'changes': [{'field': field, 'from': str(value), 'to': str(candidate)}]}
+    field, value, candidate, message = found[0]
+    return {'message': message, 'changes': [{'field': field, 'from': str(value), 'to': str(candidate)}]}
