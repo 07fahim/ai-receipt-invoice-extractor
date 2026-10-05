@@ -22,7 +22,7 @@
   <a href="#run-it-locally">Run it locally</a>
 </p>
 
-![The review screen on the Crosscheck home page: a Smoke City Market receipt next to the fields read from it. The beef ribs line is flagged because 1 x 19.50 is not 36.86.](assets/hero.png)
+![Demo: a Smoke City Market receipt is flagged because the beef ribs line reads 1 x 19.50 but costs 36.86. The assistant explains the line math, the suggested quantity 1.89 is applied with one click and the receipt is saved as reviewed.](assets/fix.gif)
 
 > **Try it:** sign up on the [live demo](https://crosscheck-gamma.vercel.app) and use the sample receipts. The free
 > server sleeps when idle, so the first request can take about a minute.
