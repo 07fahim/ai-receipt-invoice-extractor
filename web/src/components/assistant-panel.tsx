@@ -14,6 +14,7 @@ type ChatRow = { id: number; title: string; updated_at: string };
 type Mode = "closed" | "small" | "docked";
 const MODE = "assistant-mode";
 const SIZE = "assistant-size";
+const CHAT = "assistant-chat"; // the open chat, reopened after a page reload
 
 const DOC_ASKS = [
   { q: "Why is this flagged?", icon: AlertTriangle },
@@ -107,6 +108,11 @@ export function AssistantPanel() {
     // localStorage doesn't exist during SSR, so the mode can only be restored after mount
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMode((localStorage.getItem(MODE) as Mode | null) ?? "closed");
+    const saved = Number(localStorage.getItem(CHAT));
+    if (saved)
+      getJSON<{ messages: Msg[] }>(`/assistant/chats/${saved}`)
+        .then((c) => { setChatId(saved); setMsgs(c.messages); })
+        .catch(() => localStorage.removeItem(CHAT)); // deleted elsewhere, or signed out
   }, []);
   useEffect(() => {
     document.documentElement.dataset.assistant = mode; // docked: globals.css narrows the page
@@ -117,10 +123,16 @@ export function AssistantPanel() {
   // braces: newer browsers return a Promise from scrollIntoView, and an effect may only return a cleanup
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs, busy]);
 
+  function keep(id: number | null) {
+    setChatId(id);
+    if (id) localStorage.setItem(CHAT, String(id));
+    else localStorage.removeItem(CHAT);
+  }
+
   const open = () => setMode((localStorage.getItem(SIZE) as Mode | null) ?? "small");
 
   function newChat() {
-    setChatId(null);
+    keep(null);
     setMsgs([]);
     setChats(null);
     setError(null);
@@ -146,7 +158,7 @@ export function AssistantPanel() {
       const r = await sendJSON<{ chat_id: number; reply: string; steps: string[] }>("POST", "/assistant/messages", {
         chat_id: chatId, text: q, page: path, document_id: docId ? Number(docId) : null,
       });
-      setChatId(r.chat_id);
+      keep(r.chat_id);
       setText("");
       setMsgs((m) => [...m, { role: "assistant", content: r.reply, steps: r.steps }]);
     } catch (err) {
@@ -221,7 +233,7 @@ export function AssistantPanel() {
               <button className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm"
                 onClick={() => run(async () => {
                   const chat = await getJSON<{ messages: Msg[] }>(`/assistant/chats/${c.id}`);
-                  setChatId(c.id);
+                  keep(c.id);
                   setMsgs(chat.messages);
                   setChats(null);
                   setConfirmAll(false);
@@ -234,7 +246,7 @@ export function AssistantPanel() {
               <button className={`${icon} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100`} aria-label="Delete chat"
                 onClick={() => run(async () => {
                   await api(`/assistant/chats/${c.id}`, { method: "DELETE" });
-                  if (c.id === chatId) { setChatId(null); setMsgs([]); }
+                  if (c.id === chatId) { keep(null); setMsgs([]); }
                   setChats((cs) => cs?.filter((x) => x.id !== c.id) ?? null);
                 })}>
                 <Trash2 className="size-4" />
