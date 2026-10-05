@@ -132,8 +132,10 @@ def tools():
                 'আম: is the quantity 1.89? Then the line adds up.',
                 'Did you mean 8.50 instead of 85.0? Then every sum adds up.']
     assert len(examples) == len(assistant.BANGLA)
-    # a new check in validate.py needs a Bangla pattern in assistant.BANGLA and an example here
-    assert open('validate.py', encoding='utf-8').read().count("fail('") == 13
+    # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
+    # 13 checks, 3 suggestions (2 found.append, 1 direct return) in validate.py, 2 check messages in app.py
+    src, app_src = open('validate.py', encoding='utf-8').read(), open('app.py', encoding='utf-8').read()
+    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (13, 2, 1, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
     for m in examples:
         assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '')), m
     assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English
