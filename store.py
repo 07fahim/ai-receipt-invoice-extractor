@@ -62,6 +62,20 @@ CREATE TABLE IF NOT EXISTS webhook_events (   -- waiting to be sent; deleted onc
     next_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS webhook_events_user ON webhook_events (user_id, id);
+CREATE TABLE IF NOT EXISTS assistant_chats (   -- kept until the user deletes them
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID NOT NULL,
+    title TEXT NOT NULL,
+    messages JSONB NOT NULL DEFAULT '[]',     -- [{role, content, steps?}]
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assistant_chats_user ON assistant_chats (user_id, updated_at);
+CREATE TABLE IF NOT EXISTS assistant_messages (   -- one row per answered message: the caps count these, so deleting
+    user_id UUID,                                  -- a chat does not give quota back (NULL once the account is deleted)
+    at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assistant_messages_at ON assistant_messages (at);
+CREATE INDEX IF NOT EXISTS assistant_messages_user ON assistant_messages (user_id, at);
 """
 
 _pool = None
