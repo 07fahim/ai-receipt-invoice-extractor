@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date
+from decimal import Decimal
 
 from fastapi import HTTPException
 import psycopg
@@ -163,7 +164,13 @@ def run_tool(con, uid, name, args):
         # a failed query aborts the transaction; roll back so the next tool call works
         con.rollback()
         result = {'error': str(e)}
-    return json.dumps(result, default=str)
+    return json.dumps(result, default=plain_value)
+
+
+def plain_value(v):
+    # numeric columns come back as Decimal('6200.000000'); some models copy that as is.
+    # every numeric column the tools select is money; a non-money one would need its own format
+    return f'{v:.2f}' if isinstance(v, Decimal) else str(v)
 
 
 MAX_ROUNDS = 4    # tool rounds per answer; then the model must reply
@@ -175,6 +182,7 @@ Today is {today}.{page}
 Rules:
 - Answer from tool results only. If the data does not hold the answer, say so. Never guess numbers.
 - Reply in the language the user writes in: Bangla, Banglish (Bangla in Latin letters) or English.
+- Write amounts with a thousands separator and 2 decimals, for example 6,200.00 BDT.
 - Never do your own arithmetic or recheck sums. Only state numbers that a tool returned, and explain flags with the
   check messages the tools give.
 - Refer to documents as #<id>, for example #14.
@@ -201,6 +209,7 @@ About the app:
 - Exports: CSV, Excel, and QuickBooks bills (passed and reviewed documents with a date and total), from the Documents page.
 - Account page: a webhook address gets a signed message for every document change (for n8n, Google Sheets and alerts).
   The account and all its data can be deleted there.
+- Delete documents on the Documents page (select them, then Delete) or on the document's own page.
 - You cannot change documents or settings yet. Tell the user where in the app to do it."""
 
 STEPS = {'search_documents': 'Searched documents', 'spend_summary': 'Summed spend by {group_by}',

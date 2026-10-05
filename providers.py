@@ -111,7 +111,9 @@ def post(url, headers, body, retries=3, timeout=60):
 
 
 # the assistant's chat models, tried in order: a busy or failing one passes the question to the next
-CHAT_MODELS = [('https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY'),
+# Gemini's free limits are per model, so this does not share document reading's quota
+CHAT_MODELS = [('https://generativelanguage.googleapis.com/v1beta/openai', 'gemini-3.5-flash-lite', 'GEMINI_API_KEY'),
+               ('https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY'),
                # OpenRouter's router picks any free model that is up; single free models get withdrawn (Qwen, Kimi)
                ('https://openrouter.ai/api/v1', 'openrouter/free', 'OPENROUTER_API_KEY')]
 
@@ -121,7 +123,8 @@ def chat(messages, tools, tool_choice='auto'):
     for base, model, key_var in CHAT_MODELS:
         if not os.environ.get(key_var):
             continue
-        body = {'model': model, 'temperature': 0, 'messages': messages}
+        # Groq refuses a request whose possible output passes its 1,000 output tokens a minute; answers are short
+        body = {'model': model, 'temperature': 0, 'messages': messages, 'max_tokens': 800}
         if tools:
             body |= {'tools': tools, 'tool_choice': tool_choice}
         try:
