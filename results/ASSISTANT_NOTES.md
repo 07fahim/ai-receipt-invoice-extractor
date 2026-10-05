@@ -45,7 +45,7 @@ One wording slip (not a number or fact error): Q2 spelled স্বপ্ন স
 - Q1/Q3/Q4/Q11/Q12: money totals matched the seeded documents exactly (Shwapno 2,000 BDT over
   2 docs, August 6,200 BDT, USD total 105.50 from Starbucks 5.50 + Acme 100, স্বপ্ন 450 BDT, 2
   Shwapno documents).
-- Q2 ("top vendors"): reply led with Aarong (6,200 BDT), then Shwapno and স্বপ্ন সুপারশপ. The
+- Q2 ("top vendors"): reply led with Aarong (6,200 BDT), then Shwapno and স্বাপ্ন সুপারশপ. The
   `99999` total that belongs to a different user never appeared, confirming the per-user
   isolation in `search_documents`/`spend_summary`.
 - Q8/Q9 (document open, "Why is this flagged?" / "Which line is wrong?"): both correctly named
