@@ -35,12 +35,15 @@
   exactly what failed and why.
 - **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
   decimal point, or a weighed item read as quantity 1), and nothing changes without the user's click.
+- **An assistant for your documents:** ask in English or Bangla about spending, due bills or why a receipt was flagged. It answers from your own data through read-only lookups, so it never changes a document. 25 of 26 test questions answered right.
 - **A second reading** by another model on flagged documents (and passed ones while free quota is left), offered
   field by field. On a crumpled handwritten Bangla memo it found the misread date and one of the two misread amounts.
 - **97% read right on 396 international receipts** (WildReceipt), after checking every difference against the image;
   every real error was flagged.
 - **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
   Telegram, email) or the user's own address.
+
+![Demo: a handwritten Bangla fruit-shop memo is open. The question "এই রসিদে সমস্যা কী?" (what is wrong with this receipt?) is typed and the assistant answers in Bangla with the two problems the checks found.](assets/assistant.gif)
 
 ## What it does
 
@@ -63,6 +66,7 @@
 - **Second reading** of flagged documents, and passed ones while quota is left, by another model. Offered field by
   field in the review screen; a passed document moves to review when the second reading differs on money, dates,
   line amounts or the vendor. Nothing changes until the user picks a value.
+- **Assistant:** a chat window on every app page answers questions about the user's own documents in English or Bangla (Bangla questions get Bangla check messages). The model is Gemini 3.5 Flash-Lite, with Qwen on Groq and then OpenRouter as fallbacks. It uses five read-only lookups, each limited to the signed-in user's documents. Chats are kept until the user deletes them, and there are daily message limits per user and for the whole app. Measured results: [results/ASSISTANT_NOTES.md](results/ASSISTANT_NOTES.md).
 
 ## How it works
 
@@ -171,7 +175,7 @@ receipt set (CC0); the third sample is a synthetic Dhaka bill.
 |---|---|
 | Web app | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | API | Python 3.11, FastAPI, Pydantic |
-| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings |
+| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings; Gemini 3.5 Flash-Lite for the assistant, with Qwen on Groq and OpenRouter as fallbacks |
 | Data and sign-in | PostgreSQL and Auth on Supabase |
 | Automation | n8n (Google Sheets, Telegram, Gmail), signed webhooks |
 | Hosting and CI | Vercel, Render, GitHub Actions |
