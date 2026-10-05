@@ -116,7 +116,8 @@ def tools():
                     vendor='Taco Bell', currency='USD', issue_date='2016-09-01', issue_date_text='9/1/2016', total=5)
     amb = tool(ALICE, 'get_document', id=ambiguous)
     check = amb['checks'][0]
-    assert check['month_first'] == '2016-09-01' and check['day_first'] == '2016-01-09', check
+    assert check['fields'] == ['issue date'], check  # no underscore
+    assert check['readings'] == ['1 Sep 2016 (month first)', '9 Jan 2016 (day first)'], check
     dump = json.dumps(amb)
     assert 'date_ambiguous' not in dump and 'needs_review' not in dump, dump
 
