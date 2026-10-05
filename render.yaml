@@ -20,6 +20,10 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GROQ_API_KEY  # assistant chat, primary model
+        sync: false
+      - key: OPENROUTER_API_KEY  # assistant chat, fallback when Groq is busy
+        sync: false
       - key: SUPABASE_SECRET_KEY  # lets users delete their account
         sync: false
       - key: FRONTEND_ORIGIN  # the Vercel address of the web app
