@@ -202,3 +202,21 @@ substring check is only a first pass.
 
 Result: Gemini 3.5 Flash-Lite goes first, then Groq Qwen, then openrouter/free. Its free daily limit is counted per
 model (not shared with document reading); the number itself has not been read from the AI Studio dashboard yet.
+
+## Same-day Qwen run (new Groq key), same prompt as Gemini run 2
+
+`qwen/qwen3.8-27b` alone: 22 answers, all right after reading; 4 questions got HTTP 429. Later questions worked after
+each one, so it was Groq's per-minute token limit (8K), not the daily one. Median 3,142 tokens, max 3,547; about 1 s.
+
+| | Gemini 3.5 Flash-Lite (run 2) | Qwen (same day) |
+|---|---|---|
+| right after reading | 25/26 | 22/22 answered, 4 rate-limited |
+| median tokens | 2,670 | 3,142 |
+| seconds | about 2.4 | about 1 |
+| Bangla vendor name স্বপ্ন সুপারশপ | copied exactly | misspelled in 3 answers (শাপন / স্বাপ্ন সুপারশপ) |
+| check message in a Bangla answer | stayed in English | translated into Bangla |
+| em dashes (the prompt forbids them) | none | 2 answers |
+
+Both answer correctly. Qwen writes better Bangla and is faster; Gemini keeps stored names exact, uses fewer tokens
+and does not share Groq's 8K tokens a minute, which one user asking a few questions in a row can hit. Gemini stays
+first, Qwen is the fallback.
