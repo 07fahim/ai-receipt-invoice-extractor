@@ -571,23 +571,27 @@ def meaningful_changes(doc: Document, second: Document) -> list[dict]:
     return out
 
 
-@app.get('/documents/{doc_id}')
-def get_document(doc_id: int, uid: str = Depends(current_user)):
-    with store.conn() as con:
-        r = get_row(con, doc_id, uid)
-        if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
-            dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
-            # the original may have been deleted or corrected since: drop the flag, or link the copy still there
-            r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
-                           for c in r['checks'] if dup or c['check'] != 'duplicate']
-        second = r.pop('second_reading')
-        r['second_read'] = second is not None  # true once a second-reading answer is stored, even if nothing meaningful differs
-        has_second = r['status'] == 'needs_review' and second and r['document']
-        order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
+def document_detail(con, doc_id, uid):
+    r = get_row(con, doc_id, uid)
+    if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
+        dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
+        # the original may have been deleted or corrected since: drop the flag, or link the copy still there
+        r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
+                       for c in r['checks'] if dup or c['check'] != 'duplicate']
+    second = r.pop('second_reading')
+    r['second_read'] = second is not None  # true once a second-reading answer is stored, even if nothing meaningful differs
+    has_second = r['status'] == 'needs_review' and second and r['document']
+    order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
     r['second_reading'] = second_reading_changes(Document(**r['document']), apply_date_order(Document(**second), order)) \
         if has_second else []
     return r
+
+
+@app.get('/documents/{doc_id}')
+def get_document(doc_id: int, uid: str = Depends(current_user)):
+    with store.conn() as con:
+        return document_detail(con, doc_id, uid)
 
 
 @app.post('/check')

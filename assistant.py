@@ -79,7 +79,7 @@ def spend_summary(con, uid, group_by, date_from=None, date_to=None):
 
 def get_document(con, uid, id):
     import app  # here, not at the top: app imports this module
-    r = app.get_document(int(id), uid)
+    r = app.document_detail(con, int(id), uid)
     return {k: r[k] for k in ('id', 'file_name', 'status', 'document', 'checks', 'suggestion', 'second_reading')}
 
 
