@@ -9,11 +9,10 @@ export function DemoVideo({ name, label, className }: { name: string; label: str
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [shown, setShown] = useState(false);
-  const [still, setStill] = useState(false);
 
   useEffect(() => {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setStill(true);
+      video.current!.controls = true;
       return;
     }
     const io = new IntersectionObserver(([entry]) => {
@@ -36,7 +35,7 @@ export function DemoVideo({ name, label, className }: { name: string; label: str
         <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
         <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
       </div>
-      <video ref={video} muted playsInline loop preload="none" controls={still} poster={`/clips/${name}-poster.jpg`}
+      <video ref={video} muted playsInline loop preload="none" poster={`/clips/${name}-poster.jpg`}
         aria-label={label} className="block aspect-[16/10] w-full bg-background">
         <source src={`/clips/${name}.webm`} type="video/webm" />
         <source src={`/clips/${name}.mp4`} type="video/mp4" />
