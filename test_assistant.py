@@ -100,6 +100,7 @@ def tools():
     sep = tool(ALICE, 'spend_summary', group_by='vendor', date_from='2026-09-01', date_to='2026-09-30')
     shw = [r for r in sep if r['vendor'].lower().startswith('shwapno')]
     assert len(shw) == 1 and float(shw[0]['total']) == 2000 and shw[0]['n'] == 2, sep  # 'SHWAPNO' groups with 'Shwapno' (letter case only, like /stats); flagged left out
+    assert shw[0]['total'] == '2000.00', shw  # money columns go to the model with 2 decimals, not Decimal's 6
     # same numbers as the dashboard
     from fastapi.testclient import TestClient
     stats = TestClient(app.app).get('/stats', headers=as_user(ALICE)).json()

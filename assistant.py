@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date
+from decimal import Decimal
 
 from fastapi import HTTPException
 import psycopg
@@ -163,7 +164,12 @@ def run_tool(con, uid, name, args):
         # a failed query aborts the transaction; roll back so the next tool call works
         con.rollback()
         result = {'error': str(e)}
-    return json.dumps(result, default=str)
+    return json.dumps(result, default=plain_value)
+
+
+def plain_value(v):
+    # numeric columns come back as Decimal('6200.000000'); some models copy that as is
+    return f'{v:.2f}' if isinstance(v, Decimal) else str(v)
 
 
 MAX_ROUNDS = 4    # tool rounds per answer; then the model must reply
