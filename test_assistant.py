@@ -123,6 +123,7 @@ def tools():
         assert 'error' in json.loads(assistant.run_tool(con, ALICE, 'search_documents', None))  # arguments that were not JSON
     all_alice = tool(ALICE, 'search_documents', vendor='', status=None)  # empty/None optional args are dropped, not filtered on
     assert len(all_alice) == 6, all_alice
+    assert 'error' in tool(ALICE, 'search_items', text='a\x00b')  # NUL byte: psycopg.DataError, not a crash
     return {'shwapno': (s1, s2), 'flagged': flagged}
 
 
