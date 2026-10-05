@@ -53,7 +53,7 @@ os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
 KEY = ec.generate_private_key(ec.SECP256R1())
 app.signing_key = lambda token: KEY.public_key()
 app.delete_auth_user = lambda uid: None
-ALICE, BOB = str(uuid.uuid4()), str(uuid.uuid4())
+ALICE, BOB, CARL = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
 
 
 def as_user(sub):
@@ -124,12 +124,20 @@ def tools():
     all_alice = tool(ALICE, 'search_documents', vendor='', status=None)  # empty/None optional args are dropped, not filtered on
     assert len(all_alice) == 6, all_alice
     assert 'error' in tool(ALICE, 'search_items', text='a\x00b')  # NUL byte: psycopg.DataError, not a crash
-    # after a tool error, the same connection still works on the next call
+
+    # a tool error that Postgres itself raises (not the client) must still leave the connection usable:
+    # a bad stored due_date makes the ::date cast in due_bills fail server-side (InvalidDatetimeFormat, a
+    # psycopg.DataError subclass), aborting the transaction; run_tool must roll back so the same connection
+    # still works for the next call. A throwaway user keeps this out of Alice's counts above.
+    carl_doc = add(CARL, 'passed', vendor='Bad Co', currency='BDT', issue_date='2026-09-01', due_date='2026-09-10', total=10)
     with store.conn() as con:
-        error_result = json.loads(assistant.run_tool(con, ALICE, 'search_items', {'text': 'a\x00b'}))
-        assert 'error' in error_result
-        working_result = json.loads(assistant.run_tool(con, ALICE, 'search_items', {'text': 'latte'}))
-        assert isinstance(working_result, list) and any(d['id'] == latte for d in working_result)
+        con.execute("UPDATE documents SET document = jsonb_set(document, '{due_date}', '\"2026-13-45\"') WHERE id = %s",
+                    (carl_doc,))
+    with store.conn() as con:
+        error_result = json.loads(assistant.run_tool(con, CARL, 'due_bills', {'days': 7}))
+        assert 'error' in error_result, error_result
+        working_result = json.loads(assistant.run_tool(con, CARL, 'search_documents', {}))
+        assert isinstance(working_result, list) and any(d['id'] == carl_doc for d in working_result), working_result
     return {'shwapno': (s1, s2), 'flagged': flagged}
 
 
