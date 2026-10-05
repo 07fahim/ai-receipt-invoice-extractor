@@ -110,6 +110,16 @@ def tools():
     assert doc['checks'][0]['message'].startswith('Line items add up to 90'), doc
     assert 'error' in tool(ALICE, 'get_document', id=bob)  # Bob's document is "not found" for Alice
 
+    # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case
+    ambiguous = add(ALICE, 'needs_review', checks=[{'check': 'date_ambiguous', 'fields': ['issue_date'],
+                                                    'message': 'Is 9/1/2016 day first or month first?'}],
+                    vendor='Taco Bell', currency='USD', issue_date='2016-09-01', issue_date_text='9/1/2016', total=5)
+    amb = tool(ALICE, 'get_document', id=ambiguous)
+    check = amb['checks'][0]
+    assert check['month_first'] == '2016-09-01' and check['day_first'] == '2016-01-09', check
+    dump = json.dumps(amb)
+    assert 'date_ambiguous' not in dump and 'needs_review' not in dump, dump
+
     assert [d['id'] for d in tool(ALICE, 'due_bills', days=7)] == [bill]
     hits = tool(ALICE, 'search_items', text='latte')
     assert [d['id'] for d in hits] == [latte] and hits[0]['matches'] == ['Caffe Latte'], hits
@@ -122,7 +132,7 @@ def tools():
     with store.conn() as con:
         assert 'error' in json.loads(assistant.run_tool(con, ALICE, 'search_documents', None))  # arguments that were not JSON
     all_alice = tool(ALICE, 'search_documents', vendor='', status=None)  # empty/None optional args are dropped, not filtered on
-    assert len(all_alice) == 6, all_alice
+    assert len(all_alice) == 7, all_alice
     assert 'error' in tool(ALICE, 'search_items', text='a\x00b')  # NUL byte: psycopg.DataError, not a crash
 
     # a tool error that Postgres itself raises (not the client) must still leave the connection usable:
