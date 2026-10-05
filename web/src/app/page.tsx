@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Archive, Calculator, ClipboardCheck, Download, Lock, ScanText, Store, Trash2, Upload, Wallet } from "lucide-react";
+import { Archive, Calculator, ClipboardCheck, Download, Lock, MessageCircle, ScanText, Store, Trash2, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DemoVideo } from "@/components/demo-video";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,8 @@ const useCases = [
   { icon: Archive, title: "Year-end and audits", docs: "Last year's receipts",
     text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
 ];
+
+const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
 
 const checks = [
   ["Line items match the subtotal", "After any line discounts"],
@@ -59,6 +62,7 @@ export default function Home() {
           <Logo />
           <nav className="flex items-center gap-7 text-sm font-medium text-foreground/80">
             <a href="#who" className="hidden hover:text-foreground md:block">Who it&apos;s for</a>
+            <a href="#assistant" className="hidden hover:text-foreground md:block">Assistant</a>
             <a href="#features" className="hidden hover:text-foreground md:block">Features</a>
             <a href="#checks" className="hidden hover:text-foreground md:block">Checks</a>
             <a href="#privacy" className="hidden hover:text-foreground md:block">Privacy</a>
@@ -138,21 +142,37 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
             <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it. You fix one field.
+              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it and suggests 1.89. One
+              click fixes it.
             </p>
-            <div className="mt-11 overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]">
-              <div className="flex gap-1.5 border-b bg-background px-4 py-3" aria-hidden>
-                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-              </div>
-              <Image src="/review-smoke-city.jpg" width={1340} height={880} className="h-auto w-full"
-                alt="The review screen: a Smoke City Market receipt next to its fields. The beef ribs line is flagged because 1 x 19.50 is not 36.86." />
-            </div>
+            <DemoVideo name="fix" className="mt-11"
+              label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
           </div>
         </section>
 
-        <section id="features" className="border-t bg-background px-6 py-22">
+        <section id="assistant" className="border-t bg-background px-6 py-22">
+          <div className="mx-auto grid max-w-6xl items-center gap-11 lg:grid-cols-[0.8fr_1.2fr] lg:gap-14">
+            <div>
+              <h2 className="display text-[clamp(30px,3.6vw,44px)]">Ask about your documents</h2>
+              <p className="mt-4 text-lg text-foreground/75">
+                Ask in English or Bangla. The assistant looks up your documents and explains each flag with the numbers the
+                checks found. It only reads your data and never changes it.
+              </p>
+              <ul className="mt-8 flex flex-col items-start gap-2.5" aria-label="Example questions">
+                {questions.map((q) => (
+                  <li key={q} className="flex items-center gap-2.5 rounded-2xl rounded-bl-sm border bg-card px-4 py-2.5 text-sm font-medium shadow-xs">
+                    <MessageCircle className="size-4 shrink-0 text-primary" aria-hidden />
+                    {q}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <DemoVideo name="assistant"
+              label="Demo: a handwritten Bangla fruit-shop memo is open, the question এই রসিদে সমস্যা কী? is typed and the assistant answers in Bangla with the two problems the checks found." />
+          </div>
+        </section>
+
+        <section id="features" className="border-t px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">From a pile of receipts to a clean spreadsheet</h2>
             <div className="mt-11 grid gap-5 md:grid-cols-3">
@@ -169,7 +189,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="checks" className="border-t px-6 py-22">
+        <section id="checks" className="border-t bg-background px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Every document is checked</h2>
             <p className="mt-4 text-lg text-foreground/75">A document that fails a check goes to your review list.</p>
@@ -192,7 +212,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="privacy" className="border-t bg-background px-6 py-22">
+        <section id="privacy" className="border-t px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Privacy</h2>
             <div className="mt-11 grid gap-5 md:grid-cols-3">
@@ -210,7 +230,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="px-6 pt-12 pb-20">
+        <section className="border-t bg-background px-6 pt-12 pb-20">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white md:p-12">
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt</h2>

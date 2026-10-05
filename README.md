@@ -22,7 +22,7 @@
   <a href="#run-it-locally">Run it locally</a>
 </p>
 
-![The review screen on the Crosscheck home page: a Smoke City Market receipt next to the fields read from it. The beef ribs line is flagged because 1 x 19.50 is not 36.86.](assets/hero.png)
+![Demo: a Smoke City Market receipt is flagged because the beef ribs line reads 1 x 19.50 but costs 36.86. The assistant explains the line math, the suggested quantity 1.89 is applied with one click and the receipt is saved as reviewed.](assets/fix.gif)
 
 > **Try it:** sign up on the [live demo](https://crosscheck-gamma.vercel.app) and use the sample receipts. The free
 > server sleeps when idle, so the first request can take about a minute.
@@ -34,13 +34,16 @@
 - **Checks you can read:** every sum, tax line, date and duplicate is checked by plain Python, so a flag always says
   exactly what failed and why.
 - **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
-  decimal point), and nothing changes without the user's click.
+  decimal point, or a weighed item read as quantity 1), and nothing changes without the user's click.
+- **An assistant for your documents:** ask in English or Bangla about spending, due bills or why a receipt was flagged. It answers from your own data through read-only lookups, so it never changes a document. 25 of 26 test questions answered right.
 - **A second reading** by another model on flagged documents (and passed ones while free quota is left), offered
-  field by field. On a crumpled handwritten Bangla memo it found the misread date and two misread amounts.
+  field by field. On a crumpled handwritten Bangla memo it found the misread date and one of the two misread amounts.
 - **97% read right on 396 international receipts** (WildReceipt), after checking every difference against the image;
   every real error was flagged.
 - **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
   Telegram, email) or the user's own address.
+
+![Demo: a handwritten Bangla fruit-shop memo is open. The question "এই রসিদে সমস্যা কী?" (what is wrong with this receipt?) is typed and the assistant answers in Bangla with the two problems the checks found.](assets/assistant.gif)
 
 ## What it does
 
@@ -63,6 +66,7 @@
 - **Second reading** of flagged documents, and passed ones while quota is left, by another model. Offered field by
   field in the review screen; a passed document moves to review when the second reading differs on money, dates,
   line amounts or the vendor. Nothing changes until the user picks a value.
+- **Assistant:** a chat window on every app page answers questions about the user's own documents in English or Bangla (Bangla questions get Bangla check messages). The model is Gemini 3.5 Flash-Lite, with Qwen on Groq and then OpenRouter as fallbacks. It uses five read-only lookups, each limited to the signed-in user's documents. Chats are kept until the user deletes them, and there are daily message limits per user and for the whole app. Measured results: [results/ASSISTANT_NOTES.md](results/ASSISTANT_NOTES.md).
 
 ## How it works
 
@@ -171,7 +175,7 @@ receipt set (CC0); the third sample is a synthetic Dhaka bill.
 |---|---|
 | Web app | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | API | Python 3.11, FastAPI, Pydantic |
-| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings |
+| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings; Gemini 3.5 Flash-Lite for the assistant, with Qwen on Groq and OpenRouter as fallbacks |
 | Data and sign-in | PostgreSQL and Auth on Supabase |
 | Automation | n8n (Google Sheets, Telegram, Gmail), signed webhooks |
 | Hosting and CI | Vercel, Render, GitHub Actions |
@@ -194,6 +198,10 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
    | `SECOND_MODEL` | Optional. Reads flagged documents a second time, and passed ones from leftover quota. Default `gemini-3.5-flash` (thinking low) |
    | `SECOND_READ_DAILY_LIMIT` | Optional. Second readings for the whole app in any 24 hours. Default 15 |
    | `SECOND_READ_PER_USER` | Optional. Second readings per user in any 24 hours. Default 5 |
+   | `GROQ_API_KEY` | Optional. Assistant fallback when Gemini is busy (Qwen on Groq) |
+   | `OPENROUTER_API_KEY` | Optional. Second assistant fallback (`openrouter/free`) |
+   | `ASSISTANT_PER_USER` | Optional. Assistant messages per user in any 24 hours. Default 30 |
+   | `ASSISTANT_DAILY_LIMIT` | Optional. Assistant messages for the whole app in any 24 hours. Default 40 |
    | `APP_SCHEMA` | Optional. Database schema for the app's tables. Default `app` |
    | `WEBHOOK_KEY` | Optional. Any long random text; turns on users' own webhooks and encrypts their addresses |
    | `WEBHOOK_URL`, `WEBHOOK_SECRET`, `WEBHOOK_USER_ID` | Optional. Your own n8n webhook and the account(s) whose documents go there |
@@ -222,7 +230,8 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
 ## Run it in your own accounts
 
 Everything runs on accounts you own: your Gemini key, your Supabase project, your Render and Vercel. Your data stays
-in your own Supabase project, images go only to Google's Gemini API under your key, and the bills are yours.
+in your own Supabase project, images go only to Google's Gemini API under your key, and the bills are yours. Assistant questions (text, never
+images) also go to Gemini, or to Groq or OpenRouter if you add those keys.
 
 - **API and n8n:** [`render.yaml`](render.yaml) is a Render Blueprint for both services. Fill in the settings Render
   asks for. It creates `WEBHOOK_KEY` itself.

@@ -143,6 +143,16 @@
     animation: tape-print 0.01s forwards;
     animation-delay: calc(0.3s + var(--i) * 0.15s);
   }
+  /* demo clips fade and rise in when scrolled into view */
+  .rise {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .rise[data-shown] {
+    opacity: 1;
+    transform: none;
+  }
 }
 @keyframes tape-print {
   to {
