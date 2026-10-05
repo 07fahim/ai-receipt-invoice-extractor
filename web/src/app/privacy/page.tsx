@@ -29,6 +29,10 @@ const sections: [string, React.ReactNode][] = [
         <b>Google Gemini</b> reads each file. This demo uses the free plan. On it, Google may use files to improve its AI.
         People at Google may also see them.
       </li>
+      <li>
+        <b>Groq</b> or <b>OpenRouter</b> answers assistant questions. They get your question and the data read from your
+        documents, never the files. This demo uses their free plans.
+      </li>
       <li><b>Gmail</b> sends the sign-up and reset emails.</li>
       <li><b>Supabase</b> stores the data and handles sign-in.</li>
       <li><b>Render</b> runs the server that receives your files, in Singapore. It does not keep them.</li>
@@ -39,6 +43,7 @@ const sections: [string, React.ReactNode][] = [
   </>],
   ["How long it is kept", <>
     <p>Until you delete it. Deleting a document removes it right away. Deleting your account removes everything.</p>
+    <p>Assistant chats are kept until you delete them, one at a time or all at once.</p>
   </>],
   ["Your rights", <>
     <p>
