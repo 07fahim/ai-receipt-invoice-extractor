@@ -6,6 +6,7 @@ os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
 
 import providers
 
+os.environ['GEMINI_API_KEY'] = 'test-gemini'
 os.environ['GROQ_API_KEY'] = 'test-groq'
 os.environ['OPENROUTER_API_KEY'] = 'test-or'
 
@@ -15,7 +16,7 @@ def chat_fallback():
 
     def fake(url, headers, body, retries=3, timeout=60):
         seen.append((url, body['model'], retries, timeout))
-        if 'groq' in url:
+        if 'groq' in url or 'googleapis' in url:
             raise RuntimeError('HTTP 429: rate limit')
         return {'choices': [{'message': {'role': 'assistant', 'content': 'hi'}}], 'usage': {'total_tokens': 7}}, 1
 
@@ -23,7 +24,7 @@ def chat_fallback():
     try:
         msg, usage = providers.chat([{'role': 'user', 'content': 'x'}], [])
         assert msg['content'] == 'hi' and usage == {'total_tokens': 7}
-        assert [s[1] for s in seen] == ['qwen/qwen3.8-27b', 'openrouter/free'], seen
+        assert [s[1] for s in seen] == ['gemini-3.5-flash-lite', 'qwen/qwen3.8-27b', 'openrouter/free'], seen
         assert all(s[2] == 0 and s[3] == 20 for s in seen)  # no waiting retries: the fallback is the retry
 
         def down(*a, **k):
@@ -33,7 +34,7 @@ def chat_fallback():
             providers.chat([{'role': 'user', 'content': 'x'}], [])
             raise AssertionError('expected RuntimeError')
         except RuntimeError as e:
-            assert 'qwen/qwen3.8-27b' in str(e)
+            assert 'gemini-3.5-flash-lite' in str(e) and 'qwen/qwen3.8-27b' in str(e)
     finally:
         providers.post = real
 
