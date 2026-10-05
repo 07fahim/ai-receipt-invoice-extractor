@@ -30,7 +30,7 @@ const sections: [string, React.ReactNode][] = [
         People at Google may also see them.
       </li>
       <li>
-        <b>Groq</b> or <b>OpenRouter</b> answers assistant questions. They get your question and the data read from your
+        <b>Google Gemini</b>, <b>Groq</b> or <b>OpenRouter</b> answers assistant questions. They get your question and the data read from your
         documents, never the files. This demo uses their free plans.
       </li>
       <li><b>Gmail</b> sends the sign-up and reset emails.</li>
