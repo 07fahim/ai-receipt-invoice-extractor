@@ -115,7 +115,11 @@ def tools():
     assert 'error' in tool(ALICE, 'get_document', id=bob)  # Bob's document is "not found" for Alice
 
     # a Bangla question gets Bangla check messages: one example of every check message in validate.py and app.py
-    assert tool(ALICE, 'get_document', id=flagged, in_bangla=True)['checks'][0]['message'] ==         'এআই-এর পড়া অনুযায়ী: লাইন আইটেমগুলোর যোগফল 90। সাবটোটাল 100।'
+    with store.conn() as con:
+        in_bangla = json.loads(assistant.run_tool(con, ALICE, 'get_document', {'id': flagged}, True))
+        model_says_bangla = json.loads(assistant.run_tool(con, ALICE, 'get_document', {'id': flagged, 'in_bangla': True}))
+    assert in_bangla['checks'][0]['message'] == 'এআই-এর পড়া অনুযায়ী: লাইন আইটেমগুলোর যোগফল 90। সাবটোটাল 100।', in_bangla
+    assert model_says_bangla['checks'][0]['message'].startswith("In the AI's reading"), model_says_bangla  # the app decides
     examples = ["This doesn't look like a receipt or invoice.", 'Is 9/1/2016 day first or month first?',
                 'This file seems to hold 2 documents. Upload one per file.', 'No total found.',
                 'The total is printed as 1.234. Is it 1,234?', 'There are amounts but no line items.',
@@ -128,6 +132,8 @@ def tools():
                 'আম: is the quantity 1.89? Then the line adds up.',
                 'Did you mean 8.50 instead of 85.0? Then every sum adds up.']
     assert len(examples) == len(assistant.BANGLA)
+    # a new check in validate.py needs a Bangla pattern in assistant.BANGLA and an example here
+    assert open('validate.py', encoding='utf-8').read().count("fail('") == 13
     for m in examples:
         assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '')), m
     assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English

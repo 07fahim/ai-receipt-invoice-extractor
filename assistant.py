@@ -96,8 +96,8 @@ def reading_text(d, label):
     return f'{d.day} {d.strftime("%b")} {d.year} ({label})'
 
 
-# Bangla versions of every check and fix-suggestion message (validate.py and app.py), so a Bangla answer has no English to copy;
-# the model ignored "translate them" in 4 of 6 live asks. A message without a match stays English.
+# Bangla versions of every check and fix-suggestion message (validate.py and app.py), so a Bangla answer has
+# no English to copy; the model ignored "translate them" in 4 of 6 live asks. A message without a match stays English.
 BANGLA = [(re.compile(p), t) for p, t in [
     (r"This doesn't look like a receipt or invoice\.", 'এটি রসিদ বা ইনভয়েস বলে মনে হচ্ছে না।'),
     (r'Is (.+) day first or month first\?', '{0} তারিখটি দিন আগে নাকি মাস আগে লেখা?'),
@@ -195,6 +195,7 @@ def run_tool(con, uid, name, args, in_bangla=False):
         if not isinstance(args, dict):
             raise ValueError('arguments must be a JSON object')
         args = {k: v for k, v in args.items() if v not in ('', None)}  # models send "" for optional arguments they leave out
+        args.pop('in_bangla', None)  # set by the app from the question's language, never by the model
         if in_bangla and name == 'get_document':
             args['in_bangla'] = True
         result = FUNCTIONS[name](con, uid, **args)
