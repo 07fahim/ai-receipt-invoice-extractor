@@ -45,6 +45,7 @@ export function AssistantPanel() {
     document.documentElement.dataset.assistant = mode; // docked: globals.css narrows the page
     localStorage.setItem(MODE, mode);
     if (mode !== "closed") localStorage.setItem(SIZE, mode);
+    return () => { delete document.documentElement.dataset.assistant; };
   }, [mode]);
   useEffect(() => end.current?.scrollIntoView({ block: "end" }), [msgs, busy]);
 
@@ -100,7 +101,7 @@ export function AssistantPanel() {
       </button>
     );
 
-  const icon = "grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground";
+  const icon = "grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50";
   return (
     <aside
       aria-label="Assistant"
@@ -112,10 +113,10 @@ export function AssistantPanel() {
     >
       <header className="flex items-center gap-1 border-b px-3 py-2">
         <span className="flex-1 font-semibold">Assistant</span>
-        <button className={icon} aria-label="Chats" onClick={() => { setConfirmAll(false); if (chats) setChats(null); else run(async () => setChats(await getJSON<ChatRow[]>("/assistant/chats"))); }}>
+        <button className={icon} aria-label="Chats" disabled={busy} onClick={() => { setConfirmAll(false); if (chats) setChats(null); else run(async () => setChats(await getJSON<ChatRow[]>("/assistant/chats"))); }}>
           <History className="size-4" />
         </button>
-        <button className={icon} aria-label="New chat" onClick={newChat}><Plus className="size-4" /></button>
+        <button className={icon} aria-label="New chat" disabled={busy} onClick={newChat}><Plus className="size-4" /></button>
         <button className={`${icon} max-md:hidden`} aria-label={mode === "small" ? "Dock to the side" : "Make it small"}
           onClick={() => setMode(mode === "small" ? "docked" : "small")}>
           {mode === "small" ? <PanelRight className="size-4" /> : <Minimize2 className="size-4" />}
@@ -188,7 +189,7 @@ export function AssistantPanel() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) send(e); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) send(e); }}
           maxLength={1000}
           rows={2}
           placeholder="Ask about your documents"
