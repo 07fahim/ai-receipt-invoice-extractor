@@ -123,7 +123,8 @@ def chat(messages, tools, tool_choice='auto'):
     for base, model, key_var in CHAT_MODELS:
         if not os.environ.get(key_var):
             continue
-        body = {'model': model, 'temperature': 0, 'messages': messages}
+        # Groq refuses a request whose possible output passes its 1,000 output tokens a minute; answers are short
+        body = {'model': model, 'temperature': 0, 'messages': messages, 'max_tokens': 800}
         if tools:
             body |= {'tools': tools, 'tool_choice': tool_choice}
         try:

@@ -16,6 +16,7 @@ def chat_fallback():
 
     def fake(url, headers, body, retries=3, timeout=60):
         seen.append((url, body['model'], retries, timeout))
+        assert body['max_tokens'] == 800  # Groq refuses requests that could pass 1,000 output tokens a minute
         if 'groq' in url or 'googleapis' in url:
             raise RuntimeError('HTTP 429: rate limit')
         return {'choices': [{'message': {'role': 'assistant', 'content': 'hi'}}], 'usage': {'total_tokens': 7}}, 1
