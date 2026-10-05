@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { History, MessageCircle, Minimize2, PanelRight, Plus, SendHorizontal, Trash2, X } from "lucide-react";
 import { api, getJSON, sendJSON } from "@/lib/api";
 
@@ -36,7 +36,7 @@ export function AssistantPanel() {
   const end = useRef<HTMLDivElement>(null);
   const docId = path.match(/^\/app\/documents\/(\d+)/)?.[1];
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // localStorage doesn't exist during SSR, so the mode can only be restored after mount
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMode((localStorage.getItem(MODE) as Mode | null) ?? "closed");
@@ -55,6 +55,7 @@ export function AssistantPanel() {
     setMsgs([]);
     setChats(null);
     setError(null);
+    setConfirmAll(false);
   }
 
   async function run(f: () => Promise<void>) {
@@ -111,7 +112,7 @@ export function AssistantPanel() {
     >
       <header className="flex items-center gap-1 border-b px-3 py-2">
         <span className="flex-1 font-semibold">Assistant</span>
-        <button className={icon} aria-label="Chats" onClick={() => (chats ? setChats(null) : run(async () => setChats(await getJSON<ChatRow[]>("/assistant/chats"))))}>
+        <button className={icon} aria-label="Chats" onClick={() => { setConfirmAll(false); if (chats) setChats(null); else run(async () => setChats(await getJSON<ChatRow[]>("/assistant/chats"))); }}>
           <History className="size-4" />
         </button>
         <button className={icon} aria-label="New chat" onClick={newChat}><Plus className="size-4" /></button>
@@ -133,6 +134,7 @@ export function AssistantPanel() {
                   setChatId(c.id);
                   setMsgs(chat.messages);
                   setChats(null);
+                  setConfirmAll(false);
                 })}>
                 {c.title}
               </button>
@@ -190,6 +192,7 @@ export function AssistantPanel() {
           maxLength={1000}
           rows={2}
           placeholder="Ask about your documents"
+          aria-label="Ask about your documents"
           className="flex-1 resize-none rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <button type="submit" disabled={busy || !text.trim()} aria-label="Send"
