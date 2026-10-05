@@ -189,6 +189,12 @@ def loop(seeded):
         assistant.answer(ALICE, [], 'due?')
         assert sent[1][0][-2]['tool_calls'][0]['extra_content'] == {'google': {'thought_signature': 'sig'}}
 
+        # a Bangla question gets the note to write the whole reply, check messages too, in Bangla; English does not
+        assert 'wrote in Bangla' not in first[0]['content']
+        sent.clear(); script(({'content': 'ok'}, {}))
+        assistant.answer(ALICE, [], 'এই রসিদে সমস্যা কী?')
+        assert 'wrote in Bangla' in sent[0][0][0]['content']
+
         # someone else's document id from the page is not mentioned
         sent.clear(); script(({'content': 'ok'}, {}))
         bob_doc = add(BOB, 'passed', vendor='Bob Co', total=1)
