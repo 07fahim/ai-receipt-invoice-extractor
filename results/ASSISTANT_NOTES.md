@@ -201,7 +201,9 @@ substring check is only a first pass.
 - A same-day Qwen run was not possible: Groq's daily token limit ran out after 2 questions.
 
 Result: Gemini 3.5 Flash-Lite goes first, then Groq Qwen, then openrouter/free. Its free daily limit is counted per
-model (not shared with document reading); the number itself has not been read from the AI Studio dashboard yet.
+model (not shared with document reading). AI Studio's rate-limit page, read 2026-10-06 (free tier): Gemini 3.5
+Flash-Lite 15 requests/min, 250K tokens/min, 500 requests/day; Gemini 3.1 Flash-Lite (document reading) has its own
+15 / 250K / 500. One question takes 1-3 model calls, so about 250 questions a day; Groq allows about 2 a minute.
 
 ## Same-day Qwen run (new Groq key), same prompt as Gemini run 2
 
