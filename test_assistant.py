@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import uuid
 
@@ -112,6 +113,24 @@ def tools():
     doc = tool(ALICE, 'get_document', id=flagged)
     assert doc['checks'][0]['message'] == "In the AI's reading: Line items add up to 90. The subtotal is 100.", doc
     assert 'error' in tool(ALICE, 'get_document', id=bob)  # Bob's document is "not found" for Alice
+
+    # a Bangla question gets Bangla check messages: one example of every check message in validate.py and app.py
+    assert tool(ALICE, 'get_document', id=flagged, in_bangla=True)['checks'][0]['message'] ==         'এআই-এর পড়া অনুযায়ী: লাইন আইটেমগুলোর যোগফল 90। সাবটোটাল 100।'
+    examples = ["This doesn't look like a receipt or invoice.", 'Is 9/1/2016 day first or month first?',
+                'This file seems to hold 2 documents. Upload one per file.', 'No total found.',
+                'The total is printed as 1.234. Is it 1,234?', 'There are amounts but no line items.',
+                'Line items add up to 90. The subtotal is 100.', 'Subtotal + tax + service - discount = 59.11. The total is 64.43.',
+                'Line items add up to 90. The total is 100.', '2 x 120 = 240. The line says 280.',
+                'The issue date 2027-01-01 is in the future.', 'The due date is before the issue date.',
+                '"XYZ" is not a currency code.', 'Same vendor, number and total as 001. It was uploaded earlier.',
+                'A second AI reading differs. Compare with the photo.',
+                'The amounts look 1,000 times too small. The total would be 64,430.',
+                'আম: is the quantity 1.89? Then the line adds up.',
+                'Did you mean 8.50 instead of 85.0? Then every sum adds up.']
+    assert len(examples) == len(assistant.BANGLA)
+    for m in examples:
+        assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '')), m
+    assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English
 
     # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case
     ambiguous = add(ALICE, 'needs_review', checks=[{'check': 'date_ambiguous', 'fields': ['issue_date'],
