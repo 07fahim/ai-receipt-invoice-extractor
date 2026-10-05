@@ -177,10 +177,76 @@ def loop(seeded):
         providers.chat = real
 
 
+def endpoints():
+    from fastapi.testclient import TestClient
+    c = TestClient(app.app)
+    alice, bob = as_user(ALICE), as_user(BOB)
+    real = assistant.answer
+    assistant.answer = lambda uid, history, text, page=None, document_id=None: {
+        'reply': f'answer to {text} after {len(history)}', 'steps': ['Searched documents'], 'tokens': 10}
+    try:
+        r = c.post('/assistant/messages', json={'text': 'Top vendors this year? ' * 5}, headers=alice).json()
+        chat = r['chat_id']
+        assert r['reply'].endswith('after 0') and r['steps'] == ['Searched documents']
+        r2 = c.post('/assistant/messages', json={'chat_id': chat, 'text': 'and last month?'}, headers=alice).json()
+        assert r2['chat_id'] == chat and r2['reply'].endswith('after 2')  # the first question and answer went along
+        listed = c.get('/assistant/chats', headers=alice).json()
+        assert [x['id'] for x in listed] == [chat] and len(listed[0]['title']) == 60
+        msgs = c.get(f'/assistant/chats/{chat}', headers=alice).json()['messages']
+        assert [m['role'] for m in msgs] == ['user', 'assistant'] * 2 and msgs[1]['steps'] == ['Searched documents']
+
+        # Bob can't see, use, or delete Alice's chat
+        assert c.get(f'/assistant/chats/{chat}', headers=bob).status_code == 404
+        assert c.post('/assistant/messages', json={'chat_id': chat, 'text': 'x'}, headers=bob).status_code == 404
+        assert c.delete(f'/assistant/chats/{chat}', headers=bob).status_code == 404
+        assert c.delete('/assistant/chats', headers=bob).status_code == 204
+        assert c.get('/assistant/chats', headers=bob).json() == []
+        assert len(c.get('/assistant/chats', headers=alice).json()) == 1
+
+        assert c.post('/assistant/messages', json={'text': ''}, headers=alice).status_code == 422
+        assert c.post('/assistant/messages', json={'text': 'x' * 1001}, headers=alice).status_code == 422
+
+        # a failed answer is not counted
+        def busy(*a, **k):
+            raise RuntimeError('HTTP 503')
+        assistant.answer = busy
+        r = c.post('/assistant/messages', json={'text': 'x'}, headers=bob)
+        assert r.status_code == 503 and r.json()['detail'] == 'The assistant is busy. Try again in a minute.'
+        assistant.answer = lambda *a, **k: {'reply': 'ok', 'steps': [], 'tokens': 1}
+
+        # caps: Alice has 2 answered messages
+        app.ASSISTANT_PER_USER = 2
+        r = c.post('/assistant/messages', json={'text': 'x'}, headers=alice)
+        assert r.status_code == 429 and r.json()['detail'] == "You've used today's 2 messages."
+        assert c.post('/assistant/messages', json={'text': 'x'}, headers=bob).status_code == 200  # Bob's 1st
+        app.ASSISTANT_PER_USER, app.ASSISTANT_DAILY_LIMIT = 30, 3
+        r = c.post('/assistant/messages', json={'text': 'x'}, headers=bob)
+        assert r.status_code == 429 and r.json()['detail'] == 'The assistant has reached today\'s limit. Try again tomorrow.'
+        app.ASSISTANT_DAILY_LIMIT = 60
+
+        # delete one, delete all
+        other = c.post('/assistant/messages', json={'text': 'second chat'}, headers=bob).json()['chat_id']
+        assert c.delete(f'/assistant/chats/{other}', headers=bob).status_code == 204
+        assert c.get(f'/assistant/chats/{other}', headers=bob).status_code == 404
+        assert c.delete('/assistant/chats', headers=alice).status_code == 204
+        assert c.get('/assistant/chats', headers=alice).json() == []
+
+        # deleting the account removes chats; answered messages still count app-wide
+        c.post('/assistant/messages', json={'text': 'keep?'}, headers=alice)
+        assert c.delete('/account', headers=alice).status_code == 204
+        with store.conn() as con:
+            assert con.execute('SELECT count(*) AS n FROM assistant_chats WHERE user_id = %s', (ALICE,)).fetchone()['n'] == 0
+            assert con.execute('SELECT count(*) AS n FROM assistant_messages WHERE user_id = %s', (ALICE,)).fetchone()['n'] == 0
+            assert con.execute('SELECT count(*) AS n FROM assistant_messages WHERE user_id IS NULL').fetchone()['n'] == 3
+    finally:
+        assistant.answer = real
+
+
 try:
     chat_fallback()
     seeded = tools()
     loop(seeded)
+    endpoints()
     print('ok')
 finally:
     with store.conn() as con:

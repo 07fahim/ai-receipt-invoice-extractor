@@ -384,10 +384,10 @@ try:
     assert r.status_code == 200 and "filename*=UTF-8''" in r.headers['content-disposition'] and r.content.startswith(JPG)
 
     # sign-in required on every endpoint; expired, wrong-audience and forged tokens are refused
-    routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x'))
+    routes = [(m, rt.path.replace('{doc_id}', str(good_id)).replace('{n}', '0').replace('{vendor}', 'x').replace('{chat_id}', '1'))
               for rt in app.app.routes if getattr(rt, 'endpoint', None) and rt.path.split('/')[1] not in ('docs', 'openapi.json', 'redoc')
               for m in rt.methods - {'HEAD'}]
-    assert len(routes) == 19, routes
+    assert len(routes) == 24, routes
     anon = TestClient(app.app)
     for m, path in routes:
         assert anon.request(m, path).status_code == 401, (m, path)
