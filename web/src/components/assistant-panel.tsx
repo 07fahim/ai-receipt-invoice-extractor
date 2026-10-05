@@ -154,12 +154,12 @@ export function AssistantPanel() {
     setBusy(true);
     setError(null);
     setMsgs((m) => [...m, { role: "user", content: q }]);
+    setText("");
     try {
       const r = await sendJSON<{ chat_id: number; reply: string; steps: string[] }>("POST", "/assistant/messages", {
         chat_id: chatId, text: q, page: path, document_id: docId ? Number(docId) : null,
       });
       keep(r.chat_id);
-      setText("");
       setMsgs((m) => [...m, { role: "assistant", content: r.reply, steps: r.steps }]);
     } catch (err) {
       setMsgs((m) => m.slice(0, -1));

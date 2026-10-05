@@ -18,11 +18,11 @@ services:
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: GEMINI_API_KEY
+      - key: GEMINI_API_KEY  # document reading, and assistant chat first
         sync: false
-      - key: GROQ_API_KEY  # assistant chat, primary model
+      - key: GROQ_API_KEY  # assistant chat, when Gemini is busy
         sync: false
-      - key: OPENROUTER_API_KEY  # assistant chat, fallback when Groq is busy
+      - key: OPENROUTER_API_KEY  # assistant chat, when Gemini and Groq are busy
         sync: false
       - key: SUPABASE_SECRET_KEY  # lets users delete their account
         sync: false

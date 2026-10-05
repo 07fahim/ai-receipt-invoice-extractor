@@ -26,9 +26,11 @@ DOCS = [  # (user, status, fields)
     (U, 'passed', dict(vendor='Starbucks', currency='USD', issue_date='2026-09-05', total=5.5, items=[{'description': 'Caffe Latte', 'amount': 5.5}])),
     (U, 'passed', dict(vendor='Acme Supplies', currency='USD', issue_date='2026-09-28', due_date=soon, total=100,
                        items=[{'description': 'Printer ink', 'amount': 100}])),
+    (U, 'needs_review', dict(vendor='Taco Bell', currency='USD', issue_date='2016-09-01', issue_date_text='9/1/2016', total=5)),
     (OTHER, 'passed', dict(vendor='Shwapno', currency='BDT', issue_date='2026-09-04', total=99999)),
 ]
-CHECKS = {'Smoke City Market': [{'check': 'line_math', 'fields': ['items[0]'], 'message': '1 x 19.50 = 19.50. The line says 36.86.'}]}
+CHECKS = {'Smoke City Market': [{'check': 'line_math', 'fields': ['items[0]'], 'message': '1 x 19.50 = 19.50. The line says 36.86.'}],
+          'Taco Bell': [{'check': 'date_ambiguous', 'fields': ['issue_date'], 'message': 'Is 9/1/2016 day first or month first?'}]}
 
 ids = {}
 with store.conn() as con:
@@ -42,6 +44,7 @@ with store.conn() as con:
 smoke = ids[(U, 'Smoke City Market')]
 acme = ids[(U, 'Acme Supplies')]
 star = ids[(U, 'Starbucks')]
+taco = ids[(U, 'Taco Bell')]
 
 # (question, open document or None, any of these must appear in the reply, none of these may appear)
 QUESTIONS = [
@@ -71,6 +74,8 @@ QUESTIONS = [
     ('এই রসিদে সমস্যা কী?', smoke, ['36.86', 'Beef ribs', 'beef ribs'], ['43.89']),
     ('ami kothay printer ink kinechi?', None, ['Acme'], []),
     ('কুইকবুকসে কীভাবে এক্সপোর্ট করব?', None, ['Documents', 'ডকুমেন্টস'], []),
+    ('What is the date on this receipt?', taco, ['1 Sep 2016 (month first)'], []),
+    ('এই রসিদের তারিখ কোনটা?', taco, ['1 Sep 2016 (month first)'], []),
 ]
 
 # count which provider answered: wrap providers.post to note the URL host used for chat calls

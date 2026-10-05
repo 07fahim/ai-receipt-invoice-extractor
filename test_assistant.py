@@ -6,6 +6,7 @@ os.environ['APP_SCHEMA'] = 'test_' + uuid.uuid4().hex[:8]
 
 import providers
 
+os.environ['GEMINI_API_KEY'] = 'test-gemini'
 os.environ['GROQ_API_KEY'] = 'test-groq'
 os.environ['OPENROUTER_API_KEY'] = 'test-or'
 
@@ -15,7 +16,8 @@ def chat_fallback():
 
     def fake(url, headers, body, retries=3, timeout=60):
         seen.append((url, body['model'], retries, timeout))
-        if 'groq' in url:
+        assert body['max_tokens'] == 800  # Groq refuses requests that could pass 1,000 output tokens a minute
+        if 'groq' in url or 'googleapis' in url:
             raise RuntimeError('HTTP 429: rate limit')
         return {'choices': [{'message': {'role': 'assistant', 'content': 'hi'}}], 'usage': {'total_tokens': 7}}, 1
 
@@ -23,7 +25,7 @@ def chat_fallback():
     try:
         msg, usage = providers.chat([{'role': 'user', 'content': 'x'}], [])
         assert msg['content'] == 'hi' and usage == {'total_tokens': 7}
-        assert [s[1] for s in seen] == ['qwen/qwen3.8-27b', 'openrouter/free'], seen
+        assert [s[1] for s in seen] == ['gemini-3.5-flash-lite', 'qwen/qwen3.8-27b', 'openrouter/free'], seen
         assert all(s[2] == 0 and s[3] == 20 for s in seen)  # no waiting retries: the fallback is the retry
 
         def down(*a, **k):
@@ -33,7 +35,7 @@ def chat_fallback():
             providers.chat([{'role': 'user', 'content': 'x'}], [])
             raise AssertionError('expected RuntimeError')
         except RuntimeError as e:
-            assert 'qwen/qwen3.8-27b' in str(e)
+            assert 'gemini-3.5-flash-lite' in str(e) and 'qwen/qwen3.8-27b' in str(e)
     finally:
         providers.post = real
 
@@ -100,6 +102,7 @@ def tools():
     sep = tool(ALICE, 'spend_summary', group_by='vendor', date_from='2026-09-01', date_to='2026-09-30')
     shw = [r for r in sep if r['vendor'].lower().startswith('shwapno')]
     assert len(shw) == 1 and float(shw[0]['total']) == 2000 and shw[0]['n'] == 2, sep  # 'SHWAPNO' groups with 'Shwapno' (letter case only, like /stats); flagged left out
+    assert shw[0]['total'] == '2000.00', shw  # money columns go to the model with 2 decimals, not Decimal's 6
     # same numbers as the dashboard
     from fastapi.testclient import TestClient
     stats = TestClient(app.app).get('/stats', headers=as_user(ALICE)).json()
@@ -107,8 +110,19 @@ def tools():
     assert mine == {(r['currency'], float(r['total'])) for r in stats['spend_by_currency']}, (mine, stats)
 
     doc = tool(ALICE, 'get_document', id=flagged)
-    assert doc['checks'][0]['message'].startswith('Line items add up to 90'), doc
+    assert doc['checks'][0]['message'] == "In the AI's reading: Line items add up to 90. The subtotal is 100.", doc
     assert 'error' in tool(ALICE, 'get_document', id=bob)  # Bob's document is "not found" for Alice
+
+    # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case
+    ambiguous = add(ALICE, 'needs_review', checks=[{'check': 'date_ambiguous', 'fields': ['issue_date'],
+                                                    'message': 'Is 9/1/2016 day first or month first?'}],
+                    vendor='Taco Bell', currency='USD', issue_date='2016-09-01', issue_date_text='9/1/2016', total=5)
+    amb = tool(ALICE, 'get_document', id=ambiguous)
+    check = amb['checks'][0]
+    assert check['fields'] == ['issue date'], check  # no underscore
+    assert check['readings'] == ['1 Sep 2016 (month first)', '9 Jan 2016 (day first)'], check
+    dump = json.dumps(amb)
+    assert 'date_ambiguous' not in dump and 'needs_review' not in dump, dump
 
     assert [d['id'] for d in tool(ALICE, 'due_bills', days=7)] == [bill]
     hits = tool(ALICE, 'search_items', text='latte')
@@ -122,7 +136,7 @@ def tools():
     with store.conn() as con:
         assert 'error' in json.loads(assistant.run_tool(con, ALICE, 'search_documents', None))  # arguments that were not JSON
     all_alice = tool(ALICE, 'search_documents', vendor='', status=None)  # empty/None optional args are dropped, not filtered on
-    assert len(all_alice) == 6, all_alice
+    assert len(all_alice) == 7, all_alice
     assert 'error' in tool(ALICE, 'search_items', text='a\x00b')  # NUL byte: psycopg.DataError, not a crash
 
     # a tool error that Postgres itself raises (not the client) must still leave the connection usable:
@@ -167,6 +181,19 @@ def loop(seeded):
         assert [m['role'] for m in first[1:]] == ['user', 'assistant', 'user']
         tool_msg = sent[1][0][-1]
         assert tool_msg['role'] == 'tool' and tool_msg['tool_call_id'] == 'c1' and '2000' in tool_msg['content']
+
+        # Gemini needs its thought signature sent back with the tool call
+        sent.clear(); signed = call('due_bills', {'days': 7})
+        signed['tool_calls'][0]['extra_content'] = {'google': {'thought_signature': 'sig'}}
+        script((signed, {}), ({'content': 'ok'}, {}))
+        assistant.answer(ALICE, [], 'due?')
+        assert sent[1][0][-2]['tool_calls'][0]['extra_content'] == {'google': {'thought_signature': 'sig'}}
+
+        # a Bangla question gets the note to write the whole reply, check messages too, in Bangla; English does not
+        assert 'wrote in Bangla' not in first[0]['content']
+        sent.clear(); script(({'content': 'ok'}, {}))
+        assistant.answer(ALICE, [], 'এই রসিদে সমস্যা কী?')
+        assert 'wrote in Bangla' in sent[0][0][0]['content']
 
         # someone else's document id from the page is not mentioned
         sent.clear(); script(({'content': 'ok'}, {}))
