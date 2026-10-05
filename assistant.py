@@ -125,6 +125,8 @@ def run_tool(con, uid, name, args):
     except HTTPException as e:
         result = {'error': e.detail}
     except (TypeError, ValueError, LookupError, psycopg.DataError) as e:
+        # a failed query aborts the transaction; roll back so the next tool call works
+        con.rollback()
         result = {'error': str(e)}
     return json.dumps(result, default=str)
 

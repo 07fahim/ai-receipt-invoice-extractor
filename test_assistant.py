@@ -124,6 +124,12 @@ def tools():
     all_alice = tool(ALICE, 'search_documents', vendor='', status=None)  # empty/None optional args are dropped, not filtered on
     assert len(all_alice) == 6, all_alice
     assert 'error' in tool(ALICE, 'search_items', text='a\x00b')  # NUL byte: psycopg.DataError, not a crash
+    # after a tool error, the same connection still works on the next call
+    with store.conn() as con:
+        error_result = json.loads(assistant.run_tool(con, ALICE, 'search_items', {'text': 'a\x00b'}))
+        assert 'error' in error_result
+        working_result = json.loads(assistant.run_tool(con, ALICE, 'search_items', {'text': 'latte'}))
+        assert isinstance(working_result, list) and any(d['id'] == latte for d in working_result)
     return {'shwapno': (s1, s2), 'flagged': flagged}
 
 
