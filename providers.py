@@ -110,6 +110,29 @@ def post(url, headers, body, retries=3, timeout=60):
             raise RuntimeError(f'no answer from the model service: {e}') from None
 
 
+# the assistant's chat models, tried in order: a busy or failing one passes the question to the next
+CHAT_MODELS = [('https://api.groq.com/openai/v1', 'qwen/qwen3.8-27b', 'GROQ_API_KEY'),
+               # OpenRouter's router picks any free model that is up; single free models get withdrawn (Qwen, Kimi)
+               ('https://openrouter.ai/api/v1', 'openrouter/free', 'OPENROUTER_API_KEY')]
+
+
+def chat(messages, tools, tool_choice='auto'):
+    errors = []
+    for base, model, key_var in CHAT_MODELS:
+        if not os.environ.get(key_var):
+            continue
+        body = {'model': model, 'temperature': 0, 'messages': messages}
+        if tools:
+            body |= {'tools': tools, 'tool_choice': tool_choice}
+        try:
+            r, _ = post(f'{base}/chat/completions', {'Authorization': f'Bearer {os.environ[key_var]}'}, body,
+                        retries=0, timeout=20)
+            return r['choices'][0]['message'], r.get('usage') or {}
+        except (RuntimeError, KeyError, IndexError, TypeError) as e:
+            errors.append(f'{model}: {e}')
+    raise RuntimeError('; '.join(errors) or 'no chat model key is set')
+
+
 def call(name, image, prompt=PROMPT):
     style, base, model, key_var, _ = MODELS[name]
     key = os.environ[key_var]

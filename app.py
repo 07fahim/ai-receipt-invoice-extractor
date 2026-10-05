@@ -31,6 +31,7 @@ from fastapi.responses import Response
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
+import assistant
 import providers
 import store
 from schema import Document
@@ -49,6 +50,8 @@ SECOND_MODEL = os.environ.get('SECOND_MODEL', 'gemini-3.5-flash')
 SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   # whole app, any 24 hours: the free quota is shared
 SECOND_READ_PER_USER = int(os.environ.get('SECOND_READ_PER_USER', 5))   # per user, any 24 hours, on top of the app-wide cap
 SECOND_READ_FLAGGED_RESERVE = 5   # passed receipts use only leftover quota: this many stay for flagged ones
+ASSISTANT_PER_USER = int(os.environ.get('ASSISTANT_PER_USER', 30))         # answered messages per user, any 24 hours
+ASSISTANT_DAILY_LIMIT = int(os.environ.get('ASSISTANT_DAILY_LIMIT', 40))   # whole app: Groq's free tokens are shared; measured max 4436 tokens/question (results/ASSISTANT_NOTES.md)
 REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate'}   # a second reading cannot settle these
 
 
@@ -568,23 +571,27 @@ def meaningful_changes(doc: Document, second: Document) -> list[dict]:
     return out
 
 
-@app.get('/documents/{doc_id}')
-def get_document(doc_id: int, uid: str = Depends(current_user)):
-    with store.conn() as con:
-        r = get_row(con, doc_id, uid)
-        if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
-            dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
-            # the original may have been deleted or corrected since: drop the flag, or link the copy still there
-            r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
-                           for c in r['checks'] if dup or c['check'] != 'duplicate']
-        second = r.pop('second_reading')
-        r['second_read'] = second is not None  # true once a second-reading answer is stored, even if nothing meaningful differs
-        has_second = r['status'] == 'needs_review' and second and r['document']
-        order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
+def document_detail(con, doc_id, uid):
+    r = get_row(con, doc_id, uid)
+    if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
+        dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
+        # the original may have been deleted or corrected since: drop the flag, or link the copy still there
+        r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
+                       for c in r['checks'] if dup or c['check'] != 'duplicate']
+    second = r.pop('second_reading')
+    r['second_read'] = second is not None  # true once a second-reading answer is stored, even if nothing meaningful differs
+    has_second = r['status'] == 'needs_review' and second and r['document']
+    order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
     r['second_reading'] = second_reading_changes(Document(**r['document']), apply_date_order(Document(**second), order)) \
         if has_second else []
     return r
+
+
+@app.get('/documents/{doc_id}')
+def get_document(doc_id: int, uid: str = Depends(current_user)):
+    with store.conn() as con:
+        return document_detail(con, doc_id, uid)
 
 
 @app.post('/check')
@@ -738,6 +745,8 @@ def delete_account(uid: str = Depends(current_user)):
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
         con.execute('UPDATE second_reads SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts toward the app-wide cap
+        con.execute('DELETE FROM assistant_chats WHERE user_id = %s', (uid,))
+        con.execute('UPDATE assistant_messages SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts app-wide
         con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
         try:
@@ -810,6 +819,76 @@ def test_webhook(uid: str = Depends(current_user)):
 def usage(uid: str = Depends(current_user)):
     with store.conn() as con:
         return {'used': reads_today(con, uid), 'limit': DAILY_UPLOAD_LIMIT}
+
+
+class AssistantIn(BaseModel):
+    chat_id: int | None = None
+    text: str = Field(min_length=1, max_length=1000)
+    page: str | None = Field(None, max_length=200)
+    document_id: int | None = None
+
+
+def own_chat(con, chat_id, uid):
+    r = con.execute('SELECT id, title, messages, updated_at FROM assistant_chats WHERE id = %s AND user_id = %s',
+                    (chat_id, uid)).fetchone()
+    if r is None:
+        raise HTTPException(404, 'Chat not found.')
+    return r
+
+
+@app.get('/assistant/chats')
+def list_chats(uid: str = Depends(current_user)):
+    with store.conn() as con:
+        return con.execute('SELECT id, title, updated_at FROM assistant_chats WHERE user_id = %s ORDER BY updated_at DESC',
+                           (uid,)).fetchall()
+
+
+@app.get('/assistant/chats/{chat_id}')
+def get_chat(chat_id: int, uid: str = Depends(current_user)):
+    with store.conn() as con:
+        return own_chat(con, chat_id, uid)
+
+
+@app.post('/assistant/messages')
+def send_message(body: AssistantIn, uid: str = Depends(current_user)):
+    with store.conn() as con:
+        history = own_chat(con, body.chat_id, uid)['messages'] if body.chat_id else []
+        day = "at > now() - interval '1 day'"
+        if con.execute(f'SELECT count(*) AS n FROM assistant_messages WHERE user_id = %s AND {day}', (uid,)).fetchone()['n'] >= ASSISTANT_PER_USER:
+            raise HTTPException(429, f"You've used today's {ASSISTANT_PER_USER} messages.")
+        if con.execute(f'SELECT count(*) AS n FROM assistant_messages WHERE {day}').fetchone()['n'] >= ASSISTANT_DAILY_LIMIT:
+            raise HTTPException(429, "The assistant has reached today's limit. Try again tomorrow.")
+    try:
+        out = assistant.answer(uid, [{'role': m['role'], 'content': m['content']} for m in history],
+                               body.text, body.page, body.document_id)
+    except RuntimeError as e:
+        print(f'assistant failed: {e}')
+        raise HTTPException(503, 'The assistant is busy. Try again in a minute.')
+    print(f'assistant: {out["tokens"]} tokens, {len(out["steps"])} lookups')  # sizes the daily cap
+    new = Jsonb([{'role': 'user', 'content': body.text}, {'role': 'assistant', 'content': out['reply'], 'steps': out['steps']}])
+    with store.conn() as con:
+        con.execute('INSERT INTO assistant_messages (user_id) VALUES (%s)', (uid,))
+        if body.chat_id:
+            con.execute('UPDATE assistant_chats SET messages = messages || %s, updated_at = now() WHERE id = %s AND user_id = %s',
+                        (new, body.chat_id, uid))
+            chat_id = body.chat_id
+        else:
+            chat_id = con.execute('INSERT INTO assistant_chats (user_id, title, messages) VALUES (%s, %s, %s) RETURNING id',
+                                  (uid, body.text[:60], new)).fetchone()['id']
+    return {'chat_id': chat_id, 'reply': out['reply'], 'steps': out['steps']}
+
+
+@app.delete('/assistant/chats/{chat_id}', status_code=204)
+def delete_chat(chat_id: int, uid: str = Depends(current_user)):
+    with store.conn() as con:
+        if not con.execute('DELETE FROM assistant_chats WHERE id = %s AND user_id = %s', (chat_id, uid)).rowcount:
+            raise HTTPException(404, 'Chat not found.')
+
+
+@app.delete('/assistant/chats', status_code=204)
+def delete_chats(uid: str = Depends(current_user)):
+    with store.conn() as con:
+        con.execute('DELETE FROM assistant_chats WHERE user_id = %s', (uid,))
 
 
 @app.get('/stats')

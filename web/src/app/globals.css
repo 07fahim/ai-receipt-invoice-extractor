@@ -149,3 +149,8 @@
     opacity: 1;
   }
 }
+
+/* the docked assistant panel takes the right 380px; the app moves over instead of hiding under it */
+@media (min-width: 768px) {
+  html[data-assistant="docked"] body { padding-right: 380px; }
+}

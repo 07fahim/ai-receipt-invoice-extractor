@@ -25,6 +25,7 @@ jobs:
       - run: python test_validate.py
       - run: python test_extract.py
       - run: python test_app.py
+      - run: python test_assistant.py
 
   web:
     runs-on: ubuntu-latest
