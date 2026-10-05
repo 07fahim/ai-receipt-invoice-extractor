@@ -174,3 +174,31 @@ OpenRouter withdrew `qwen/qwen3.8-27b:free` the same day (HTTP 404 "This model i
 the free Kimi K2 earlier. The fallback is now `openrouter/free`, OpenRouter's router to any free model that is up. One
 check that day: a Bangla question with a tool returned the right tool call in 3.5 s. Which model answers through the router
 varies, so fallback answers were not measured for quality.
+
+# Gemini 3.5 Flash-Lite as the chat model, 2026-10-06
+
+Same 26 questions and seeded documents as above (`eval_assistant.py`), with `providers.CHAT_MODELS` set to
+Gemini 3.5 Flash-Lite alone (Google's OpenAI-compatible endpoint, temperature 0). Every reply was read; the
+substring check is only a first pass.
+
+| run | substring check | right after reading | median / max tokens | seconds |
+|---|---|---|---|---|
+| 1: prompt as in PR #25 | 26/26 | 25/26 | 2,542 / 6,104 | about 2.3 |
+| 2: amounts with 2 decimals, delete help line, translate rule | 23/26 | 25/26 | 2,670 / 4,230 | about 2.4 |
+
+- Run 1 miss: "Delete document #6" was told to use the Account page (the help text did not say where documents are
+  deleted). Fixed with one help line; run 2 answered with the Documents page.
+- Run 1 showed amounts as the database gives them ("6200.000000 BDT"). The tools now send money with 2 decimals.
+- Run 2 miss: "Did I buy coffee anywhere?" searched "coffee cafe", found nothing and gave up (the item is "Caffe
+  Latte" at Starbucks). Runs 1 and 3 searched again and found it: 2 of 3 runs, keyword search is the limit.
+- Run 2 substring misses that were right on reading: "Which line is wrong" (said "Line 1" without the item name),
+  "Walmart" (worded as "have not spent anything").
+- The rule "translate check messages" had no effect (the check message stayed in English) and Gemini renamed the
+  vendor Shwapno to স্বপ্ন in one answer. Rule dropped; a 3-question run without it: 3/3, stored names kept, and the
+  Bangla answer added a Bangla line asking the user to compare the line with the image.
+- Bangla questions answered in Bangla: 6/6 in both runs. Gemini copied the Bangla vendor name স্বপ্ন সুপারশপ
+  exactly; Qwen wrote it as শ্বাপন সুপারশপ / স্বাপ্ন সুপারশপ (above and in today's 2 Qwen answers).
+- A same-day Qwen run was not possible: Groq's daily token limit ran out after 2 questions.
+
+Result: Gemini 3.5 Flash-Lite goes first, then Groq Qwen, then openrouter/free. Its free daily limit is counted per
+model (not shared with document reading); the number itself has not been read from the AI Studio dashboard yet.
