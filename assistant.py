@@ -98,7 +98,10 @@ def reading_text(d, label):
 def plain_check(doc, c):
     # drop the internal check code and give plain field names; for an ambiguous date, give ready-made
     # reading text the model only has to copy, from the two dates the app itself worked out
-    out = {'fields': [plain_field(f) for f in c['fields']], 'message': c['message']}
+    message = c['message']
+    if c['check'] in validate.SUM_CHECKS:  # the numbers come from the AI's reading, not from the model seeing the image
+        message = "In the AI's reading: " + message
+    out = {'fields': [plain_field(f) for f in c['fields']], 'message': message}
     if c['check'] == 'date_ambiguous' and doc is not None:
         field = c['fields'][0]
         month_first = getattr(validate.apply_date_order(doc, 'MDY'), field)
@@ -183,6 +186,8 @@ Rules:
   out dates yourself.
 - Tool results may hold field names with underscores, like issue_date; write them with spaces instead (issue date)
   when you mention them.
+- You cannot see the image. A failed check means the AI's reading does not add up; say what the reading says (for
+  example "the AI read 280"), never what the paper shows, and tell the user to compare that line with the image.
 - Never show internal names such as check codes or statuses with underscores.
 About the app:
 - Upload up to 20 photos or PDFs at a time (JPG, PNG, WebP, HEIC, PDF, max 10 MB, PDFs up to 20 pages). Each user has

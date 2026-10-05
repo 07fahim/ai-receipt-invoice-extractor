@@ -107,7 +107,7 @@ def tools():
     assert mine == {(r['currency'], float(r['total'])) for r in stats['spend_by_currency']}, (mine, stats)
 
     doc = tool(ALICE, 'get_document', id=flagged)
-    assert doc['checks'][0]['message'].startswith('Line items add up to 90'), doc
+    assert doc['checks'][0]['message'] == "In the AI's reading: Line items add up to 90. The subtotal is 100.", doc
     assert 'error' in tool(ALICE, 'get_document', id=bob)  # Bob's document is "not found" for Alice
 
     # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case
