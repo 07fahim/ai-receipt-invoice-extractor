@@ -13,7 +13,7 @@ export function DemoVideo({ name, label, className }: { name: string; label: str
   useEffect(() => {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       video.current!.controls = true;
-      return;
+      return; // no setShown needed: .rise only hides the frame under no-preference (globals.css)
     }
     const io = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
