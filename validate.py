@@ -199,10 +199,11 @@ ITEM_AMOUNTS = ('unit_price', 'amount', 'discount')
 def suggest(doc: Document) -> dict | None:
     # never applied by itself. A digit fix needs two failed sum checks: on planted mistakes
     # that gave 384 right and 0 wrong; with one failed check, 52 of 333 were wrong
-    def sums_fail(d):
-        return {i['check'] for i in validate(d)} & SUM_CHECKS  # dates play no part in the sums
+    def sums_fail(d, issues=None):
+        return {i['check'] for i in issues or validate(d)} & SUM_CHECKS  # dates play no part in the sums
 
-    failing = sums_fail(doc)
+    issues = validate(doc)  # once: the quantity rule below reads the same list
+    failing = sums_fail(doc, issues)
     if not failing:
         return None
     amounts = [(f, getattr(doc, f)) for f in DOC_AMOUNTS if getattr(doc, f) is not None] + [
@@ -214,7 +215,7 @@ def suggest(doc: Document) -> dict | None:
                  for n, i in enumerate(doc.items)]
         return doc.model_copy(update={**top, 'items': items})
 
-    if 'total_format' in failing:
+    if 'total_format' in failing:  # decides alone: the rules below never run when the total looks 1,000 times off
         updates = {f: v * 1000 for f, v in amounts}
         if sums_fail(changed(updates)):
             return None
@@ -227,10 +228,10 @@ def suggest(doc: Document) -> dict | None:
     # wrong number was the unit price (1.76 lb @ 0.99/3 lb) or a digit of it (6.281 gal for 6.201).
     # Checked first; if the digit search also finds a fix, neither is shown.
     found = []
-    lines = [i['fields'][0] for i in validate(doc) if i['check'] == 'line_math']
+    lines = [i['fields'][0] for i in issues if i['check'] == 'line_math']
     n = int(lines[0][6:-1]) if len(lines) == 1 else None
     item = doc.items[n] if n is not None else None
-    if item and item.quantity == item.quantity.to_integral_value() and item.unit_price > 0 and item.amount > 0:
+    if item and item.quantity > 0 and item.quantity == item.quantity.to_integral_value() and item.unit_price > 0 and item.amount > 0:
         for places in range(4):
             step = Decimal(1).scaleb(-places)
             q = (item.amount / item.unit_price).quantize(step)
