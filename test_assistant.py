@@ -121,12 +121,66 @@ def tools():
         assert 'error' in tool(ALICE, name, **args), name
     with store.conn() as con:
         assert 'error' in json.loads(assistant.run_tool(con, ALICE, 'search_documents', None))  # arguments that were not JSON
+    all_alice = tool(ALICE, 'search_documents', vendor='', status=None)  # empty/None optional args are dropped, not filtered on
+    assert len(all_alice) == 6, all_alice
     return {'shwapno': (s1, s2), 'flagged': flagged}
+
+
+def loop(seeded):
+    real, sent = providers.chat, []
+
+    def script(*replies):
+        queue = list(replies)
+
+        def fake(messages, tools, tool_choice='auto'):
+            sent.append((messages, tool_choice))
+            return queue.pop(0) if queue else ({'content': 'done'}, {'total_tokens': 1})
+        providers.chat = fake
+
+    call = lambda name, args, n=1: {'tool_calls': [{'id': f'c{n}', 'type': 'function',
+                                                    'function': {'name': name, 'arguments': json.dumps(args)}}]}
+    try:
+        # one tool round, then the answer; <think> blocks are removed
+        script((call('spend_summary', {'group_by': 'vendor', 'date_from': '2026-09-01'}), {'total_tokens': 300}),
+               ({'content': '<think>sum it</think>You spent 2,000 BDT at Shwapno.'}, {'total_tokens': 400}))
+        out = assistant.answer(ALICE, [{'role': 'user', 'content': 'hi'}, {'role': 'assistant', 'content': 'Hello.'}],
+                               'How much at Shwapno in September?', '/app/documents/%d' % seeded['flagged'], seeded['flagged'])
+        assert out['reply'] == 'You spent 2,000 BDT at Shwapno.' and out['tokens'] == 700, out
+        assert out['steps'] == ['Summed spend by vendor'], out
+        first = sent[0][0]
+        assert first[0]['role'] == 'system' and f'#{seeded["flagged"]}' in first[0]['content']  # knows the open document
+        assert [m['role'] for m in first[1:]] == ['user', 'assistant', 'user']
+        tool_msg = sent[1][0][-1]
+        assert tool_msg['role'] == 'tool' and tool_msg['tool_call_id'] == 'c1' and '2000' in tool_msg['content']
+
+        # someone else's document id from the page is not mentioned
+        sent.clear(); script(({'content': 'ok'}, {}))
+        bob_doc = add(BOB, 'passed', vendor='Bob Co', total=1)
+        assistant.answer(ALICE, [], 'what is this?', f'/app/documents/{bob_doc}', bob_doc)
+        assert f'#{bob_doc}' not in sent[0][0][0]['content']
+
+        # a tool error goes back to the model, which answers anyway
+        sent.clear(); script((call('get_document', {'id': 999999}), {}), ({'content': 'Not found.'}, {}))
+        out = assistant.answer(ALICE, [], 'show 999999')
+        assert out['reply'] == 'Not found.' and 'error' in sent[1][0][-1]['content'] and out['steps'] == ['Read document #999999']
+
+        # a model that keeps calling tools gets 4 rounds, then must answer
+        sent.clear(); script(*[(call('due_bills', {'days': 7}, n), {}) for n in range(10)])
+        out = assistant.answer(ALICE, [], 'loop forever')
+        assert [c for _, c in sent] == ['auto'] * 4 + ['none'], [c for _, c in sent]
+
+        # only the last 20 history messages are sent
+        sent.clear(); script(({'content': 'ok'}, {}))
+        assistant.answer(ALICE, [{'role': 'user', 'content': str(n)} for n in range(30)], 'q')
+        assert len(sent[0][0]) == 1 + 20 + 1
+    finally:
+        providers.chat = real
 
 
 try:
     chat_fallback()
     seeded = tools()
+    loop(seeded)
     print('ok')
 finally:
     with store.conn() as con:
