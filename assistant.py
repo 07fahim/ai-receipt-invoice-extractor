@@ -96,12 +96,47 @@ def reading_text(d, label):
     return f'{d.day} {d.strftime("%b")} {d.year} ({label})'
 
 
-def plain_check(doc, c):
+# Bangla versions of every check and fix-suggestion message (validate.py and app.py), so a Bangla answer has
+# no English to copy; the model ignored "translate them" in 4 of 6 live asks. A message without a match stays English.
+BANGLA = [(re.compile(p), t) for p, t in [
+    (r"This doesn't look like a receipt or invoice\.", 'এটি রসিদ বা ইনভয়েস বলে মনে হচ্ছে না।'),
+    (r'Is (.+) day first or month first\?', '{0} তারিখটি দিন আগে নাকি মাস আগে লেখা?'),
+    (r'This file seems to hold (.+) documents\. Upload one per file\.',
+     'এই ফাইলে {0}টি ডকুমেন্ট আছে বলে মনে হচ্ছে। প্রতি ফাইলে একটি করে আপলোড করুন।'),
+    (r'No total found\.', 'মোট টাকা পাওয়া যায়নি।'),
+    (r'The total is printed as (.+)\. Is it (.+)\?', 'মোট টাকা ছাপা আছে {0}। এটা কি {1}?'),
+    (r'There are amounts but no line items\.', 'টাকার অঙ্ক আছে, কিন্তু কোনো লাইন আইটেম নেই।'),
+    (r'Line items add up to (.+)\. The subtotal is (.+)\.', 'লাইন আইটেমগুলোর যোগফল {0}। সাবটোটাল {1}।'),
+    (r'Subtotal \+ tax \+ service - discount = (.+)\. The total is (.+)\.',
+     'সাবটোটাল + ট্যাক্স + সার্ভিস চার্জ - ছাড় = {0}। মোট {1}।'),
+    (r'Line items add up to (.+)\. The total is (.+)\.', 'লাইন আইটেমগুলোর যোগফল {0}। মোট {1}।'),
+    (r'(.+) x (.+) = (.+)\. The line says (.+)\.', '{0} x {1} = {2}। লাইনে লেখা {3}।'),
+    (r'The issue date (.+) is in the future\.', 'ইস্যুর তারিখ {0} ভবিষ্যতের।'),
+    (r'The due date is before the issue date\.', 'পরিশোধের শেষ তারিখ ইস্যুর তারিখের আগে।'),
+    (r'"(.+)" is not a currency code\.', '"{0}" কোনো মুদ্রার কোড নয়।'),
+    (r'Same vendor, number and total as (.+)\. It was uploaded earlier\.',
+     'একই বিক্রেতা, নম্বর ও মোট টাকার ডকুমেন্ট ({0}) আগে আপলোড করা হয়েছে।'),
+    (r'A second AI reading differs\. Compare with the photo\.', 'দ্বিতীয় একটি AI পড়া ভিন্ন। ছবির সাথে মিলিয়ে দেখুন।'),
+    (r'The amounts look 1,000 times too small\. The total would be (.+)\.',
+     'অঙ্কগুলো 1,000 গুণ ছোট মনে হচ্ছে। তাহলে মোট হবে {0}।'),
+    (r'(.+): is the quantity (.+)\? Then the line adds up\.', '{0}: পরিমাণ কি {1}? তাহলে লাইনটি মিলে যায়।'),
+    (r'Did you mean (.+) instead of (.+)\? Then every sum adds up\.', '{1}-এর বদলে কি {0}? তাহলে সব যোগফল মিলে যায়।'),
+]]
+
+
+def bangla(message):
+    for pattern, text in BANGLA:
+        if m := pattern.fullmatch(message):
+            return text.format(*m.groups())
+    return message
+
+
+def plain_check(doc, c, in_bangla=False):
     # drop the internal check code and give plain field names; for an ambiguous date, give ready-made
     # reading text the model only has to copy, from the two dates the app itself worked out
-    message = c['message']
+    message = bangla(c['message']) if in_bangla else c['message']
     if c['check'] in validate.SUM_CHECKS:  # the numbers come from the AI's reading, not from the model seeing the image
-        message = "In the AI's reading: " + message
+        message = ('এআই-এর পড়া অনুযায়ী: ' if in_bangla else "In the AI's reading: ") + message
     out = {'fields': [plain_field(f) for f in c['fields']], 'message': message}
     if c['check'] == 'date_ambiguous' and doc is not None:
         field = c['fields'][0]
@@ -111,13 +146,16 @@ def plain_check(doc, c):
     return out
 
 
-def get_document(con, uid, id):
+def get_document(con, uid, id, in_bangla=False):
     import app  # here, not at the top: app imports this module
     r = app.document_detail(con, int(id), uid)
     doc = app.Document(**r['document']) if r['document'] else None
+    suggestion = r['suggestion']
+    if suggestion and in_bangla:
+        suggestion = suggestion | {'message': bangla(suggestion['message'])}
     return {'id': r['id'], 'file_name': r['file_name'], 'status': STATUS_WORDS.get(r['status'], r['status']),
-            'document': r['document'], 'checks': [plain_check(doc, c) for c in (r['checks'] or [])],
-            'suggestion': r['suggestion'], 'second_reading': r['second_reading']}
+            'document': r['document'], 'checks': [plain_check(doc, c, in_bangla) for c in (r['checks'] or [])],
+            'suggestion': suggestion, 'second_reading': r['second_reading']}
 
 
 def due_bills(con, uid, days):
@@ -149,7 +187,7 @@ def search_items(con, uid, text):
 FUNCTIONS = {f.__name__: f for f in (search_documents, spend_summary, get_document, due_bills, search_items)}
 
 
-def run_tool(con, uid, name, args):
+def run_tool(con, uid, name, args, in_bangla=False):
     # any mistake goes back to the model as the result, so it can try again
     try:
         if name not in FUNCTIONS:
@@ -157,6 +195,9 @@ def run_tool(con, uid, name, args):
         if not isinstance(args, dict):
             raise ValueError('arguments must be a JSON object')
         args = {k: v for k, v in args.items() if v not in ('', None)}  # models send "" for optional arguments they leave out
+        args.pop('in_bangla', None)  # set by the app from the question's language, never by the model
+        if in_bangla and name == 'get_document':
+            args['in_bangla'] = True
         result = FUNCTIONS[name](con, uid, **args)
     except HTTPException as e:
         result = {'error': e.detail}
@@ -229,9 +270,10 @@ def answer(uid, history, text, page=None, document_id=None):
         with store.conn() as con:
             if con.execute('SELECT 1 FROM documents WHERE id = %s AND user_id = %s', (document_id, uid)).fetchone():
                 where = f'\nThe user has document #{document_id} open; "this document" means it.'
-    # Bangla letters (not digits or ৳): the general rule alone did not stop English check messages.
+    # Bangla letters (not digits or ৳): the document tool then gives Bangla check messages.
     # Banglish (Latin letters) is not detected and keeps the general rule.
-    if re.search('[অ-হ]', text):
+    in_bangla = bool(re.search('[অ-হ]', text))
+    if in_bangla:
         where += ('\nThe user wrote in Bangla. Write the whole reply in Bangla, translating the check messages too, '
                   'but copy any "readings" text exactly as the tool gives it.')
     messages = [{'role': 'system', 'content': SYSTEM.format(today=date.today().isoformat(), page=where)},
@@ -254,4 +296,4 @@ def answer(uid, history, text, page=None, document_id=None):
                     args = None
                 steps.append(step(c['function']['name'], args if isinstance(args, dict) else {}))
                 messages = messages + [{'role': 'tool', 'tool_call_id': c['id'],
-                                        'content': run_tool(con, uid, c['function']['name'], args)}]
+                                        'content': run_tool(con, uid, c['function']['name'], args, in_bangla)}]
