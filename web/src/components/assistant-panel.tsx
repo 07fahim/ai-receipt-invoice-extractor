@@ -29,11 +29,14 @@ const ALL_ASKS = [
 // "Label: 966.98" (bare number after a colon), with an optional "(1 document)" tail.
 const AMOUNT = /^(.+?)[\s:,-]+((?:[$৳€£₹]\s?[\d,]+(?:\.\d+)?)|(?:[\d,]+(?:\.\d+)?\s?[A-Z]{3})|(?<=:\s*)[\d,]+(?:\.\d+)?)(?:\s*(\(\d+\s+\w+\)))?$/;
 
-/** **bold** becomes <strong>, "#14" becomes a link to that document. */
+// Bangla answers may write "#৬৯"; the link needs "69"
+const englishDigits = (s: string) => s.replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - 0x09e6));
+
+/** **bold** becomes <strong>, "#14" (or "#১৪") becomes a link to that document. */
 function inline(text: string) {
-  return text.split(/(\*\*[^*]+\*\*|#\d+)/g).map((part, i) =>
-    /^#\d+$/.test(part) ? (
-      <Link key={i} href={`/app/documents/${part.slice(1)}`}
+  return text.split(/(\*\*[^*]+\*\*|#[\d০-৯]+)/g).map((part, i) =>
+    /^#[\d০-৯]+$/.test(part) ? (
+      <Link key={i} href={`/app/documents/${englishDigits(part.slice(1))}`}
         className="rounded bg-primary/10 px-1.5 text-xs font-semibold text-primary hover:bg-primary/20">{part}</Link>
     ) : /^\*\*[^*]+\*\*$/.test(part) ? (
       <strong key={i}>{part.slice(2, -2)}</strong>
