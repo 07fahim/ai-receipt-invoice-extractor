@@ -34,9 +34,9 @@
 - **Checks you can read:** every sum, tax line, date and duplicate is checked by plain Python, so a flag always says
   exactly what failed and why.
 - **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
-  decimal point), and nothing changes without the user's click.
+  decimal point, or a weighed item read as quantity 1), and nothing changes without the user's click.
 - **A second reading** by another model on flagged documents (and passed ones while free quota is left), offered
-  field by field. On a crumpled handwritten Bangla memo it found the misread date and two misread amounts.
+  field by field. On a crumpled handwritten Bangla memo it found the misread date and one of the two misread amounts.
 - **97% read right on 396 international receipts** (WildReceipt), after checking every difference against the image;
   every real error was flagged.
 - **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
