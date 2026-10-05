@@ -229,8 +229,11 @@ def answer(uid, history, text, page=None, document_id=None):
         with store.conn() as con:
             if con.execute('SELECT 1 FROM documents WHERE id = %s AND user_id = %s', (document_id, uid)).fetchone():
                 where = f'\nThe user has document #{document_id} open; "this document" means it.'
-    if re.search('[ঀ-৿]', text):  # Bangla letters: the general rule alone did not stop English check messages
-        where += '\nThe user wrote in Bangla. Write the whole reply in Bangla, translating the check messages too.'
+    # Bangla letters (not digits or ৳): the general rule alone did not stop English check messages.
+    # Banglish (Latin letters) is not detected and keeps the general rule.
+    if re.search('[অ-হ]', text):
+        where += ('\nThe user wrote in Bangla. Write the whole reply in Bangla, translating the check messages too, '
+                  'but copy any "readings" text exactly as the tool gives it.')
     messages = [{'role': 'system', 'content': SYSTEM.format(today=date.today().isoformat(), page=where)},
                 *history[-HISTORY:], {'role': 'user', 'content': text}]
     steps, tokens = [], 0
