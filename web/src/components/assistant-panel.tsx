@@ -24,8 +24,9 @@ const ALL_ASKS = [
   { q: "Which bills are due this week?", icon: CalendarClock },
   { q: "Who are my top vendors?", icon: Store },
 ];
-// "Aarong: 6,200 BDT", "Starbucks 5.50 USD", "Total $105.50", "Rice ৳450"
-const AMOUNT = /^(.+?)[\s:-]+((?:[$৳€£₹]\s?[\d,]+(?:\.\d+)?)|(?:[\d,]+(?:\.\d+)?\s?[A-Z]{3}))$/;
+// "Aarong: 6,200 BDT", "Starbucks 5.50 USD", "Total $105.50", "Rice ৳450",
+// "Label: 966.98" (bare number after a colon), with an optional "(1 document)" tail.
+const AMOUNT = /^(.+?)[\s:,-]+((?:[$৳€£₹]\s?[\d,]+(?:\.\d+)?)|(?:[\d,]+(?:\.\d+)?\s?[A-Z]{3})|(?<=:\s*)[\d,]+(?:\.\d+)?)(?:\s*(\(\d+\s+\w+\)))?$/;
 
 /** **bold** becomes <strong>, "#14" becomes a link to that document. */
 function inline(text: string) {
@@ -61,7 +62,15 @@ function formatAnswer(text: string) {
           const m = l.match(AMOUNT);
           return (
             <li key={j} className="flex gap-3 py-1">
-              {m ? <><span className="min-w-0 flex-1">{inline(m[1])}</span><span className="font-semibold tabular-nums">{m[2]}</span></> : inline(l)}
+              {m ? (
+                <>
+                  <span className="min-w-0 flex-1">
+                    {inline(m[1].replace(/[,;]\s*$/, ""))}
+                    {m[3] && <span className="ml-1 text-xs text-muted-foreground">{m[3]}</span>}
+                  </span>
+                  <span className="font-semibold tabular-nums">{m[2]}</span>
+                </>
+              ) : inline(l)}
             </li>
           );
         })}
@@ -75,8 +84,8 @@ function formatAnswer(text: string) {
 function Avatar({ big = false }: { big?: boolean }) {
   return (
     <span className={`grid flex-none place-items-center bg-gradient-to-br from-primary to-violet-600 text-white ${
-      big ? "size-11 rounded-2xl" : "size-6 rounded-lg"}`}>
-      <Sparkles className={big ? "size-5" : "size-3.5"} />
+      big ? "size-9 rounded-xl" : "size-6 rounded-lg"}`}>
+      <Sparkles className={big ? "size-4" : "size-3.5"} />
     </span>
   );
 }
@@ -169,7 +178,7 @@ export function AssistantPanel() {
   const label = "text-[11px] font-semibold tracking-wide text-muted-foreground uppercase";
   const chip = (s: { q: string; icon: typeof Wallet }) => (
     <button key={s.q} disabled={busy} onClick={() => ask(s.q)}
-      className="flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50">
+      className="flex w-full items-center gap-2.5 rounded-xl border px-3 py-1.5 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50">
       <span className="grid size-6 flex-none place-items-center rounded-md bg-primary/10 text-primary"><s.icon className="size-3.5" /></span>
       {s.q}
     </button>
@@ -245,16 +254,18 @@ export function AssistantPanel() {
           )}
         </div>
       ) : msgs.length === 0 && !busy ? (
-        <div className="flex flex-1 flex-col justify-center gap-4 overflow-y-auto p-4 text-sm">
-          <div className="flex flex-col items-center gap-1.5 text-center">
-            <Avatar big />
-            <h2 className="mt-1 text-base font-semibold">Ask about your documents</h2>
-            <p className="text-xs text-muted-foreground">Spending, due bills, or why a receipt was flagged.</p>
-          </div>
-          <div className="space-y-2">
-            {docId && <><p className={label}>This document</p>{DOC_ASKS.map(chip)}</>}
-            <p className={`${label} ${docId ? "pt-1" : ""}`}>Your documents</p>
-            {ALL_ASKS.map(chip)}
+        <div className="flex flex-1 flex-col overflow-y-auto p-4 text-sm">
+          <div className="my-auto flex flex-col gap-3">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <Avatar big />
+              <h2 className="mt-1 text-base font-semibold">Ask about your documents</h2>
+              <p className="text-xs text-muted-foreground">Spending, due bills, or why a receipt was flagged.</p>
+            </div>
+            <div className="space-y-1.5">
+              {docId && <><p className={label}>This document</p>{DOC_ASKS.map(chip)}</>}
+              <p className={`${label} ${docId ? "pt-1" : ""}`}>Your documents</p>
+              {ALL_ASKS.map(chip)}
+            </div>
           </div>
         </div>
       ) : (
