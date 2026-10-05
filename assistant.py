@@ -168,7 +168,8 @@ def run_tool(con, uid, name, args):
 
 
 def plain_value(v):
-    # numeric columns come back as Decimal('6200.000000'); some models copy that as is
+    # numeric columns come back as Decimal('6200.000000'); some models copy that as is.
+    # every numeric column the tools select is money; a non-money one would need its own format
     return f'{v:.2f}' if isinstance(v, Decimal) else str(v)
 
 
