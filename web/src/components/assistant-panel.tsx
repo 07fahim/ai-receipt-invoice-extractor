@@ -47,7 +47,8 @@ export function AssistantPanel() {
     if (mode !== "closed") localStorage.setItem(SIZE, mode);
     return () => { delete document.documentElement.dataset.assistant; };
   }, [mode]);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [msgs, busy]);
+  // braces: newer browsers return a Promise from scrollIntoView, and an effect may only return a cleanup
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs, busy]);
 
   const open = () => setMode((localStorage.getItem(SIZE) as Mode | null) ?? "small");
 
