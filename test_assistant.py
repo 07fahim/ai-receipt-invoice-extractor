@@ -181,6 +181,13 @@ def loop(seeded):
         tool_msg = sent[1][0][-1]
         assert tool_msg['role'] == 'tool' and tool_msg['tool_call_id'] == 'c1' and '2000' in tool_msg['content']
 
+        # Gemini needs its thought signature sent back with the tool call
+        sent.clear(); signed = call('due_bills', {'days': 7})
+        signed['tool_calls'][0]['extra_content'] = {'google': {'thought_signature': 'sig'}}
+        script((signed, {}), ({'content': 'ok'}, {}))
+        assistant.answer(ALICE, [], 'due?')
+        assert sent[1][0][-2]['tool_calls'][0]['extra_content'] == {'google': {'thought_signature': 'sig'}}
+
         # someone else's document id from the page is not mentioned
         sent.clear(); script(({'content': 'ok'}, {}))
         bob_doc = add(BOB, 'passed', vendor='Bob Co', total=1)
