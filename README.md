@@ -198,6 +198,10 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
    | `SECOND_MODEL` | Optional. Reads flagged documents a second time, and passed ones from leftover quota. Default `gemini-3.5-flash` (thinking low) |
    | `SECOND_READ_DAILY_LIMIT` | Optional. Second readings for the whole app in any 24 hours. Default 15 |
    | `SECOND_READ_PER_USER` | Optional. Second readings per user in any 24 hours. Default 5 |
+   | `GROQ_API_KEY` | Optional. Assistant fallback when Gemini is busy (Qwen on Groq) |
+   | `OPENROUTER_API_KEY` | Optional. Second assistant fallback (`openrouter/free`) |
+   | `ASSISTANT_PER_USER` | Optional. Assistant messages per user in any 24 hours. Default 30 |
+   | `ASSISTANT_DAILY_LIMIT` | Optional. Assistant messages for the whole app in any 24 hours. Default 40 |
    | `APP_SCHEMA` | Optional. Database schema for the app's tables. Default `app` |
    | `WEBHOOK_KEY` | Optional. Any long random text; turns on users' own webhooks and encrypts their addresses |
    | `WEBHOOK_URL`, `WEBHOOK_SECRET`, `WEBHOOK_USER_ID` | Optional. Your own n8n webhook and the account(s) whose documents go there |
@@ -226,7 +230,8 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
 ## Run it in your own accounts
 
 Everything runs on accounts you own: your Gemini key, your Supabase project, your Render and Vercel. Your data stays
-in your own Supabase project, images go only to Google's Gemini API under your key, and the bills are yours.
+in your own Supabase project, images go only to Google's Gemini API under your key, and the bills are yours. Assistant questions (text, never
+images) also go to Gemini, or to Groq or OpenRouter if you add those keys.
 
 - **API and n8n:** [`render.yaml`](render.yaml) is a Render Blueprint for both services. Fill in the settings Render
   asks for. It creates `WEBHOOK_KEY` itself.
