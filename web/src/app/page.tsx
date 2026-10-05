@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Archive, Calculator, ClipboardCheck, Download, Lock, ScanText, Store, Trash2, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DemoVideo } from "@/components/demo-video";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
@@ -138,17 +139,11 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
             <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it. You fix one field.
+              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it and suggests 1.89. One
+              click fixes it.
             </p>
-            <div className="mt-11 overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]">
-              <div className="flex gap-1.5 border-b bg-background px-4 py-3" aria-hidden>
-                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-                <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-              </div>
-              <Image src="/review-smoke-city.jpg" width={1340} height={880} className="h-auto w-full"
-                alt="The review screen: a Smoke City Market receipt next to its fields. The beef ribs line is flagged because 1 x 19.50 is not 36.86." />
-            </div>
+            <DemoVideo name="fix" className="mt-11"
+              label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
           </div>
         </section>
 
