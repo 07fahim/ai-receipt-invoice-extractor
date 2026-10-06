@@ -25,13 +25,13 @@ const useCases = [
     text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
 ];
 
-// The mistakes the review page can fix. None is changed until the user clicks.
+// What the review page can fix or flag. Nothing changes until the user clicks.
 const fixes = [
-  { icon: Scale, text: "Weighed items read as 1 item" },
+  { icon: Scale, text: "Weighed items read as a whole number" },
   { icon: Hash, text: "A digit read wrong" },
   { icon: Calculator, text: "Amounts read 1,000 times too small" },
   { icon: CalendarDays, text: "Dates that can be read two ways" },
-  { icon: Sparkles, text: "Wrong fields, read again by a second AI" },
+  { icon: Sparkles, text: "A second AI reads it again and shows what differs" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -157,8 +157,8 @@ export default function Home() {
                 The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it and suggests 1.89. One
                 click fixes it.
               </p>
-              <h3 className="mt-8 text-sm font-semibold">What it fixes</h3>
-              <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1" aria-label="What it fixes">
+              <h3 id="fixes" className="mt-8 text-sm font-semibold">What it fixes</h3>
+              <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1" aria-labelledby="fixes">
                 {fixes.map(({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-2.5 rounded-xl border bg-card px-4 py-2 text-sm font-medium shadow-xs">
                     <Icon className="size-4 shrink-0 text-primary" aria-hidden />
@@ -168,7 +168,7 @@ export default function Home() {
               </ul>
               <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <WandSparkles className="size-4 shrink-0 text-primary" aria-hidden />
-                Auto-fix finds the right number. Nothing changes until you click.
+                Fixes are suggested from the math. Nothing changes until you click.
               </p>
             </div>
             <DemoVideo name="fix" className="lg:order-first"
