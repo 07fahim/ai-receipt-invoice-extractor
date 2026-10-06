@@ -100,25 +100,25 @@
   --bad-soft: #FEE2E2;
 }
 
-/* dark theme: same roles, lighter blue so links and buttons keep their contrast */
+/* dark theme: near-black with a cool tint, same roles, lighter blue so links and buttons keep their contrast */
 .dark {
   color-scheme: dark;
-  --background: #0B1120;
+  --background: #17171c;
   --foreground: #E5E7EB;
-  --card: #111827;
+  --card: #1f1f26;
   --card-foreground: #E5E7EB;
-  --popover: #111827;
+  --popover: #1f1f26;
   --popover-foreground: #E5E7EB;
   --primary: #60A5FA;
-  --primary-foreground: #0B1120;
-  --secondary: #1F2937;
+  --primary-foreground: #17171c;
+  --secondary: #26262e;
   --secondary-foreground: #E5E7EB;
-  --muted: #1F2937;
+  --muted: #26262e;
   --muted-foreground: #9CA3AF;
   --accent: #1E2A44;
   --accent-foreground: #93C5FD;
   --destructive: #F87171;
-  --border: #273244;
+  --border: #2c2c35;
   --input: #6B7280;
   --ring: #60A5FA;
   --chart-1: #60A5FA;
@@ -126,13 +126,13 @@
   --chart-3: #34D399;
   --chart-4: #FBBF24;
   --chart-5: #9CA3AF;
-  --sidebar: #111827;
+  --sidebar: #1f1f26;
   --sidebar-foreground: #D1D5DB;
   --sidebar-primary: #60A5FA;
-  --sidebar-primary-foreground: #0B1120;
+  --sidebar-primary-foreground: #17171c;
   --sidebar-accent: #1E2A44;
   --sidebar-accent-foreground: #93C5FD;
-  --sidebar-border: #273244;
+  --sidebar-border: #2c2c35;
   --sidebar-ring: #60A5FA;
   --ok: #34D399;
   --ok-soft: #063B2E;
