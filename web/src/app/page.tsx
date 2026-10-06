@@ -25,15 +25,13 @@ const useCases = [
     text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
 ];
 
-// Every kind of fix the review page offers. None is applied until the user clicks.
+// The mistakes the review page can fix. None is changed until the user clicks.
 const fixes = [
-  { icon: WandSparkles, text: "Auto-fix: the math finds the right number" },
-  { icon: Scale, text: "Weighed items read as 1 get the real weight" },
-  { icon: Hash, text: "A misread digit is found from the sums" },
+  { icon: Scale, text: "Weighed items read as 1 item" },
+  { icon: Hash, text: "A digit read wrong" },
   { icon: Calculator, text: "Amounts read 1,000 times too small" },
-  { icon: CalendarDays, text: "Unclear dates: pick the format once per shop" },
-  { icon: Sparkles, text: "A second AI reads flagged receipts again" },
-  { icon: MessageCircle, text: "The assistant explains each flag" },
+  { icon: CalendarDays, text: "Dates that can be read two ways" },
+  { icon: Sparkles, text: "Wrong fields, read again by a second AI" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -159,7 +157,8 @@ export default function Home() {
                 The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it and suggests 1.89. One
                 click fixes it.
               </p>
-              <ul className="mt-8 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1" aria-label="What it can fix">
+              <h3 className="mt-8 text-sm font-semibold">What it fixes</h3>
+              <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1" aria-label="What it fixes">
                 {fixes.map(({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-2.5 rounded-xl border bg-card px-4 py-2 text-sm font-medium shadow-xs">
                     <Icon className="size-4 shrink-0 text-primary" aria-hidden />
@@ -167,7 +166,10 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 text-sm text-muted-foreground">Nothing changes until you click.</p>
+              <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <WandSparkles className="size-4 shrink-0 text-primary" aria-hidden />
+                Auto-fix finds the right number. Nothing changes until you click.
+              </p>
             </div>
             <DemoVideo name="fix" className="lg:order-first"
               label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
