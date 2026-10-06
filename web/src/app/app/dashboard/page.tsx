@@ -153,8 +153,8 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={months} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
-                  <YAxis tickLine={false} axisLine={false} fontSize={12} width={56} tickFormatter={(v) => Number(v).toLocaleString("en-US")} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} tick={{ fill: "var(--muted-foreground)" }} />
+                  <YAxis tickLine={false} axisLine={false} fontSize={12} tick={{ fill: "var(--muted-foreground)" }} width={56} tickFormatter={(v) => Number(v).toLocaleString("en-US")} />
                   <Tooltip cursor={{ fill: "var(--muted)" }} contentStyle={{ background: "var(--popover)", borderColor: "var(--border)" }} formatter={(v) => [money(Number(v), code), "Spend"]} />
                   <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={44} />
                 </BarChart>
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                   <span className="truncate">{v.vendor}</span>
                   <span>{money(v.total)}</span>
                   <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[#EEF0F3] dark:bg-muted">
-                    <span className="block h-full rounded-full bg-chart-2" style={{ width: `${(v.total / vendors[0].total) * 100}%` }} />
+                    <span className="block h-full rounded-full bg-chart-2 dark:bg-chart-1" style={{ width: `${(v.total / vendors[0].total) * 100}%` }} />
                   </span>
                 </li>
               ))}
