@@ -177,11 +177,9 @@
   <path d="M206 565 H488" stroke="#94A3B8" stroke-width="2" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 
   <text x="50" y="708" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">CHAT MODELS</text>
-  <text x="50" y="736" font-size="17" font-weight="700" fill="#111827">Gemini 3.5</text>
-  <text x="50" y="758" font-size="17" font-weight="700" fill="#111827">Flash-Lite</text>
-  <text x="50" y="790" font-size="14" fill="#374151">fallback Qwen</text>
-  <text x="50" y="811" font-size="14" fill="#374151">on Groq, then</text>
-  <text x="50" y="832" font-size="14" fill="#374151">OpenRouter</text>
+  <text x="50" y="736" font-size="17" font-weight="700" fill="#111827">Gemini</text>
+  <text x="50" y="758" font-size="17" font-weight="700" fill="#111827">Qwen</text>
+  <text x="50" y="790" font-size="14" fill="#374151">assistant answers</text>
   <path d="M206 765 H242" stroke="#94A3B8" stroke-width="2" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 
   <!-- webhook targets -->
