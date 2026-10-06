@@ -4,6 +4,7 @@ import { Archive, Calculator, ClipboardCheck, Download, Lock, MessageCircle, Sca
 import { Button } from "@/components/ui/button";
 import { DemoVideo } from "@/components/demo-video";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const features = [
@@ -66,6 +67,7 @@ export default function Home() {
             <a href="#features" className="hidden whitespace-nowrap hover:text-foreground lg:block">Features</a>
             <a href="#checks" className="hidden whitespace-nowrap hover:text-foreground lg:block">Checks</a>
             <a href="#privacy" className="hidden whitespace-nowrap hover:text-foreground lg:block">Privacy</a>
+            <ThemeToggle />
             <Link href="/login" className="whitespace-nowrap hover:text-foreground">Log in</Link>
             <Button asChild><Link href="/signup">Get started</Link></Button>
           </nav>
@@ -104,7 +106,7 @@ export default function Home() {
               <p style={{ "--i": 0 } as React.CSSProperties} className="mb-2 border-b border-dashed pb-2 text-center text-[11px] tracking-[0.12em] text-muted-foreground">TACO BELL 017314</p>
               {TAPE.map(([left, right, kind], i) => (
                 <p key={left} style={{ "--i": i + 1 } as React.CSSProperties}
-                  className={cn("flex justify-between gap-3", kind === "flag" && "-mx-2 bg-[#ffe14d] px-2")}>
+                  className={cn("flex justify-between gap-3", kind === "flag" && "-mx-2 bg-[#ffe14d] px-2 text-[#111827]")}>
                   <span>{left}</span>
                   <span>{right}{kind === "ok" && <b className="ml-1 text-ok">✓</b>}</span>
                 </p>
@@ -231,7 +233,7 @@ export default function Home() {
         </section>
 
         <section className="border-t bg-background px-6 pt-12 pb-20">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white md:p-12">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white dark:border dark:bg-card md:p-12">
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt</h2>
               <p className="mt-1.5 text-white/75">Sign up free. Sample receipts are ready to try.</p>
