@@ -71,18 +71,8 @@
 ## How it works
 
 <p align="center">
-  <img src="assets/how-it-works.svg" alt="How Crosscheck works: upload, the AI reads, plain-code checks. Passed documents are ready to export; flagged ones go to the review screen and are ready once fixed. Every change is saved in Postgres and sent as a signed webhook to n8n or your own address." width="100%">
+  <img src="assets/how-it-works.svg" alt="Crosscheck architecture. The Next.js web app on Vercel signs users in with Supabase Auth and sends uploads to a FastAPI API on Render. Gemini 3.1 Flash-Lite reads each image or PDF page into JSON, plain Python checks test sums, tax, quantity times price, dates, currency and duplicates, then passed documents are ready to export and flagged ones go to the review screen, ready once fixed. Gemini 3.5 Flash gives a second reading. The assistant answers questions about the user's own documents with read-only lookups, using Gemini 3.5 Flash-Lite with Qwen on Groq and OpenRouter as fallbacks. Exports are CSV, Excel and QuickBooks bills. Every change is saved in Postgres on Supabase and sent as a signed, retried webhook to n8n or your own URL." width="100%">
 </p>
-
-- `providers.py` sends the image straight to the model and parses its JSON answer. The model also returns each
-  date exactly as printed, so dates that can be read two ways are caught.
-- `validate.py` holds the checks and the fix suggestions. They are deterministic: the same reading always gets the
-  same result.
-- `app.py` is the API. Webhook events are written to a table in the same transaction as the document change, so a
-  restart loses none. They are retried after 1 min, 5 min, 30 min and 2 h, one at a time per user, and signed
-  with HMAC-SHA256.
-- `store.py` creates the tables (schema `app`) and the connection pool. Files are stored in the database.
-- `web/` is the Next.js app (TypeScript, Tailwind, shadcn/ui, Recharts, Supabase Auth).
 
 ## Measured results
 
