@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 570" width="1200" height="570" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
-  <title>How Crosscheck works: upload, the AI reads, plain-code checks, then passed documents export and flagged ones go to review; every change becomes a signed webhook event</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1040" width="1200" height="1040" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>How Crosscheck is built: the Next.js web app on Vercel sends uploads to a FastAPI API on Render. Gemini 3.1 Flash-Lite reads each page, plain Python checks test the reading, passed documents are ready to export and flagged ones go to review. A second reading by Gemini 3.5 Flash, an assistant, exports and signed webhooks to n8n are attached. Everything is stored in Postgres on Supabase.</title>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
@@ -16,98 +16,199 @@
   </defs>
 
   <!-- card -->
-  <rect x="0.5" y="0.5" width="1199" height="569" rx="20" fill="#F6F7F9" stroke="#E5E7EB"/>
+  <rect x="0.5" y="0.5" width="1199" height="1039" rx="20" fill="#F6F7F9" stroke="#E5E7EB"/>
 
-  <!-- main flow -->
+  <!-- header and legend -->
+  <text x="32" y="62" font-size="26" font-weight="800" fill="#111827">How Crosscheck is built</text>
+  <rect x="842" y="44" width="28" height="20" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <text x="878" y="59" font-size="13" fill="#6B7280">Crosscheck code</text>
+  <rect x="1000" y="44" width="28" height="20" rx="6" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="1036" y="59" font-size="13" fill="#6B7280">Outside service</text>
+
+  <!-- boxes with shadow -->
   <g filter="url(#shadow)">
-    <rect x="40" y="60" width="230" height="150" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
-    <rect x="320" y="60" width="250" height="150" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
-    <rect x="620" y="60" width="250" height="150" rx="14" fill="#1D4ED8"/>
+    <!-- browser and auth -->
+    <rect x="228" y="110" width="744" height="118" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="998" y="110" width="170" height="118" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <!-- API frame -->
+    <rect x="228" y="258" width="744" height="614" rx="18" fill="#FBFCFD" stroke="#CBD5E1" stroke-width="1.5"/>
+    <!-- external models -->
+    <rect x="32" y="310" width="170" height="130" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <rect x="32" y="500" width="170" height="130" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <rect x="32" y="680" width="170" height="170" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <!-- webhook targets -->
+    <rect x="998" y="680" width="170" height="110" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <rect x="998" y="806" width="170" height="44" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <!-- database -->
+    <rect x="228" y="912" width="744" height="96" rx="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+  </g>
+  <g filter="url(#shadow)">
+    <!-- API parts -->
+    <rect x="246" y="300" width="216" height="150" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="492" y="300" width="216" height="150" rx="14" fill="#1D4ED8"/>
+    <rect x="738" y="300" width="216" height="150" rx="14" fill="#FFFFFF" stroke="#047857" stroke-width="2"/>
+    <rect x="738" y="480" width="216" height="170" rx="14" fill="#FFFFFF" stroke="#D97706" stroke-width="2"/>
+    <rect x="492" y="480" width="216" height="170" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="246" y="680" width="216" height="170" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="492" y="680" width="216" height="170" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
+    <rect x="738" y="680" width="216" height="170" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
   </g>
 
-  <!-- 1 upload -->
-  <circle cx="72" cy="92" r="16" fill="#EEF2FF"/>
-  <text x="72" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">1</text>
-  <text x="98" y="99" font-size="20" font-weight="700" fill="#111827">Upload</text>
-  <text x="62" y="138" font-size="15" fill="#374151">Photos, scans, PDFs</text>
-  <text x="62" y="160" font-size="15" fill="#374151">up to 20 at a time</text>
-  <text x="62" y="192" font-size="13" fill="#6B7280">Next.js on Vercel</text>
+  <!-- web app -->
+  <text x="252" y="144" font-size="19" font-weight="700" fill="#111827">Web app</text>
+  <text x="338" y="144" font-size="13" font-weight="600" fill="#1D4ED8">Next.js on Vercel</text>
+  <rect x="252" y="160" width="96" height="28" rx="14" fill="#1D4ED8"/>
+  <circle cx="268" cy="174" r="10" fill="#FFFFFF"/>
+  <text x="268" y="179" text-anchor="middle" font-size="13" font-weight="700" fill="#1D4ED8">1</text>
+  <text x="284" y="179" font-size="14" font-weight="600" fill="#FFFFFF">Upload</text>
+  <g font-size="14" font-weight="600" fill="#334155" text-anchor="middle">
+    <rect x="356" y="160" width="72" height="28" rx="14" fill="#F1F5F9"/>
+    <text x="392" y="179">Review</text>
+    <rect x="436" y="160" width="100" height="28" rx="14" fill="#F1F5F9"/>
+    <text x="486" y="179">Documents</text>
+    <rect x="544" y="160" width="100" height="28" rx="14" fill="#F1F5F9"/>
+    <text x="594" y="179">Dashboard</text>
+    <rect x="652" y="160" width="128" height="28" rx="14" fill="#F1F5F9"/>
+    <text x="716" y="179">Assistant chat</text>
+  </g>
+  <text x="252" y="214" font-size="14" fill="#374151">Sign in with email or Google. Every API call carries the user's token.</text>
 
-  <!-- 2 AI reads -->
-  <circle cx="352" cy="92" r="16" fill="#EEF2FF"/>
-  <text x="352" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">2</text>
-  <text x="378" y="99" font-size="20" font-weight="700" fill="#111827">AI reads</text>
-  <text x="342" y="138" font-size="15" fill="#374151">Gemini 3.1 Flash-Lite returns</text>
-  <text x="342" y="160" font-size="15" fill="#374151">every field as JSON</text>
-  <text x="342" y="192" font-size="13" fill="#6B7280">FastAPI on Render</text>
+  <!-- auth -->
+  <text x="1016" y="138" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">SUPABASE</text>
+  <text x="1016" y="166" font-size="18" font-weight="700" fill="#111827">Auth</text>
+  <text x="1016" y="192" font-size="14" fill="#374151">Email or Google</text>
+  <text x="1016" y="212" font-size="14" fill="#374151">sign-in, user tokens</text>
+  <path d="M974 169 H994" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- upload into API -->
+  <path d="M430 230 V296" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="440" y="249" font-size="13" font-weight="600" fill="#6B7280">upload</text>
+
+  <!-- API title -->
+  <text x="248" y="286" font-size="17" font-weight="700" fill="#111827">API</text>
+  <text x="284" y="286" font-size="13" font-weight="600" fill="#1D4ED8">FastAPI on Render</text>
+
+  <!-- 2 reading -->
+  <circle cx="270" cy="327" r="14" fill="#EEF2FF"/>
+  <text x="270" y="332" text-anchor="middle" font-size="15" font-weight="700" fill="#1D4ED8">2</text>
+  <text x="292" y="334" font-size="19" font-weight="700" fill="#111827">Reading</text>
+  <text x="264" y="368" font-size="14" fill="#374151">Each image or PDF page</text>
+  <text x="264" y="389" font-size="14" fill="#374151">comes back as JSON with</text>
+  <text x="264" y="410" font-size="14" fill="#374151">every field and line item</text>
+  <text x="264" y="436" font-size="13" fill="#6B7280">providers.py</text>
 
   <!-- 3 checks -->
-  <circle cx="652" cy="92" r="16" fill="#FFFFFF"/>
-  <text x="652" y="98" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">3</text>
-  <text x="678" y="99" font-size="20" font-weight="700" fill="#FFFFFF">Checks</text>
-  <text x="642" y="138" font-size="15" fill="#E0E7FF">Sums, tax, dates, duplicates</text>
-  <text x="642" y="160" font-size="15" fill="#E0E7FF">Plain code, same answer</text>
-  <text x="642" y="182" font-size="15" fill="#E0E7FF">every time</text>
+  <circle cx="516" cy="327" r="14" fill="#FFFFFF"/>
+  <text x="516" y="332" text-anchor="middle" font-size="15" font-weight="700" fill="#1D4ED8">3</text>
+  <text x="538" y="334" font-size="19" font-weight="700" fill="#FFFFFF">Checks</text>
+  <text x="510" y="368" font-size="14" fill="#E0E7FF">Sums, tax, quantity x price,</text>
+  <text x="510" y="389" font-size="14" fill="#E0E7FF">dates, currency, duplicates</text>
+  <text x="510" y="410" font-size="14" fill="#E0E7FF">Plain Python, same result</text>
+  <text x="510" y="436" font-size="13" fill="#C7D2FE">validate.py</text>
 
-  <path d="M272 135 H316" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-  <path d="M572 135 H616" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <!-- 4 passed -->
+  <rect x="756" y="318" width="78" height="26" rx="13" fill="#D1FAE5"/>
+  <text x="795" y="336" text-anchor="middle" font-size="13" font-weight="700" fill="#047857">Passed</text>
+  <text x="756" y="378" font-size="17" font-weight="700" fill="#111827">Ready to export</text>
+  <text x="756" y="402" font-size="14" fill="#374151">No one needs to look</text>
+  <text x="756" y="423" font-size="14" fill="#374151">at these</text>
 
-  <!-- outcomes -->
-  <g filter="url(#shadow)">
-    <rect x="930" y="40" width="230" height="110" rx="14" fill="#FFFFFF" stroke="#047857" stroke-width="2"/>
-    <rect x="930" y="190" width="230" height="130" rx="14" fill="#FFFFFF" stroke="#D97706" stroke-width="2"/>
+  <!-- 4 review -->
+  <rect x="756" y="498" width="116" height="26" rx="13" fill="#FEF3C7"/>
+  <text x="814" y="516" text-anchor="middle" font-size="13" font-weight="700" fill="#92400E">Needs review</text>
+  <text x="756" y="556" font-size="17" font-weight="700" fill="#111827">Review screen</text>
+  <text x="756" y="580" font-size="14" fill="#374151">Original next to the fields</text>
+  <text x="756" y="601" font-size="14" fill="#374151">Fix suggestions, applied</text>
+  <text x="756" y="622" font-size="14" fill="#374151">only on the user's click</text>
+
+  <!-- second reading -->
+  <text x="510" y="512" font-size="18" font-weight="700" fill="#111827">Second reading</text>
+  <text x="510" y="544" font-size="14" fill="#374151">Rereads flagged documents,</text>
+  <text x="510" y="565" font-size="14" fill="#374151">and passed ones while the</text>
+  <text x="510" y="586" font-size="14" fill="#374151">daily cap allows. If it</text>
+  <text x="510" y="607" font-size="14" fill="#374151">disagrees: to review, with</text>
+  <text x="510" y="628" font-size="14" fill="#374151">differences field by field</text>
+
+  <!-- assistant -->
+  <text x="264" y="712" font-size="18" font-weight="700" fill="#111827">Assistant</text>
+  <text x="264" y="744" font-size="14" fill="#374151">Answers questions about</text>
+  <text x="264" y="765" font-size="14" fill="#374151">the user's own documents</text>
+  <text x="264" y="786" font-size="14" fill="#374151">in English or Bangla</text>
+  <text x="264" y="807" font-size="14" fill="#374151">5 read-only lookups,</text>
+  <text x="264" y="828" font-size="14" fill="#374151">never changes documents</text>
+
+  <!-- exports -->
+  <text x="510" y="712" font-size="18" font-weight="700" fill="#111827">Exports</text>
+  <text x="510" y="744" font-size="14" font-weight="600" fill="#111827">CSV and Excel</text>
+  <text x="510" y="765" font-size="14" fill="#374151">all read documents</text>
+  <text x="510" y="796" font-size="14" font-weight="600" fill="#111827">QuickBooks bills</text>
+  <text x="510" y="817" font-size="14" fill="#374151">passed or reviewed</text>
+
+  <!-- webhooks -->
+  <text x="756" y="712" font-size="18" font-weight="700" fill="#111827">Webhooks</text>
+  <text x="756" y="744" font-size="14" fill="#374151">Each document change is</text>
+  <text x="756" y="765" font-size="14" fill="#374151">saved with its event in</text>
+  <text x="756" y="786" font-size="14" fill="#374151">one transaction</text>
+  <text x="756" y="807" font-size="14" fill="#374151">Signed (HMAC-SHA256)</text>
+  <text x="756" y="828" font-size="14" fill="#374151">and retried</text>
+
+  <!-- main flow arrows -->
+  <path d="M464 375 H488" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M710 375 H734" stroke="#047857" stroke-width="2.5" fill="none" marker-end="url(#arrow-ok)"/>
+  <path d="M710 425 H723 V540 H734" stroke="#D97706" stroke-width="2.5" fill="none" marker-end="url(#arrow-warn)"/>
+  <!-- checks to second reading, second reading to review -->
+  <path d="M600 452 V476" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M710 600 H734" stroke="#D97706" stroke-width="2" fill="none" marker-end="url(#arrow-warn)"/>
+  <!-- reviewed counts as ready -->
+  <path d="M846 478 V454" stroke="#047857" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#arrow-ok)"/>
+  <text x="856" y="471" font-size="13" font-weight="600" fill="#047857">once fixed</text>
+
+  <!-- models -->
+  <text x="50" y="338" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">GOOGLE</text>
+  <text x="50" y="366" font-size="17" font-weight="700" fill="#111827">Gemini 3.1</text>
+  <text x="50" y="388" font-size="17" font-weight="700" fill="#111827">Flash-Lite</text>
+  <text x="50" y="420" font-size="14" fill="#374151">reads documents</text>
+  <path d="M206 375 H242" stroke="#94A3B8" stroke-width="2" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <text x="50" y="528" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">GOOGLE</text>
+  <text x="50" y="556" font-size="17" font-weight="700" fill="#111827">Gemini 3.5</text>
+  <text x="50" y="578" font-size="17" font-weight="700" fill="#111827">Flash</text>
+  <text x="50" y="610" font-size="14" fill="#374151">second reading</text>
+  <path d="M206 565 H488" stroke="#94A3B8" stroke-width="2" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <text x="50" y="708" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">CHAT MODELS</text>
+  <text x="50" y="736" font-size="17" font-weight="700" fill="#111827">Gemini 3.5</text>
+  <text x="50" y="758" font-size="17" font-weight="700" fill="#111827">Flash-Lite</text>
+  <text x="50" y="790" font-size="14" fill="#374151">fallback Qwen</text>
+  <text x="50" y="811" font-size="14" fill="#374151">on Groq, then</text>
+  <text x="50" y="832" font-size="14" fill="#374151">OpenRouter</text>
+  <path d="M206 765 H242" stroke="#94A3B8" stroke-width="2" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <!-- webhook targets -->
+  <text x="1016" y="708" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">N8N</text>
+  <text x="1016" y="734" font-size="14" fill="#374151">Google Sheets</text>
+  <text x="1016" y="755" font-size="14" fill="#374151">Telegram</text>
+  <text x="1016" y="776" font-size="14" fill="#374151">Email</text>
+  <text x="1016" y="833" font-size="14" fill="#374151">or your own URL</text>
+  <path d="M956 735 H994" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M956 828 H994" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- database -->
+  <path d="M600 874 V908" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="612" y="896" font-size="13" font-weight="600" fill="#6B7280">every change saved</text>
+  <path d="M252 940 V964 A16 6 0 0 0 284 964 V940" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="2"/>
+  <path d="M252 952 A16 6 0 0 0 284 952" fill="none" stroke="#1D4ED8" stroke-width="1.5"/>
+  <ellipse cx="268" cy="940" rx="16" ry="6" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="2"/>
+  <text x="300" y="952" font-size="19" font-weight="700" fill="#111827">Postgres</text>
+  <text x="388" y="952" font-size="13" font-weight="600" fill="#1D4ED8">Supabase</text>
+  <g font-size="14" font-weight="600" fill="#334155" text-anchor="middle">
+    <rect x="252" y="970" width="196" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="350" y="988">Documents and files</text>
+    <rect x="456" y="970" width="84" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="498" y="988">Checks</text>
+    <rect x="548" y="970" width="150" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="623" y="988">Webhook events</text>
+    <rect x="706" y="970" width="140" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="776" y="988">Assistant chats</text>
   </g>
-  <rect x="950" y="58" width="78" height="26" rx="13" fill="#D1FAE5"/>
-  <text x="989" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#047857">Passed</text>
-  <text x="950" y="112" font-size="16" font-weight="700" fill="#111827">Ready to export</text>
-  <text x="950" y="134" font-size="14" fill="#374151">CSV, Excel, QuickBooks</text>
-
-  <rect x="950" y="208" width="116" height="26" rx="13" fill="#FEF3C7"/>
-  <text x="1008" y="226" text-anchor="middle" font-size="13" font-weight="700" fill="#92400E">Needs review</text>
-  <text x="950" y="262" font-size="16" font-weight="700" fill="#111827">Review screen</text>
-  <text x="950" y="284" font-size="14" fill="#374151">Original next to the fields,</text>
-  <text x="950" y="304" font-size="14" fill="#374151">the failed check explained</text>
-
-  <path d="M872 120 C900 120 900 95 926 95" stroke="#047857" stroke-width="2.5" fill="none" marker-end="url(#arrow-ok)"/>
-  <path d="M872 150 C900 150 900 255 926 255" stroke="#D97706" stroke-width="2.5" fill="none" marker-end="url(#arrow-warn)"/>
-  <!-- reviewed goes to export -->
-  <path d="M1045 188 V156" stroke="#047857" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#arrow-ok)"/>
-  <text x="1056" y="177" font-size="12" font-weight="600" fill="#047857">once fixed</text>
-
-  <!-- storage and events -->
-  <path d="M745 212 V376" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-  <text x="755" y="300" font-size="13" fill="#6B7280">saved with every change</text>
-
-  <g filter="url(#shadow)">
-    <rect x="620" y="380" width="250" height="140" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
-    <rect x="930" y="380" width="230" height="140" rx="14" fill="#FFFFFF" stroke="#E5E7EB"/>
-  </g>
-  <!-- database icon -->
-  <path d="M644 404 V428 A16 6 0 0 0 676 428 V404" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="2"/>
-  <path d="M644 416 A16 6 0 0 0 676 416" fill="none" stroke="#1D4ED8" stroke-width="1.5"/>
-  <ellipse cx="660" cy="404" rx="16" ry="6" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="2"/>
-  <text x="692" y="425" font-size="18" font-weight="700" fill="#111827">Postgres</text>
-  <text x="642" y="468" font-size="14" fill="#374151">Files, fields, corrections</text>
-  <text x="642" y="490" font-size="14" fill="#374151">and an events table</text>
-  <text x="642" y="510" font-size="13" fill="#6B7280">Supabase</text>
-
-  <circle cx="962" cy="412" r="16" fill="#EEF2FF"/>
-  <text x="962" y="418" text-anchor="middle" font-size="16" font-weight="700" fill="#1D4ED8">4</text>
-  <text x="988" y="419" font-size="18" font-weight="700" fill="#111827">Webhook</text>
-  <text x="950" y="458" font-size="14" fill="#374151">Signed, retried for 2.5 h</text>
-  <text x="950" y="480" font-size="14" fill="#374151">n8n: Sheet, Telegram, email</text>
-  <text x="950" y="502" font-size="14" fill="#374151">or your own address</text>
-
-  <path d="M872 450 H926" stroke="#94A3B8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-
-  <!-- measured -->
-  <rect x="40" y="380" width="530" height="140" rx="14" fill="#EEF2FF"/>
-  <text x="64" y="414" font-size="13" font-weight="700" fill="#1D4ED8" letter-spacing="1.5">MEASURED ON 200 PUBLIC RECEIPTS (CORD-V2)</text>
-  <text x="64" y="466" font-size="40" font-weight="800" fill="#111827">91 to 94%</text>
-  <text x="64" y="496" font-size="14" fill="#374151">read fully correct</text>
-  <line x1="300" y1="430" x2="300" y2="500" stroke="#C7D2FE" stroke-width="2"/>
-  <text x="328" y="466" font-size="40" font-weight="800" fill="#111827">2 in 100</text>
-  <text x="328" y="496" font-size="14" fill="#374151">wrong and not flagged</text>
-
-  <text x="40" y="550" font-size="13" fill="#6B7280">Only flagged documents need a person. Everything that passes is ready to export.</text>
 </svg>
