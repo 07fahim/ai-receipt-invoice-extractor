@@ -204,11 +204,11 @@
   <g font-size="14" font-weight="600" fill="#334155" text-anchor="middle">
     <rect x="252" y="970" width="196" height="26" rx="13" fill="#F1F5F9"/>
     <text x="350" y="988">Documents and files</text>
-    <rect x="456" y="970" width="84" height="26" rx="13" fill="#F1F5F9"/>
-    <text x="498" y="988">Checks</text>
-    <rect x="548" y="970" width="150" height="26" rx="13" fill="#F1F5F9"/>
-    <text x="623" y="988">Webhook events</text>
-    <rect x="706" y="970" width="140" height="26" rx="13" fill="#F1F5F9"/>
-    <text x="776" y="988">Assistant chats</text>
+    <rect x="456" y="970" width="144" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="528" y="988">Second readings</text>
+    <rect x="608" y="970" width="150" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="683" y="988">Webhook events</text>
+    <rect x="766" y="970" width="140" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="836" y="988">Assistant chats</text>
   </g>
 </svg>
