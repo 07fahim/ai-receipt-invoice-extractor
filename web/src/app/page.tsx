@@ -29,7 +29,6 @@ const useCases = [
 const fixes = [
   { icon: Scale, text: "Weights read as whole numbers" },
   { icon: Hash, text: "Misread digits in prices and totals" },
-  { icon: Calculator, text: "Thousands read as decimals" },
   { icon: CalendarDays, text: "Dates that can be read two ways" },
   { icon: Sparkles, text: "A second AI reading on flagged receipts" },
 ];
