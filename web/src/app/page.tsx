@@ -154,8 +154,7 @@ export default function Home() {
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
               <p className="mt-4 text-lg text-foreground/75">
-                The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it and suggests 1.89. One
-                click fixes it.
+                The checks catch reading mistakes and suggest a fix. In the clip, beef ribs read as 1 item become 1.89 lbs.
               </p>
               <h3 id="fixes" className="mt-8 text-sm font-semibold">What it fixes</h3>
               <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1" aria-labelledby="fixes">
