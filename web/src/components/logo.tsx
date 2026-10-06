@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 export function Logo({ href = "/", className }: { href?: string; className?: string }) {
   return (
     <Link href={href} className={cn("inline-flex shrink-0", className)}>
-      <Image src="/logo.png" alt="Crosscheck" width={1758} height={396} priority className="h-[34px] w-auto" />
+      <Image src="/logo.png" alt="Crosscheck" width={1758} height={396} className="h-[34px] w-auto dark:hidden" />
+      <Image src="/logo-dark.png" alt="Crosscheck" width={1758} height={396} className="hidden h-[34px] w-auto dark:block" />
     </Link>
   );
 }

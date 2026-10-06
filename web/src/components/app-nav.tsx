@@ -7,6 +7,7 @@ import { BarChart3, ClipboardCheck, FileText, LogOut, Upload, UserRound } from "
 import { Logo } from "@/components/logo";
 import { getJSON } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -78,6 +79,7 @@ export function AppNav({ email }: { email: string }) {
           {email.slice(0, 1).toUpperCase()}
         </span>
         <Link href="/app/account" className="min-w-0 flex-1 truncate text-[13px] hover:underline" title="Account settings">{email}</Link>
+        <ThemeToggle />
         <button onClick={signOut} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary" aria-label="Log out" title="Log out">
           <LogOut className="size-4" />
         </button>

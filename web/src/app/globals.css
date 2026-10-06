@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-ok: var(--ok);
@@ -98,6 +100,49 @@
   --bad-soft: #FEE2E2;
 }
 
+/* dark theme: same roles, lighter blue so links and buttons keep their contrast */
+.dark {
+  color-scheme: dark;
+  --background: #0B1120;
+  --foreground: #E5E7EB;
+  --card: #111827;
+  --card-foreground: #E5E7EB;
+  --popover: #111827;
+  --popover-foreground: #E5E7EB;
+  --primary: #60A5FA;
+  --primary-foreground: #0B1120;
+  --secondary: #1F2937;
+  --secondary-foreground: #E5E7EB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: #1E2A44;
+  --accent-foreground: #93C5FD;
+  --destructive: #F87171;
+  --border: #273244;
+  --input: #6B7280;
+  --ring: #60A5FA;
+  --chart-1: #60A5FA;
+  --chart-2: #3B5BA9;
+  --chart-3: #34D399;
+  --chart-4: #FBBF24;
+  --chart-5: #9CA3AF;
+  --sidebar: #111827;
+  --sidebar-foreground: #D1D5DB;
+  --sidebar-primary: #60A5FA;
+  --sidebar-primary-foreground: #0B1120;
+  --sidebar-accent: #1E2A44;
+  --sidebar-accent-foreground: #93C5FD;
+  --sidebar-border: #273244;
+  --sidebar-ring: #60A5FA;
+  --ok: #34D399;
+  --ok-soft: #063B2E;
+  --warn: #FCD34D;
+  --warn-soft: #3A2A06;
+  --warn-line: #F59E0B;
+  --bad: #F87171;
+  --bad-soft: #3F1010;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -126,6 +171,7 @@
 .mark {
   background: linear-gradient(transparent 12%, #ffe14d 12% 88%, transparent 88%);
   padding: 0 0.15em;
+  color: #111827; /* dark text on the yellow in both themes */
 }
 
 /* Receipt-paper strip with a torn zigzag bottom edge. */

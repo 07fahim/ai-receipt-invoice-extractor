@@ -87,7 +87,7 @@ function formatAnswer(text: string) {
 
 function Avatar({ big = false }: { big?: boolean }) {
   return (
-    <span className={`grid flex-none place-items-center bg-gradient-to-br from-primary to-violet-600 text-white ${
+    <span className={`grid flex-none place-items-center bg-gradient-to-br from-primary to-violet-600 dark:from-blue-600 text-white ${
       big ? "size-9 rounded-xl" : "size-6 rounded-lg"}`}>
       <Sparkles className={big ? "size-4" : "size-3.5"} />
     </span>
@@ -210,7 +210,7 @@ export function AssistantPanel() {
       }`}
     >
       <header className="flex items-center gap-1 border-b px-3 py-2">
-        <span className="mr-1 grid size-7 flex-none place-items-center rounded-lg bg-gradient-to-br from-primary to-violet-600 text-white">
+        <span className="mr-1 grid size-7 flex-none place-items-center rounded-lg bg-gradient-to-br from-primary to-violet-600 dark:from-blue-600 text-white">
           <Sparkles className="size-4" />
         </span>
         <div className="min-w-0 flex-1 leading-tight">
@@ -296,7 +296,7 @@ export function AssistantPanel() {
                     <div className="mb-1.5 flex flex-wrap gap-1">
                       {m.steps.map((s, j) => (
                         <span key={j} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          <Check className="size-3 text-green-600" />{s}
+                          <Check className="size-3 text-ok" />{s}
                         </span>
                       ))}
                     </div>

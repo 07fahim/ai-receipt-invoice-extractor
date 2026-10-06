@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getJSON, sendJSON } from "@/lib/api";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AccountPage() {
@@ -43,7 +44,10 @@ export default function AccountPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
+        <ThemeToggle className="md:hidden" />
+      </div>
 
       <section className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-5 py-4 shadow-xs">
         <div>
