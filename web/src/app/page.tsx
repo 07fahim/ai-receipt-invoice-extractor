@@ -61,12 +61,12 @@ export default function Home() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Logo />
           <nav className="flex items-center gap-7 text-sm font-medium text-foreground/80">
-            <a href="#who" className="hidden hover:text-foreground md:block">Who it&apos;s for</a>
-            <a href="#assistant" className="hidden hover:text-foreground md:block">Assistant</a>
-            <a href="#features" className="hidden hover:text-foreground md:block">Features</a>
-            <a href="#checks" className="hidden hover:text-foreground md:block">Checks</a>
-            <a href="#privacy" className="hidden hover:text-foreground md:block">Privacy</a>
-            <Link href="/login" className="hover:text-foreground">Log in</Link>
+            <a href="#who" className="hidden whitespace-nowrap hover:text-foreground lg:block">Who it&apos;s for</a>
+            <a href="#assistant" className="hidden whitespace-nowrap hover:text-foreground lg:block">Assistant</a>
+            <a href="#features" className="hidden whitespace-nowrap hover:text-foreground lg:block">Features</a>
+            <a href="#checks" className="hidden whitespace-nowrap hover:text-foreground lg:block">Checks</a>
+            <a href="#privacy" className="hidden whitespace-nowrap hover:text-foreground lg:block">Privacy</a>
+            <Link href="/login" className="whitespace-nowrap hover:text-foreground">Log in</Link>
             <Button asChild><Link href="/signup">Get started</Link></Button>
           </nav>
         </div>
