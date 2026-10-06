@@ -296,7 +296,7 @@ export function AssistantPanel() {
                     <div className="mb-1.5 flex flex-wrap gap-1">
                       {m.steps.map((s, j) => (
                         <span key={j} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          <Check className="size-3 text-green-600" />{s}
+                          <Check className="size-3 text-ok" />{s}
                         </span>
                       ))}
                     </div>

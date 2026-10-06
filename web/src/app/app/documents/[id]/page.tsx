@@ -371,7 +371,7 @@ export default function ReviewPage() {
                     />
                   </FieldBox>
                   {dateChoice && (
-                    <fieldset id="date-why" className="mt-2 rounded-lg border border-[#FCD34D] bg-[#FFFBEB] px-3 pt-1 pb-3 text-[13px]">
+                    <fieldset id="date-why" className="mt-2 rounded-lg border border-[#FCD34D] bg-[#FFFBEB] dark:border-warn-line dark:bg-warn-soft px-3 pt-1 pb-3 text-[13px]">
                       <legend className="px-1 font-semibold text-warn">&ldquo;{doc.issue_date_text}&rdquo; can be read two ways</legend>
                       <div className="my-1.5 flex flex-wrap gap-2">
                         {(["MDY", "DMY"] as Order[]).map((o) => (
@@ -715,7 +715,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
           <button className={tool} aria-label="Delete document" onClick={onDelete}><Trash2 className="size-4" /></button>
         </span>
       </div>
-      <div className="h-[460px] overflow-auto bg-[#F1F3F6] xl:h-[calc(100vh-140px)]">
+      <div className="h-[460px] overflow-auto bg-[#F1F3F6] dark:bg-background xl:h-[calc(100vh-140px)]">
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element -- blob URL of a private file; next/image can't optimise it
           <img

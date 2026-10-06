@@ -152,10 +152,10 @@ export default function DashboardPage() {
             <div className="h-60" role="img" aria-label={`Spend by ${by}: ${months.map((m) => `${m.label} ${money(m.total)}`).join(", ")}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={months} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#EEF0F3" />
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis tickLine={false} axisLine={false} fontSize={12} width={56} tickFormatter={(v) => Number(v).toLocaleString("en-US")} />
-                  <Tooltip cursor={{ fill: "#F3F4F6" }} formatter={(v) => [money(Number(v), code), "Spend"]} />
+                  <Tooltip cursor={{ fill: "var(--muted)" }} contentStyle={{ background: "var(--popover)", borderColor: "var(--border)" }} formatter={(v) => [money(Number(v), code), "Spend"]} />
                   <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={44} />
                 </BarChart>
               </ResponsiveContainer>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                 <li key={v.vendor} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-sm tabular-nums">
                   <span className="truncate">{v.vendor}</span>
                   <span>{money(v.total)}</span>
-                  <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[#EEF0F3]">
+                  <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[#EEF0F3] dark:bg-muted">
                     <span className="block h-full rounded-full bg-chart-2" style={{ width: `${(v.total / vendors[0].total) * 100}%` }} />
                   </span>
                 </li>

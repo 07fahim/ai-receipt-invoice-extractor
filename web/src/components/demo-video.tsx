@@ -31,9 +31,9 @@ export function DemoVideo({ name, label, className }: { name: string; label: str
     <div ref={frame} data-shown={shown || undefined}
       className={cn("rise overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]", className)}>
       <div className="flex gap-1.5 border-b bg-background px-4 py-3" aria-hidden>
-        <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-        <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
-        <span className="size-2.5 rounded-full bg-[#E3E6EB]" />
+        <span className="size-2.5 rounded-full bg-border" />
+        <span className="size-2.5 rounded-full bg-border" />
+        <span className="size-2.5 rounded-full bg-border" />
       </div>
       <video ref={video} muted playsInline loop preload="none" poster={`/clips/${name}-poster.jpg`}
         aria-label={label} className="block aspect-[16/10] w-full bg-background">

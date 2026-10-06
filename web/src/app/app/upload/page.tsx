@@ -167,8 +167,8 @@ export default function UploadPage() {
           send([...e.dataTransfer.files]);
         }}
         className={cn(
-          "mt-5 grid cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#C7CDD6] bg-card px-6 py-12 text-center transition-colors hover:border-primary hover:bg-[#F8FAFF] focus-within:ring-2 focus-within:ring-ring",
-          dragging && "border-primary bg-[#F8FAFF]",
+          "mt-5 grid cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#C7CDD6] dark:border-input bg-card px-6 py-12 text-center transition-colors hover:border-primary hover:bg-[#F8FAFF] dark:hover:bg-accent focus-within:ring-2 focus-within:ring-ring",
+          dragging && "border-primary bg-[#F8FAFF] dark:bg-accent",
         )}
       >
         <span className="mb-3.5 grid size-12 place-items-center rounded-xl bg-accent text-primary">
@@ -259,7 +259,7 @@ export default function UploadPage() {
               type="button"
               disabled={busy || limitReached}
               onClick={() => trySample(s.file)}
-              className="flex items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-xs transition-colors hover:border-primary hover:bg-[#F8FAFF] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="flex items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-xs transition-colors hover:border-primary hover:bg-[#F8FAFF] dark:hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- tiny static thumbnails */}
               <img src={`/samples/${s.file}`} alt="" className="h-14 w-11 shrink-0 rounded-md border object-cover object-top" />
