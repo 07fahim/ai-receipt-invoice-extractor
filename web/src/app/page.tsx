@@ -25,13 +25,13 @@ const useCases = [
     text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
 ];
 
-// What the review page can fix or flag, with the misread value → the suggestion. Nothing changes until the user clicks.
+// What the review page can fix or flag. Nothing changes until the user clicks.
 const fixes = [
-  { icon: Scale, text: "Weights read as 1 item", example: "1 → 1.89 lb" },
-  { icon: Hash, text: "A digit read wrong", example: "3 → 8" },
-  { icon: Calculator, text: "Thousands read as decimals", example: "45.00 → 45,000" },
-  { icon: CalendarDays, text: "Dates that read two ways", example: "9/1: Sep or Jan?" },
-  { icon: Sparkles, text: "A second AI reads it again", example: "1st vs 2nd" },
+  { icon: Scale, text: "Weights read as whole numbers" },
+  { icon: Hash, text: "Misread digits in prices and totals" },
+  { icon: Calculator, text: "Thousands read as decimals" },
+  { icon: CalendarDays, text: "Dates that can be read two ways" },
+  { icon: Sparkles, text: "A second AI reading on flagged receipts" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -154,15 +154,14 @@ export default function Home() {
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
               <p className="mt-4 text-lg text-foreground/75">
-                The checks catch reading mistakes and suggest a fix. In the clip, beef ribs read as 1 item become 1.89 lbs.
+                Every document is checked. When the numbers do not add up, Crosscheck shows what is wrong and suggests a fix.
               </p>
               <h3 id="fixes" className="mt-8 text-sm font-semibold">What it fixes</h3>
               <ul className="mt-3 grid gap-2" aria-labelledby="fixes">
-                {fixes.map(({ icon: Icon, text, example }) => (
+                {fixes.map(({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-2.5 rounded-xl border bg-card px-4 py-2.5 text-sm font-medium shadow-xs">
                     <Icon className="size-4 shrink-0 text-primary" aria-hidden />
-                    <span className="flex-1">{text}</span>
-                    <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">{example}</span>
+                    {text}
                   </li>
                 ))}
               </ul>
