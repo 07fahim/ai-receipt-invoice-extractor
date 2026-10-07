@@ -15,10 +15,14 @@ export function useSteps(durations: number[], still: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(0);
   const [on, setOn] = useState(false);
+  const [seen, setSeen] = useState(false); // the card fades in once and stays; `on` only runs the timer
   const reduced = useSyncExternalStore(onReduceChange, () => matchMedia(REDUCE).matches, () => false);
   useEffect(() => {
     if (reduced) return;
-    const io = new IntersectionObserver(([e]) => setOn(e.isIntersecting), { threshold: 0.4 });
+    const io = new IntersectionObserver(([e]) => {
+      setOn(e.isIntersecting);
+      if (e.isIntersecting) setSeen(true);
+    }, { threshold: 0.4 });
     io.observe(ref.current!);
     return () => io.disconnect();
   }, [reduced]);
@@ -27,7 +31,7 @@ export function useSteps(durations: number[], still: number) {
     const t = setTimeout(() => setStep((s) => (s + 1) % durations.length), durations[step]);
     return () => clearTimeout(t);
   }, [on, reduced, step, durations]);
-  return { ref, step: reduced ? still : step, shown: on || reduced };
+  return { ref, step: reduced ? still : step, shown: seen || reduced };
 }
 
 // The browser-window card the demos play in (same look as the old video frame).
