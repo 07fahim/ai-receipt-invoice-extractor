@@ -57,7 +57,8 @@ export function DemoAssistant({ className }: { className?: string }) {
           p > 0 && "opacity-60")}>
           <div className="bg-card px-3 py-3 font-mono leading-[1.8] tracking-tight @md:rounded-lg @md:border @md:px-4 @md:shadow-xs @xl:py-4 @xl:text-[0.9em]">
             <p className="mb-2 text-center font-semibold text-balance">{c.shop}</p>
-            {c.date && <p className="mb-1.5 text-muted-foreground">{c.date}</p>}
+            {/* the date can be read two ways: a real flag on that receipt too */}
+            {c.date && <p className="-mx-1 mb-1.5 rounded bg-warn-soft px-1 text-warn">{c.date}</p>}
             {c.doc.map(([name, amount], n) => (
               <div key={c.shop + n} className={cn("-mx-1 flex gap-1.5 rounded px-1",
                 n === c.flagged && "bg-warn-soft text-warn", name === "SUBTOTAL" && "mt-1.5 font-semibold")}>
