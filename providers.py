@@ -223,5 +223,6 @@ def parse(text):
     tid = data.get('seller_tax_id')
     if isinstance(tid, int) and not isinstance(tid, bool):
         tid = str(tid)
-    data['seller_tax_id'] = tid.strip()[:40] or None if isinstance(tid, str) else None
+    tid = tid.strip()[:40] if isinstance(tid, str) else None
+    data['seller_tax_id'] = tid if tid and any(c.isdigit() for c in tid) else None  # "Applied" is not a number
     return Document.model_validate(data)
