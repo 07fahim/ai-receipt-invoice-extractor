@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Lock, MessageCircle, Scale, ScanText, Sparkles, Store, Trash2, Upload, Wallet, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DemoAssistant } from "@/components/demo-assistant";
 import { DemoFix } from "@/components/demo-fix";
-import { DemoVideo } from "@/components/demo-video";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -191,8 +191,7 @@ export default function Home() {
                 ))}
               </ul>
             </div>
-            <DemoVideo name="assistant"
-              label="Demo: a handwritten Bangla fruit-shop memo is open, the question এই রসিদে সমস্যা কী? is typed and the assistant answers in Bangla with the two problems the checks found." />
+            <DemoAssistant />
           </div>
         </section>
 
