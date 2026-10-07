@@ -182,3 +182,13 @@ rounds on the free quota (each round of ~240 calls moved 2-4 borderline document
 - Tax rate and seller tax number are read but cannot be edited on the review page yet, so a misread rate or tax
   number can only be cleared by saving the document as reviewed. Follow-up.
 - Webhook payloads carry notes in `checks` too (with `level: "note"`); the n8n alert should skip them.
+
+## 6. Weights and units (all 79 unit items in the b4907187 readings, images opened for the odd ones)
+Read right or flagged: weight on the item line (13 of 13 weighed items in the samples), weights printed rounded
+(Shwapno 1.03 kg at 41.36: inside the line check's half-step room), pack size in the name (5 kg rice x 1), part of a
+kg at a per-kg price, dozens and pieces, quantity with no unit price (line check skipped), row numbers read as
+quantities (flagged). A weight read as a whole number is flagged and the quantity fix is offered.
+Gap: a weight on its own sub-line with the line quantity printed as 1 (Smoke City: "Weight: 1.89 lbs @ $19.50/lbs")
+is read 1 x 36.86: money right, weight and per-pound price lost, not flagged. Not measured: grams sold at a per-kg
+price ("500 g @ 650/kg"). Next task: about 8 made-up receipts for sub-line weights, grams per kg and fuel; one prompt
+rule for "weight @ price per unit" sub-lines; test on those plus Smoke City (about 9 calls) before any dataset re-run.
