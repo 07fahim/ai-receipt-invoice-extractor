@@ -221,5 +221,7 @@ def parse(text):
     kind = data.get('tax_kind')
     data['tax_kind'] = kind.strip().lower() if isinstance(kind, str) and kind.strip().lower() in ('vat', 'gst', 'sales_tax') else None
     tid = data.get('seller_tax_id')
+    if isinstance(tid, int) and not isinstance(tid, bool):
+        tid = str(tid)
     data['seller_tax_id'] = tid.strip()[:40] or None if isinstance(tid, str) else None
     return Document.model_validate(data)

@@ -113,5 +113,10 @@ d = parse_rates('{"total": 10, "tax_rate": "15%", "tax_kind": "VAT", "discount_r
 assert (d.tax_rate, d.tax_kind, d.discount_rate, d.seller_tax_id) == (15, 'vat', None, 'GB123 4567 82'), d
 d = parse_rates('{"total": 10, "tax_rate": 7.5, "tax_kind": "state tax", "discount_rate": 10, "seller_tax_id": ""}')
 assert (d.tax_rate, d.tax_kind, d.discount_rate, d.seller_tax_id) == (D('7.5'), None, 10, None), d
+# a tax number with no letters comes back as a JSON number, not a string: must not become None
+d = parse_rates('{"total": 10, "seller_tax_id": 123456789}')
+assert d.seller_tax_id == '123456789', d
+d = parse_rates('{"total": 10, "seller_tax_id": true}')
+assert d.seller_tax_id is None, d  # bool is an int subclass: must not pass through as "True"
 
 print('ok')
