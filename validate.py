@@ -248,9 +248,10 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
                 fail('tax_rate', ['tax'], f'{doc.tax_kind.upper()} {pct(doc.tax_rate)}% of {num(base)} is '
                      f'{num((base * rate).quantize(CENT, ROUND_HALF_UP))}. The document says {num(doc.tax)}.')
         else:
-            top = (doc.subtotal + (doc.service_charge or 0)) * rate
+            base = doc.subtotal + (doc.service_charge or 0)
+            top = base * rate
             if (rate == 0 and doc.tax > 0) or doc.tax > top + room:
-                fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(doc.subtotal)} is at most '
+                fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(base)} is at most '
                      f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
     if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
         most = doc.subtotal * doc.discount_rate / 100

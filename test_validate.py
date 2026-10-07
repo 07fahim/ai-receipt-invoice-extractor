@@ -187,6 +187,10 @@ target_tax = dict(subtotal=D('26.85'), tax=D('1.20'), total=D('28.05'), tax_rate
 assert found(**target_tax) == {}  # less sales tax than the rate: some items can be exempt
 walmart = dict(subtotal=D('29.18'), tax=D('2.86'), total=D('32.04'), tax_rate=0, tax_kind='sales_tax', items=[Item(amount=D('29.18'))])
 assert found(**walmart) == {'tax_rate': 'Tax 0% of 29.18 is at most 0.00. The document says 2.86.'}
+# the ceiling is subtotal + service charge: the message must print that sum, not the subtotal alone (M-2)
+service_tax = dict(subtotal=D('100'), service_charge=D('18'), tax=D('13'), total=D('131'), tax_rate=10, tax_kind='sales_tax',
+                    items=[Item(amount=D('100'))])
+assert found(**service_tax) == {'tax_rate': 'Tax 10% of 118 is at most 11.80. The document says 13.'}, found(**service_tax)
 target_disc = dict(subtotal=D('26.85'), discount=D('3.49'), tax=D('1.64'), total=D('25.00'), discount_rate=10, items=[Item(amount=D('26.85'))])
 assert found(**target_disc) == {'discount_rate': '10% of 26.85 is 2.69. The discount is 3.49.'}
 assert found(**{**target_disc, 'discount': D('2.69'), 'total': D('25.80')}) == {}
