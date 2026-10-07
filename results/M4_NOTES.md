@@ -148,7 +148,7 @@ and service charge; kept by decision).
 | Invoices test (26) | 20 / 19 / **18** | 25 / 25 / **25** | 2 / 2 / **2** | 6 / 5 / **4** |
 | Invoices validation | 31/48 / 32/48 / **32/47** | 48 / 48 / **47 of 47** | 3 / 3 / **3** | 8 / 9 / **9** |
 | US receipts, first 30 | passed 20 / 21 / **21** | | | |
-(baseline / 9db1851c / b4907187; unflagged counts include day/month date errors)
+(baseline / 9db1851c / b4907187; from each results file's summary, where a date_ambiguous flag counts as flagged, so the invoice numbers differ from section 4, which counted date-only errors as unflagged)
 
 CORD changes against the baseline, images opened:
 - 0 and 79 (were right): every amount printed as "60.000" / "22.000" with no other separator; read as 60 and 22.
