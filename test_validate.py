@@ -185,6 +185,12 @@ target_disc = dict(subtotal=D('26.85'), discount=D('3.49'), tax=D('1.64'), total
 assert found(**target_disc) == {'discount_rate': '10% of 26.85 is 2.69. The discount is 3.49.'}
 assert found(**{**target_disc, 'discount': D('2.69'), 'total': D('25.80')}) == {}
 assert found(**{**mehedi, 'tax_rate': None}) == {} and found(**{**mehedi, 'tax_kind': None}) == {}  # nothing printed: skipped
+# a whole-unit tax can be truncated instead of rounded (CORD 90: 10% of 26,818 = 2,681.80, printed 2,681)
+cord90 = dict(subtotal=D('26818'), tax=D('2681'), total=D('29499'), tax_rate=10, tax_kind='vat',
+              seller_tax_id='01.234.567.8-901.000', items=[Item(amount=D('26818'))])
+assert found(**cord90) == {}
+assert found(**{**cord90, 'tax': D('2679'), 'total': D('29497')}) == {
+    'tax_rate': 'VAT 10% of 26,818 is 2,681.80. The document says 2,679.'}
 assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
 
 from validate import gstin_valid, uk_vat_valid

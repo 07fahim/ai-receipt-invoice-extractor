@@ -233,7 +233,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     # added on top or included in the prices. US sales tax can skip exempt items: only too much tax is flagged.
     if doc.tax_rate is not None and doc.tax is not None and doc.subtotal is not None and doc.tax_kind:
         rate, base = doc.tax_rate / 100, doc.subtotal - abs(doc.discount or 0)
-        room = Decimal('0.5') if doc.tax == doc.tax.to_integral_value() else CENT * max(1, len(doc.items))
+        room = Decimal('1') if doc.tax == doc.tax.to_integral_value() else CENT * max(1, len(doc.items))
         if doc.tax_kind in ('vat', 'gst'):
             bases = [base] + ([base + doc.service_charge] if doc.service_charge else [])
             if not any(abs(doc.tax - b * rate) <= room or abs(doc.tax - b * rate / (1 + rate)) <= room for b in bases):
