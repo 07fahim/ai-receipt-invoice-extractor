@@ -411,13 +411,14 @@ export default function ReviewPage() {
 
             <Group title="Line items">
               <div className="overflow-x-auto">
+                {/* number boxes fit values like 1.875 and 9999.99; the description takes the rest */}
                 <table className="w-full min-w-[340px] table-fixed text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground">
-                      <th className="w-[44%] px-1 pb-1.5 font-medium">Description</th>
-                      <th className="px-1 pb-1.5 text-right font-medium">Qty</th>
-                      <th className="px-1 pb-1.5 text-right font-medium">Unit price</th>
-                      <th className="px-1 pb-1.5 text-right font-medium">Amount</th>
+                      <th className="px-1 pb-1.5 font-medium">Description</th>
+                      <th className="w-14 px-1 pb-1.5 text-right font-medium">Qty</th>
+                      <th className="w-[4.5rem] px-1 pb-1.5 text-right font-medium">Unit price</th>
+                      <th className="w-[4.5rem] px-1 pb-1.5 text-right font-medium">Amount</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -429,7 +430,7 @@ export default function ReviewPage() {
                             <input
                               aria-label={`Line ${n + 1} ${k.replace("_", " ")}`}
                               inputMode={k === "description" ? undefined : "decimal"}
-                              className={cn(inputClass, "h-8 px-2", k !== "description" && "text-right tabular-nums")}
+                              className={cn(inputClass, "h-8", k === "description" ? "px-2" : "px-1 text-right tabular-nums")}
                               value={it[k] ?? ""}
                               onChange={(e) => editItem(n, { [k]: blank(e.target.value) })}
                             />
