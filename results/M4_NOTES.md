@@ -214,3 +214,20 @@ No money amount wrong. Two differences from the key were key mistakes, checked o
 no quantity or unit price (read null, as the prompt asks), and the VAT-included fuel receipt prints no subtotal (read
 null). Every made-up receipt got date_ambiguous: the made-up date 10/05/2026 really is ambiguous. Smoke City got no
 flag. Next: the dataset re-measure before this prompt ships.
+
+Dataset re-measure with fef31308 (204 calls, 0 errors, 2026-10-08), against b4907187, same scoring and today's rules:
+
+| Set | Fully correct b4907187 -> fef31308 | Wrong and not flagged | Correct but flagged |
+|---|---|---|---|
+| CORD test | 90 -> 90 of 100 | 1 -> 1 (test 26) | 4 -> 4 |
+| Invoices test | 18 -> 19 of 26 | no new ones | 3 and 19 now right, 25 now wrong (date order swaps, all flagged ambiguous) |
+| Invoices validation | 32 of 47 -> 33 of 48 | same 15 | doc 24 (failed read before) now right, flagged ambiguous date |
+| US receipts (passed) | 21 -> 21 of 30 | - | - |
+
+eval_rates: 0 of 472 keys flagged, the same planted errors caught, rate read 73 right, 0 wrong (72 before).
+Changes checked on the images: Smoke City now 1.89 x 19.50. CORD 63 and 79 swap the "19.000"/"22.000" thousands misread
+(each flagged by total_format; net 0). CORD 43 "6 Pcs Cheese Tart" now 6 x (no unit price): either reading fits the
+print, money unchanged. US 15 (Hammocks) drops the two price-less sides under Shrimp Entree, which removes a false
+total_math flag. On many CORD lines the unit price now comes back as amount / quantity where none is printed (and on a
+few the other way): the line check already passed on those, so no flag changes.
+Ship rule (no new wrong-and-unflagged, no unexplained drop): passed.
