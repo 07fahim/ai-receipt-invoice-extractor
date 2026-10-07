@@ -47,6 +47,10 @@ issue_date_text and due_date_text (each date exactly as printed, character for c
 currency (ISO 4217 code), subtotal, discount,
 tax (all taxes and duties together, e.g. VAT plus supplementary duty),
 tax_included (true if the printed prices already include the tax, e.g. "VAT included"; false if it is added on top),
+tax_rate (the tax percentage printed for the whole document, e.g. 15 for "VAT 15%"; CGST and SGST halves count as their sum, e.g. 5 for "CGST 2.5% + SGST 2.5%"; null if several different rates are printed or none),
+tax_kind ("vat", "gst" or "sales_tax"; null if no tax is printed),
+discount_rate (the percentage printed on a discount line for the whole document, e.g. 10 for "Discount (10%)"; null otherwise),
+seller_tax_id (the seller's VAT number, BIN or GSTIN exactly as printed; null if not printed),
 service_charge, total,
 total_text (the total exactly as printed, character for character),
 items: list of {description, quantity, unit_price, amount, discount}.
@@ -208,4 +212,14 @@ def parse(text):
     if isinstance(data.get('doc_type'), str):
         dt = data['doc_type'].strip().lower()
         data['doc_type'] = dt if dt in ('invoice', 'receipt') else None
+    for k in ('tax_rate', 'discount_rate'):
+        v = data.get(k)
+        if isinstance(v, str):
+            m = re.fullmatch(r'\s*(\d+(?:\.\d+)?)\s*%?\s*', v)
+            v = Decimal(m[1]) if m else None
+        data[k] = v if isinstance(v, (int, float, Decimal)) and not isinstance(v, bool) and 0 <= v <= 100 else None
+    kind = data.get('tax_kind')
+    data['tax_kind'] = kind.strip().lower() if isinstance(kind, str) and kind.strip().lower() in ('vat', 'gst', 'sales_tax') else None
+    tid = data.get('seller_tax_id')
+    data['seller_tax_id'] = tid.strip()[:40] or None if isinstance(tid, str) else None
     return Document.model_validate(data)

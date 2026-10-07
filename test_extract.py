@@ -108,4 +108,10 @@ providers.post = real_post
 assert sent[0]['generationConfig']['thinkingConfig'] == {'thinkingLevel': 'low'}, sent[0]
 assert 'thinkingConfig' not in sent[1]['generationConfig'], sent[1]
 
+from providers import parse as parse_rates
+d = parse_rates('{"total": 10, "tax_rate": "15%", "tax_kind": "VAT", "discount_rate": 250, "seller_tax_id": " GB123 4567 82 "}')
+assert (d.tax_rate, d.tax_kind, d.discount_rate, d.seller_tax_id) == (15, 'vat', None, 'GB123 4567 82'), d
+d = parse_rates('{"total": 10, "tax_rate": 7.5, "tax_kind": "state tax", "discount_rate": 10, "seller_tax_id": ""}')
+assert (d.tax_rate, d.tax_kind, d.discount_rate, d.seller_tax_id) == (D('7.5'), None, 10, None), d
+
 print('ok')

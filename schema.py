@@ -36,4 +36,8 @@ class Document(BaseModel):
     service_charge: Optional[Money] = None
     total: Optional[Money] = None
     total_text: Optional[str] = None  # total exactly as printed, e.g. 22.000 (thousands or decimals can be ambiguous)
+    tax_rate: Optional[Money] = None  # percent printed for the whole document ("VAT 15%" -> 15); null if several rates
+    tax_kind: Optional[Literal['vat', 'gst', 'sales_tax']] = None
+    discount_rate: Optional[Money] = None  # percent printed on the document discount line
+    seller_tax_id: Optional[str] = Field(default=None, max_length=40)  # VAT number, GSTIN or BIN as printed
     items: list[Item] = Field(default=[], max_length=200)
