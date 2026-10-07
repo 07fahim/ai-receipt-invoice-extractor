@@ -43,7 +43,7 @@
 - **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
   Telegram, email) or the user's own address.
 
-![Demo: a handwritten Bangla fruit-shop memo is open. The question "এই রসিদে সমস্যা কী?" (what is wrong with this receipt?) is typed and the assistant answers in Bangla with the two problems the checks found.](assets/assistant.gif)
+![Demo: the assistant is asked why a receipt is flagged, in English on a US receipt and in Bangla on a handwritten memo, and answers with the numbers the checks found.](assets/assistant.gif)
 
 ## What it does
 
