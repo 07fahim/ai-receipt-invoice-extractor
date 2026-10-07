@@ -152,6 +152,25 @@ assert suggest(Document(**memo)) == {'message': 'Did you mean 240 instead of 280
                                      'changes': [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]}  # amount wrong, not 2.333
 assert suggest(Document(**{**ribs, 'total': D('50')})) is None  # the total would still be off
 assert suggest(Document(total=D('0.58'), items=[Item(quantity=D('1.76'), unit_price=D('0.99'), amount=D('0.58'))])) is None  # 0.99/3 lb: the price is wrong
+# one sum fails (subtotal + tax = total): the tax or the total was misread
+lines = [Item(description='x', quantity=D(1), unit_price=D(a), amount=D(a)) for a in ('10', '20', '3')]
+both = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', items=lines))
+assert both['changes'] == [] and both['message'] == 'The tax or the total was misread. Pick the one the photo shows.', both
+assert [(o['label'], o['changes']) for o in both['options']] == [
+    ('Tax 3.30', [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]),
+    ('Total 41.30', [{'field': 'total', 'from': '36.30', 'to': '41.30'}])], both
+# a printed rate decides: 10% of 33 is 3.30, so the tax is the misread
+one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', tax_rate=D(10), tax_kind='vat', items=lines))
+assert one == {'message': 'Is the tax 3.30? Then the total adds up.', 'changes': [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]}, one
+# the tax matches its rate, so the total is the misread
+one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('86.30'), total_text='86.30', tax_rate=D(10), tax_kind='vat', items=lines))
+assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '86.30', 'to': '36.30'}]}, one
+# no guess when the tax is inside the prices (subtotal = total) or the total is printed in whole units (rounded)
+assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.00'), total=D('33.00'), total_text='33.00', items=lines)) is None
+assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36', items=lines)) is None
+# the tax is the share already inside the subtotal (CORD test 43: 15,000 is 10/110 of 165,000), the total misread
+assert suggest(Document(currency='USD', subtotal=D('165000.00'), tax=D('15000.00'), total=D('65000.00'), total_text='65000.00',
+                        items=[Item(amount=D('100000.00')), Item(amount=D('65000.00'))])) is None
 # a total printed with cents gets no whole-unit rounding room, except where cash is rounded to whole units
 cents = dict(subtotal=D('1199.60'), total=D('1200.00'), total_text='1,200.00', items=[Item(amount=D('1199.60'))])
 assert checks(**cents, currency='USD') == ['total_math'] and checks(**cents) == []  # unknown currency: lenient

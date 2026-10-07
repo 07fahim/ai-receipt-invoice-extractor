@@ -139,14 +139,17 @@ def tools():
                 '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.',
                 'No seller VAT number found. It is needed to claim this VAT back.',
                 'No seller GSTIN found. It is needed to claim this GST back.',
-                'This document is dated 01/2024. The rest of this upload is from 03/2026.']
+                'This document is dated 01/2024. The rest of this upload is from 03/2026.',
+                'Is the tax 3.30? Then the total adds up.', 'Is the total 36.30? Then every sum adds up.',
+                'The tax or the total was misread. Pick the one the photo shows.', 'Tax 3.30', 'Total 41.30']
     assert len(examples) == len(assistant.BANGLA)
     # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
-    # 18 checks, 3 suggestions (2 found.append, 1 direct return), 1 note dict in validate.py
+    # 18 checks, 5 suggestions (2 found.append, 2 f-string returns, 1 plain return), 1 note dict in validate.py
     src, app_src = open('validate.py', encoding='utf-8').read(), open('app.py', encoding='utf-8').read()
-    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (18, 2, 2, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
+    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (18, 2, 3, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
     for m in examples:
         assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '').replace('07AAHCA1234F1Z6', '')), m
+    assert assistant.bangla('Is the tax 3.30? Then the total adds up.') == 'কর কি 3.30? তাহলে মোট মিলে যায়।'
     assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English
 
     # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case

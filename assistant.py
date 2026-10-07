@@ -131,6 +131,11 @@ BANGLA = [(re.compile(p), t) for p, t in [
     (r'No seller VAT number found\. It is needed to claim this VAT back\.', 'বিক্রেতার ভ্যাট নম্বর পাওয়া যায়নি। এই ভ্যাট ফেরত দাবি করতে এটি লাগে।'),
     (r'No seller GSTIN found\. It is needed to claim this GST back\.', 'বিক্রেতার জিএসটিআইএন পাওয়া যায়নি। এই জিএসটি ফেরত দাবি করতে এটি লাগে।'),
     (r'This document is dated (.+)\. The rest of this upload is from (.+)\.', 'এই ডকুমেন্টের তারিখ {0}। এই আপলোডের বাকিগুলো {1}-এর।'),
+    (r'Is the tax (.+)\? Then the total adds up\.', 'কর কি {0}? তাহলে মোট মিলে যায়।'),
+    (r'Is the total (.+)\? Then every sum adds up\.', 'মোট কি {0}? তাহলে সব যোগফল মিলে যায়।'),
+    (r'The tax or the total was misread\. Pick the one the photo shows\.', 'কর অথবা মোট ভুল পড়া হয়েছে। ছবিতে যেটি আছে সেটি বেছে নিন।'),
+    (r'Tax (\S+)', 'কর {0}'),  # option labels of the tax-or-total suggestion
+    (r'Total (\S+)', 'মোট {0}'),
 ]]
 
 
@@ -164,7 +169,8 @@ def get_document(con, uid, id, in_bangla=False):
     doc = app.Document(**r['document']) if r['document'] else None
     suggestion = r['suggestion']
     if suggestion and in_bangla:
-        suggestion = suggestion | {'message': bangla(suggestion['message'])}
+        suggestion = suggestion | {'message': bangla(suggestion['message'])} | (
+            {'options': [o | {'label': bangla(o['label'])} for o in suggestion['options']]} if 'options' in suggestion else {})
     return {'id': r['id'], 'file_name': r['file_name'], 'status': STATUS_WORDS.get(r['status'], r['status']),
             'document': r['document'], 'checks': [plain_check(doc, c, in_bangla) for c in (r['checks'] or [])],
             'suggestion': suggestion, 'second_reading': r['second_reading']}
