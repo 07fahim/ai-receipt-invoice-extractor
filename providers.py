@@ -65,7 +65,8 @@ Rules:
 - Coupons, discounts, savings, promotions and price reductions are never items, even when printed on their own line
   with a minus sign: put them in the discount of the item they belong to, or in the document discount if they apply
   to the whole bill.
-- Lines that add up other lines (subtotal, "MDSE ST", net total) are never items."""
+- Lines that add up other lines (subtotal, "MDSE ST", net total) are never items.
+- If a sub-line prints a weight @ price per unit, use them as the quantity and unit price."""
 
 
 def load_env():
