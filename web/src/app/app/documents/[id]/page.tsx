@@ -500,14 +500,32 @@ export default function ReviewPage() {
               <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p className="font-medium">Suggested fix</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message} Compare with the photo before applying.</p>
-                {suggestion.changes.length <= 3 && (
-                  <ul className="mt-1.5 text-xs">
-                    {suggestion.changes.map((c) => (
-                      <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
+                {suggestion.options ? (
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    {suggestion.options.map((o) => (
+                      <div key={o.label} className="flex-1 rounded-md border p-2">
+                        <p className="text-xs font-medium">{o.label}</p>
+                        <ul className="mt-1 text-xs">
+                          {o.changes.map((c) => (
+                            <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
+                          ))}
+                        </ul>
+                        <Button size="sm" className="mt-2" onClick={() => applySuggestion({ message: suggestion.message, changes: o.changes })}>Apply</Button>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                ) : (
+                  <>
+                    {suggestion.changes.length <= 3 && (
+                      <ul className="mt-1.5 text-xs">
+                        {suggestion.changes.map((c) => (
+                          <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
+                        ))}
+                      </ul>
+                    )}
+                    <Button size="sm" className="mt-2" onClick={() => applySuggestion(suggestion)}>Apply</Button>
+                  </>
                 )}
-                <Button size="sm" className="mt-2" onClick={() => applySuggestion(suggestion)}>Apply</Button>
               </div>
             )}
             {second.length > 0 && (

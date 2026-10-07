@@ -36,7 +36,7 @@ export type Doc = {
 export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number; level?: "note" };
 
 // A fix worked out from the numbers (e.g. 280 read for 240): shown in review, applied only when the user clicks.
-export type Suggestion = { message: string; changes: { field: string; from: string; to: string }[] };
+export type Suggestion = { message: string; changes: { field: string; from: string; to: string }[]; options?: { label: string; changes: { field: string; from: string; to: string }[] }[] };
 
 /** One field where a second AI reading differs. `to` is a list of lines when the number of lines differs. */
 export type SecondChange = { field: string; from: string | null; to: string | Item[]; text?: string | null };
