@@ -303,6 +303,12 @@ try:
         con.execute("UPDATE documents SET status = 'reviewed' WHERE id = %s", (good_id,))
     app.process(good_id)  # the fake model answers again, but the document is no longer 'processing'
     assert c.get(f'/documents/{good_id}').json()['status'] == 'reviewed'
+    # the tax rate and tax number typed on the review page are saved and come back
+    doc = c.get(f'/documents/{good_id}').json()['document']
+    doc['tax_rate'], doc['seller_tax_id'] = '7.5', '000123456-0101'
+    assert c.put(f'/documents/{good_id}', json=doc).status_code == 200
+    back = c.get(f'/documents/{good_id}').json()['document']
+    assert (back['tax_rate'], back['seller_tax_id']) == ('7.5', '000123456-0101'), back
 
     # bad query values are 422, not server errors
     for bad_q in ({'date_from': 'nope'}, {'limit': -1}, {'offset': -1}, {'limit': 0}):
