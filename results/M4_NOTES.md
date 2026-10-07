@@ -1,11 +1,13 @@
 # M4: rate and tax number checks (measured 2026-10-07)
 
+Status (2026-10-07): shipped with prompt b4907187; latest numbers in section 5.
+
 The AI now also reads `tax_rate`, `tax_kind`, `discount_rate` and `seller_tax_id` (prompt 36d2b5dd). New checks:
 `tax_rate`, `discount_rate`, `tax_id_invalid`; notes `tax_id_missing` and `older_than_upload` (a note never
 changes the status). `eval_validation.py` catch counts now ignore notes (`validate.review` drops them), so a
 planted mistake caught only by a note no longer counts as caught.
 
-**Status: stopped before the full re-runs.** One of the 6 expected catches failed live (Walmart) and one sample
+**Status (first round): stopped before the full re-runs.** One of the 6 expected catches failed live (Walmart) and one sample
 got a new false alarm from the rate check (Arax). The prompt and the rules were not changed. CORD, invoice and
 US receipt sets were not re-run with 36d2b5dd, so the README numbers still belong to be0376e0 (US receipts to 9edae16b).
 
@@ -22,9 +24,10 @@ all at 10%. None has a discount, so `discount_rate` is not tested here.
 | Tax lowered by 5% | 466 / 469 |
 
 3 keys have no total and are skipped in the planted runs (train 134, 168, 185). The 10 misses are all inside the
-allowed room, checked by hand: 7 small taxes where 1% is under 1 cent per line (e.g. 0.75 to 0.76 on one line),
-and 2 where the planted tax became a whole number (21.00, 6.00), which gets the 0.5 room for whole-unit
-currencies; 3 lowered taxes of 0.15 to 0.30 on one line are within 1 cent.
+allowed room, checked by hand: 7 in the +1% row (most under 1 cent per line, e.g. 0.75 to 0.76; 2 of those 7 became
+a whole number, 21.00 and 6.00, which got the 0.5 room for whole-unit currencies), and 3 in the -5% row (0.15 to
+0.30 per line, within 1 cent). (This table was measured with the tax_rate room at 0.5 for a whole-number tax;
+current code uses room 1, see section 5 for the counts under today's rules.)
 
 CORD and the synthetic Bangladeshi set were not run: CORD keys have no printed rate field, and the BD set was not
 part of this run.
@@ -69,6 +72,9 @@ and Harbor Fresh, tax_rate is right on every one except Walmart (0.00%).
 Re-runs with 36d2b5dd of CORD test (100), invoices test (26) and validation (48), US receipts first 30, and the
 rate-reading accuracy on invoices (`python eval_rates.py 36d2b5dd`). Waiting on a decision about the Walmart
 reading and the Arax false alarm.
+
+Bangladeshi bills where tax holds VAT plus supplementary duty and only the VAT % is printed can flag tax_rate
+(probe only, not measured on real bills).
 
 ## 4. Prompt 9db1851c (2026-10-07): printed 0% copied as 0, VAT-included total by the printed rate
 Two changes: the prompt says `0 if "0%" or "0.00%" is printed` for tax_rate; `total_math` also accepts VAT included
@@ -171,3 +177,8 @@ one catch in three of the four rows).
 Ship rule: not met as written. Fully correct drops 1 on CORD and 2 on invoices test; CORD totals drop 2 (0 and 79).
 Every new error is flagged and no money error is silent. Decision (user, 2026-10-07): keep b4907187, no more prompt
 rounds on the free quota (each round of ~240 calls moved 2-4 borderline documents in both directions).
+
+## Known limits
+- Tax rate and seller tax number are read but cannot be edited on the review page yet, so a misread rate or tax
+  number can only be cleared by saving the document as reviewed. Follow-up.
+- Webhook payloads carry notes in `checks` too (with `level: "note"`); the n8n alert should skip them.
