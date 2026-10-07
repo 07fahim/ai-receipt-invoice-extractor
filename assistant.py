@@ -127,7 +127,7 @@ BANGLA = [(re.compile(p), t) for p, t in [
     (r'(.+)% of (.+) is (.+)\. The discount is (.+)\.', '{1}-এর {0}% হয় {2}। ছাড় লেখা আছে {3}।'),
     (r'(.+) is not a valid UK VAT number\. Check it on the document\.', '{0} সঠিক ইউকে ভ্যাট নম্বর নয়। ডকুমেন্টে নম্বরটি মিলিয়ে দেখুন।'),
     (r'(.+) is not a valid GSTIN\. Check it on the document\.', '{0} সঠিক জিএসটিআইএন নয়। ডকুমেন্টে নম্বরটি মিলিয়ে দেখুন।'),
-    (r'No seller VAT number found\. It is needed to claim this VAT back\.', 'বিক্রেতার ভ্যাট নম্বর (বিআইএন) পাওয়া যায়নি। এই ভ্যাট ফেরত দাবি করতে এটি লাগে।'),
+    (r'No seller VAT number found\. It is needed to claim this VAT back\.', 'বিক্রেতার ভ্যাট নম্বর পাওয়া যায়নি। এই ভ্যাট ফেরত দাবি করতে এটি লাগে।'),
     (r'No seller GSTIN found\. It is needed to claim this GST back\.', 'বিক্রেতার জিএসটিআইএন পাওয়া যায়নি। এই জিএসটি ফেরত দাবি করতে এটি লাগে।'),
     (r'This document is dated (.+)\. The rest of this upload is from (.+)\.', 'এই ডকুমেন্টের তারিখ {0}। এই আপলোডের বাকিগুলো {1}-এর।'),
 ]]
