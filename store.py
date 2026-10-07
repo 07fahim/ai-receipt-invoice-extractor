@@ -164,10 +164,10 @@ def duplicate_of(con, user_id, doc, before_id=None):
 def upload_dates(con, user_id, doc_id):
     # issue dates of the user's other documents uploaded within 10 minutes of this one ("the same upload")
     rows = con.execute(
-        "SELECT d.issue_date FROM documents d JOIN documents me ON me.id = %s "
+        "SELECT d.issue_date FROM documents d JOIN documents me ON me.id = %s AND me.user_id = %s "
         "WHERE d.user_id = %s AND d.id <> me.id AND d.issue_date IS NOT NULL "
         "AND d.created_at BETWEEN me.created_at - interval '10 minutes' AND me.created_at + interval '10 minutes'",
-        (doc_id, user_id)).fetchall()
+        (doc_id, user_id, user_id)).fetchall()
     return [r['issue_date'] for r in rows]
 
 
