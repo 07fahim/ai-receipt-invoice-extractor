@@ -1,4 +1,5 @@
 import re
+import string
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -118,6 +119,37 @@ def review(issues):
     return [i for i in issues if i.get('level') != 'note']
 
 
+B36 = string.digits + string.ascii_uppercase
+GSTIN = re.compile(r'\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]')
+
+
+def gstin_valid(s):
+    # state code 01-38, then the GST mod-36 check character
+    if not GSTIN.fullmatch(s) or not 1 <= int(s[:2]) <= 38:
+        return False
+    total = 0
+    for n, ch in enumerate(s[:14]):
+        p = B36.index(ch) * (2 if n % 2 else 1)
+        total += p // 36 + p % 36
+    return B36[(36 - total % 36) % 36] == s[14]
+
+
+def uk_vat_valid(digits):
+    # HMRC mod-97: the old scheme or the new one (+55)
+    total = sum(w * int(c) for w, c in zip(range(8, 1, -1), digits[:7])) + int(digits[7:9])
+    return total % 97 == 0 or (total + 55) % 97 == 0
+
+
+def tax_id_problem(raw):
+    # only formats with a public check digit; a Bangladeshi BIN or other EU numbers are not checked
+    s = re.sub(r'[\s.-]', '', raw or '').upper()
+    if re.fullmatch(r'GB(\d{9}|\d{12})', s):
+        return None if uk_vat_valid(s[2:11]) else f'{raw} is not a valid UK VAT number. Check it on the document.'
+    if len(s) == 15 and s[:2].isdigit() and s[13] == 'Z':
+        return None if gstin_valid(s) else f'{raw} is not a valid GSTIN. Check it on the document.'
+    return None
+
+
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     # checks with missing inputs are skipped, except a missing total
     today = today or date.today()
@@ -204,6 +236,13 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if abs(doc.discount) > most + CENT:
             fail('discount_rate', ['discount'], f'{pct(doc.discount_rate)}% of {num(doc.subtotal)} is '
                  f'{num(most.quantize(CENT, ROUND_HALF_UP))}. The discount is {num(abs(doc.discount))}.')
+
+    problem = tax_id_problem(doc.seller_tax_id)
+    if problem:
+        fail('tax_id_invalid', ['seller_tax_id'], problem)
+    if doc.tax_kind in ('vat', 'gst') and doc.tax and not doc.seller_tax_id:
+        name, label = ('GST', 'GSTIN') if doc.tax_kind == 'gst' else ('VAT', 'VAT number')
+        fail('tax_id_missing', ['seller_tax_id'], f'No seller {label} found. It is needed to claim this {name} back.', 'note')
 
     for n, i in enumerate(doc.items):
         # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step

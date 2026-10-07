@@ -181,4 +181,19 @@ assert found(**target_disc) == {'discount_rate': '10% of 26.85 is 2.69. The disc
 assert found(**{**target_disc, 'discount': D('2.69'), 'total': D('25.80')}) == {}
 assert found(**{**mehedi, 'tax_rate': None}) == {} and found(**{**mehedi, 'tax_kind': None}) == {}  # nothing printed: skipped
 assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
+
+from validate import gstin_valid, uk_vat_valid
+assert gstin_valid('07AAHCA1234F1Z5') and not gstin_valid('07AAHCA1234F1Z6') and not gstin_valid('99AAHCA1234F1Z5')
+# 1234567: weights 8..2 give 112; 112 + 82 = 194 = 2 x 97 (old scheme); 112 + 27 + 55 = 194 (new scheme)
+assert uk_vat_valid('123456782') and uk_vat_valid('123456727') and not uk_vat_valid('123456789')
+assert found(**{**greenleaf, 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_id': 'GB123 4567 89'}) == \
+    {'tax_id_invalid': 'GB123 4567 89 is not a valid UK VAT number. Check it on the document.'}
+assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \
+    {'tax_id_invalid': '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.'}
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None}) == \
+    {'tax_id_missing': 'No seller VAT number found. It is needed to claim this VAT back.'}
+assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No seller GSTIN found. It is needed to claim this GST back.'}
+assert found(**{**maple, 'tax': D('6.15'), 'total': D('78.55')}) == {}  # US sales tax: no tax number needed
+note = [i for i in validate(Document(**{**gst_halves, 'seller_tax_id': None}), today=TODAY)]
+assert note[0]['level'] == 'note' and review(note) == []
 print('ok')
