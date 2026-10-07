@@ -705,6 +705,15 @@ try:
     edited = {**d['document'], 'items': [*d['document']['items'][:1], {**d['document']['items'][1], 'amount': '240.00'}, d['document']['items'][2]]}
     left = c.post('/check', json=edited, params={'doc_id': memo_id}, headers=erin).json()['second_reading']
     assert [x['field'] for x in left] == ['issue_date'], left
+    # a value typed over the AI's first reading counts as checked: the second reading no longer flags it
+    typed = {**edited, 'items': [{**edited['items'][0], 'amount': '999'}, *edited['items'][1:]]}
+    r = c.post('/check', json=typed, params={'doc_id': memo_id}, headers=erin).json()
+    assert [x['field'] for x in r['second_reading']] == ['issue_date'], r['second_reading']
+    assert [ck['fields'] for ck in r['checks'] if ck['check'] == 'second_reading'] == [['issue_date']], r['checks']
+    # the same for a top-level amount, and for a line removed by hand
+    for change in ({'total': '999'}, {'items': edited['items'][:2]}):
+        r = c.post('/check', json={**edited, **change}, params={'doc_id': memo_id}, headers=erin).json()
+        assert [x['field'] for x in r['second_reading']] == ['issue_date'], (change, r['second_reading'])
     assert c.post('/check', json=edited, params={'doc_id': memo_id}).json()['second_reading'] == []  # Alice: not her document
     assert c.get(f'/documents/{passed_id}', headers=erin).json()['second_reading'] == []
     # once reviewed, /check no longer offers the second reading for it (GET already stops: status != needs_review)
@@ -814,8 +823,9 @@ try:
     race_row = second_of(race_id)
     assert race_row['status'] == 'needs_review'
     assert race_row['document']['items'][0]['amount'] == '100'  # the concurrent fix; second_read never touches document
-    # on the fixed document, items_sum now passes; only the (stale) second reading still disagrees with the fix
-    assert {ck['check'] for ck in race_row['checks']} == {'second_reading'}, race_row['checks']
+    # on the fixed document, items_sum now passes; the amount also differs from the AI's first reading (extracted),
+    # and a value moved on from the AI's first reading is not re-flagged, so the second reading drops out too
+    assert race_row['checks'] == [], race_row['checks']
     print('ok')
 finally:
     import store

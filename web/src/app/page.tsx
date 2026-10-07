@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Lock, MessageCircle, Scale, ScanText, Sparkles, Store, Trash2, Upload, Wallet, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DemoVideo } from "@/components/demo-video";
+import { DemoAssistant } from "@/components/demo-assistant";
+import { DemoFix } from "@/components/demo-fix";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -169,11 +170,7 @@ export default function Home() {
                 Fixes are suggested from the math. Nothing changes until you click.
               </p>
             </div>
-            <div className="lg:order-first">
-              <DemoVideo name="fix"
-                label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
-              <p className="mt-2 text-xs text-muted-foreground">Recorded on an earlier version of the reader.</p>
-            </div>
+            <DemoFix className="lg:order-first" />
           </div>
         </section>
 
@@ -194,8 +191,7 @@ export default function Home() {
                 ))}
               </ul>
             </div>
-            <DemoVideo name="assistant"
-              label="Demo: a handwritten Bangla fruit-shop memo is open, the question এই রসিদে সমস্যা কী? is typed and the assistant answers in Bangla with the two problems the checks found." />
+            <DemoAssistant />
           </div>
         </section>
 
