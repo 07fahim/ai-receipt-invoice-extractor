@@ -377,12 +377,15 @@ try:
     assert wb['Documents'].freeze_panes == 'A2' and wb['Items'].freeze_panes == 'A2'
     # text stays text (leading zeros kept) and a formula from a document is never run by the spreadsheet
     ANSWERS['formula'] = ('{"vendor": "=HYPERLINK(\\"http://evil\\")", "doc_number": "00123", "total": 5,'
-                          ' "items": [{"description": "2023", "amount": 5}]}')
+                          ' "tax_rate": 15, "seller_tax_id": "000123456-0101", "items": [{"description": "2023", "amount": 5}]}')
     f_id = upload(('f.jpg', JPG + b'formula')).json()[0]['id']
     ws = load_workbook(io.BytesIO(c.get('/export', params={'status': 'passed'}).content))['Documents']
     row_ = {h.value: cell.value for h, cell in zip(ws[1], ws[ws.max_row])}
     assert row_['id'] == f_id and row_['doc_number'] == '00123' and row_['vendor'].startswith("'=") and row_['total'] == 5.0
     assert ws.cell(ws.max_row, 5).data_type != 'f'
+    # the printed rates and the seller tax number come last, so the older columns keep their places
+    assert [h.value for h in ws[1]][-4:] == ['tax_rate', 'tax_kind', 'discount_rate', 'seller_tax_id']
+    assert row_['tax_rate'] == 15.0 and row_['seller_tax_id'] == '000123456-0101'
     items = load_workbook(io.BytesIO(c.get('/export').content))['Items']
     assert items.cell(items.max_row, 2).value == '2023'
     assert "'=HYPERLINK" in c.get('/export', params={'format': 'csv', 'status': 'passed'}).content.decode('utf-8-sig')
