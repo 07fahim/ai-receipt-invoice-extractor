@@ -119,10 +119,11 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
         if note:
             checks.append(note)
     if doc_id is not None:
-        row = con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).fetchone()
+        row = con.execute('SELECT second_reading, extracted FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).fetchone()
         if row and row['second_reading']:
             second = apply_date_order(Document(**row['second_reading']), order)
-            changes = meaningful_changes(doc, second)
+            first = apply_date_order(Document(**row['extracted']), order) if row['extracted'] else None
+            changes = meaningful_changes(doc, second, first)
             if changes:
                 checks.append({'check': 'second_reading', 'fields': sorted({c['field'].split('[')[0] for c in changes}),
                                'message': 'A second AI reading differs. Compare with the photo.'})
@@ -527,7 +528,7 @@ SECOND_FIELDS = ('vendor', 'doc_number', 'issue_date', 'due_date', 'currency', '
 LINE_FIELDS = ('quantity', 'unit_price', 'amount', 'discount')
 
 
-def second_reading_changes(doc: Document, second: Document) -> list[dict]:
+def all_second_changes(doc: Document, second: Document) -> list[dict]:
     # what the second reading would change, field by field; values the document already has drop off
     text = lambda v: None if v is None else str(v)
     out = []
@@ -551,17 +552,35 @@ def second_reading_changes(doc: Document, second: Document) -> list[dict]:
     return out
 
 
+def user_changed(doc: Document, first: Document | None, field: str) -> bool:
+    # the user typed over the AI's first reading there, so they already compared it with the photo
+    if first is None:
+        return False
+    if field == 'items' or field.startswith('items['):
+        if len(first.items) != len(doc.items):
+            return True  # lines added or removed by hand
+        if field == 'items':
+            return False
+        n, f = int(field[6:field.index(']')]), field.split('.')[1]
+        return getattr(first.items[n], f) != getattr(doc.items[n], f)
+    return getattr(first, field) != getattr(doc, field)
+
+
+def second_reading_changes(doc: Document, second: Document, first: Document | None = None) -> list[dict]:
+    return [c for c in all_second_changes(doc, second) if not user_changed(doc, first, c['field'])]
+
+
 MEANINGFUL_TOP = ('subtotal', 'discount', 'tax', 'service_charge', 'total', 'issue_date', 'due_date')
 
 
-def meaningful_changes(doc: Document, second: Document) -> list[dict]:
+def meaningful_changes(doc: Document, second: Document, first: Document | None = None) -> list[dict]:
     # differences worth a person's look: money, dates, line amounts, and the vendor beyond case and punctuation;
     # 0.00 lines, letter case, currency or branch alone do not count
     def money_lines(d):
         return sorted(v for i in d.items for v in (i.amount, i.discount) if v)
 
     out = []
-    for c in second_reading_changes(doc, second):
+    for c in second_reading_changes(doc, second, first):
         f = c['field']
         if f == 'items':
             if money_lines(doc) != money_lines(second):
@@ -590,8 +609,12 @@ def document_detail(con, doc_id, uid):
     has_second = r['status'] == 'needs_review' and second and r['document']
     order = store.date_order(con, uid, r['document']['vendor']) if has_second else None
     r['suggestion'] = suggest(Document(**r['document'])) if r['status'] == 'needs_review' and r['document'] else None
-    r['second_reading'] = second_reading_changes(Document(**r['document']), apply_date_order(Document(**second), order)) \
-        if has_second else []
+    if has_second:
+        ex = con.execute('SELECT extracted FROM documents WHERE id = %s', (doc_id,)).fetchone()['extracted']
+        first = apply_date_order(Document(**ex), order) if ex else None
+        r['second_reading'] = second_reading_changes(Document(**r['document']), apply_date_order(Document(**second), order), first)
+    else:
+        r['second_reading'] = []
     return r
 
 
@@ -609,9 +632,10 @@ def check(doc: Document, date_order: DateOrderValue | None = None, doc_id: int |
     with store.conn() as con:
         order = date_order or store.date_order(con, uid, doc.vendor)
         doc = apply_date_order(doc, order)
-        second = doc_id and con.execute('SELECT status, second_reading FROM documents WHERE id = %s AND user_id = %s',
+        second = doc_id and con.execute('SELECT status, second_reading, extracted FROM documents WHERE id = %s AND user_id = %s',
                                         (doc_id, uid)).fetchone()
-        changes = second_reading_changes(doc, apply_date_order(Document(**second['second_reading']), order)) \
+        first = apply_date_order(Document(**second['extracted']), order) if second and second['extracted'] else None
+        changes = second_reading_changes(doc, apply_date_order(Document(**second['second_reading']), order), first) \
             if second and second['status'] == 'needs_review' and second['second_reading'] else []
         return {'document': doc, 'checks': run_checks(con, uid, doc, order, doc_id), 'suggestion': suggest(doc),
                 'second_reading': changes}
