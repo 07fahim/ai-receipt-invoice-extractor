@@ -87,7 +87,9 @@ and the right ones with a discount, coupon or savings line) and on 17 Bangladesh
 from 12 to 5, all still flagged. The other WildReceipt receipts, CORD and the invoices were not re-run, so the table
 below is from `be0376e0`.
 
-The app now runs prompt `b4907187` (2026-10-07). It also reads the printed tax rate, discount rate and seller tax number, for new checks: tax and discount must match their printed rate, Indian GSTIN and UK VAT numbers must pass their check digit, and a note appears when a VAT or GST document has no seller tax number. Re-measured with this prompt: CORD test 90% fully correct, invoices test 69.2%, invoices validation 68.1% (32 of 47), and every new error is flagged. Details in [`results/M4_NOTES.md`](results/M4_NOTES.md).
+Prompt `b4907187` (2026-10-07) also reads the printed tax rate, discount rate and seller tax number, for new checks: tax and discount must match their printed rate, Indian GSTIN and UK VAT numbers must pass their check digit, and a note appears when a VAT or GST document has no seller tax number. Re-measured with this prompt: CORD test 90% fully correct, invoices test 69.2%, invoices validation 68.1% (32 of 47), and every new error is flagged. Details in [`results/M4_NOTES.md`](results/M4_NOTES.md).
+
+The app now runs prompt `fef31308` (2026-10-08). It adds one rule: a weight printed on its own line under the item, such as "Weight: 1.89 lbs @ $19.50/lbs", gives the quantity and unit price. Re-measured with this prompt: CORD test 90% fully correct, invoices test 73.1% (19 of 26), invoices validation 68.8% (33 of 48), and no new errors that go unflagged. Details in [`results/M4_NOTES.md`](results/M4_NOTES.md).
 
 | Set | Documents | Fully correct | Total amount correct | Wrong and not flagged | Correct but sent to review |
 |---|---|---|---|---|---|
