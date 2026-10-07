@@ -151,4 +151,34 @@ msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D
 assert msg == 'The total is printed as 22.000. Is it 22,000?', msg
 from validate import num
 assert [num(D(x)) for x in ('1270.0', '0.6', '0.63', '1.005', '9983196.70')] == ['1,270', '0.60', '0.63', '1.005', '9,983,196.70']
+
+from validate import review
+def found(**kw):
+    return {i['check']: i['message'] for i in validate(Document(**kw), today=TODAY)}
+mehedi = dict(subtotal=D('896'), discount=D('44.80'), tax=D('120'), total=D('971.20'), tax_rate=15, tax_kind='vat',
+              seller_tax_id='0012-3456-7890', items=[Item(amount=D('896'))])
+assert found(**mehedi) == {'tax_rate': 'VAT 15% of 851.20 is 127.68. The document says 120.'}, found(**mehedi)
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88')}) == {}
+assert found(**{**mehedi, 'tax': D('111.03'), 'total': D('962.23')}) == {}  # VAT included in the prices
+greenleaf = dict(subtotal=D('16'), discount=D('1.60'), tax=D('3.20'), total=D('17.60'), tax_rate=20, tax_kind='vat',
+                 seller_tax_id='GB123456782', items=[Item(amount=D('16'))])
+assert found(**greenleaf) == {'tax_rate': 'VAT 20% of 14.40 is 2.88. The document says 3.20.'}  # VAT before the discount
+restaurant = dict(subtotal=D('1000'), service_charge=D('100'), tax=D('165'), total=D('1265'), tax_rate=15, tax_kind='vat',
+                  seller_tax_id='004567891-0102', items=[Item(amount=D('1000'))])
+assert found(**restaurant) == {}  # VAT on subtotal + service charge
+gst_halves = dict(subtotal=D('1000'), tax=D('50'), total=D('1050'), tax_rate=5, tax_kind='gst',
+                  seller_tax_id='07AAHCA1234F1Z5', items=[Item(amount=D('1000'))])
+assert found(**gst_halves) == {}
+maple = dict(subtotal=D('80.44'), discount=D('8.04'), tax=D('8.55'), total=D('80.95'), tax_rate=D('8.5'), tax_kind='sales_tax',
+             items=[Item(amount=D('80.44'))])
+assert found(**maple) == {'tax_rate': 'Tax 8.5% of 80.44 is at most 6.84. The document says 8.55.'}
+target_tax = dict(subtotal=D('26.85'), tax=D('1.20'), total=D('28.05'), tax_rate=7, tax_kind='sales_tax', items=[Item(amount=D('26.85'))])
+assert found(**target_tax) == {}  # less sales tax than the rate: some items can be exempt
+walmart = dict(subtotal=D('29.18'), tax=D('2.86'), total=D('32.04'), tax_rate=0, tax_kind='sales_tax', items=[Item(amount=D('29.18'))])
+assert found(**walmart) == {'tax_rate': 'Tax 0% of 29.18 is at most 0.00. The document says 2.86.'}
+target_disc = dict(subtotal=D('26.85'), discount=D('3.49'), tax=D('1.64'), total=D('25.00'), discount_rate=10, items=[Item(amount=D('26.85'))])
+assert found(**target_disc) == {'discount_rate': '10% of 26.85 is 2.69. The discount is 3.49.'}
+assert found(**{**target_disc, 'discount': D('2.69'), 'total': D('25.80')}) == {}
+assert found(**{**mehedi, 'tax_rate': None}) == {} and found(**{**mehedi, 'tax_kind': None}) == {}  # nothing printed: skipped
+assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
 print('ok')

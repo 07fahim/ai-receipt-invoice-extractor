@@ -1,6 +1,6 @@
 import re
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from schema import Document
 
@@ -106,14 +106,26 @@ def num(d):
     return f'{d:,f}' if d.as_tuple().exponent < -2 else f'{d:,.2f}'  # weighed items keep their 3 decimals
 
 
+CENT = Decimal('0.01')
+
+
+def pct(r):
+    return f'{r.normalize():f}'  # 15, 8.5, 0
+
+
+def review(issues):
+    # notes are shown on the document but never send it to review
+    return [i for i in issues if i.get('level') != 'note']
+
+
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     # checks with missing inputs are skipped, except a missing total
     today = today or date.today()
     doc = apply_date_order(doc, date_order)
     issues = []
 
-    def fail(check, fields, message):
-        issues.append({'check': check, 'fields': fields, 'message': message})
+    def fail(check, fields, message, level=None):
+        issues.append({'check': check, 'fields': fields, 'message': message, **({'level': level} if level else {})})
 
     if doc.is_document is False:  # one clear message instead of "No total found" and friends
         fail('is_document', [], "This doesn't look like a receipt or invoice.")
@@ -170,6 +182,28 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         included = tax and near(expected - tax) and (doc.tax_included is not False or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {num(expected)}. The total is {num(doc.total)}.')
+
+    # Printed rates: the shop's own arithmetic, so no fix is ever suggested for these. VAT/GST is charged on the
+    # amount after the discount (HMRC VAT Notice 700 for basic discounts), with or without the service charge,
+    # added on top or included in the prices. US sales tax can skip exempt items: only too much tax is flagged.
+    if doc.tax_rate is not None and doc.tax is not None and doc.subtotal is not None and doc.tax_kind:
+        rate, base = doc.tax_rate / 100, doc.subtotal - abs(doc.discount or 0)
+        room = Decimal('0.5') if doc.tax == doc.tax.to_integral_value() else CENT * max(1, len(doc.items))
+        if doc.tax_kind in ('vat', 'gst'):
+            bases = [base] + ([base + doc.service_charge] if doc.service_charge else [])
+            if not any(abs(doc.tax - b * rate) <= room or abs(doc.tax - b * rate / (1 + rate)) <= room for b in bases):
+                fail('tax_rate', ['tax'], f'{doc.tax_kind.upper()} {pct(doc.tax_rate)}% of {num(base)} is '
+                     f'{num((base * rate).quantize(CENT, ROUND_HALF_UP))}. The document says {num(doc.tax)}.')
+        else:
+            top = (doc.subtotal + (doc.service_charge or 0)) * rate
+            if (rate == 0 and doc.tax > 0) or doc.tax > top + room:
+                fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(doc.subtotal)} is at most '
+                     f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
+    if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
+        most = doc.subtotal * doc.discount_rate / 100
+        if abs(doc.discount) > most + CENT:
+            fail('discount_rate', ['discount'], f'{pct(doc.discount_rate)}% of {num(doc.subtotal)} is '
+                 f'{num(most.quantize(CENT, ROUND_HALF_UP))}. The discount is {num(abs(doc.discount))}.')
 
     for n, i in enumerate(doc.items):
         # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step
