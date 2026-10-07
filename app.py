@@ -35,7 +35,7 @@ import assistant
 import providers
 import store
 from schema import Document
-from validate import apply_date_order, review, suggest, validate
+from validate import apply_date_order, older_than_upload, review, suggest, validate
 
 providers.load_env()
 pillow_heif.register_heif_opener()   # lets Pillow open iPhone HEIC photos
@@ -114,6 +114,10 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
     if dup:
         checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
                        'message': f'Same vendor, number and total as {dup["doc_number"]}. It was uploaded earlier.'})
+    if doc_id is not None:
+        note = older_than_upload(doc.issue_date, store.upload_dates(con, uid, doc_id))
+        if note:
+            checks.append(note)
     if doc_id is not None:
         row = con.execute('SELECT second_reading FROM documents WHERE id = %s AND user_id = %s', (doc_id, uid)).fetchone()
         if row and row['second_reading']:
@@ -578,6 +582,9 @@ def document_detail(con, doc_id, uid):
         # the original may have been deleted or corrected since: drop the flag, or link the copy still there
         r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
                        for c in r['checks'] if dup or c['check'] != 'duplicate']
+    if r['document']:
+        note = older_than_upload(Document(**r['document']).issue_date, store.upload_dates(con, uid, doc_id))
+        r['checks'] = [c for c in r['checks'] or [] if c['check'] != 'older_than_upload'] + ([note] if note else [])
     second = r.pop('second_reading')
     r['second_read'] = second is not None  # true once a second-reading answer is stored, even if nothing meaningful differs
     has_second = r['status'] == 'needs_review' and second and r['document']

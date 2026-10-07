@@ -196,4 +196,13 @@ assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No 
 assert found(**{**maple, 'tax': D('6.15'), 'total': D('78.55')}) == {}  # US sales tax: no tax number needed
 note = [i for i in validate(Document(**{**gst_halves, 'seller_tax_id': None}), today=TODAY)]
 assert note[0]['level'] == 'note' and review(note) == []
+
+from validate import older_than_upload
+batch = [date(2026, 3, d) for d in (2, 9, 15)]
+assert older_than_upload(date(2024, 1, 20), batch) == {
+    'message': 'This document is dated 01/2024. The rest of this upload is from 03/2026.',
+    'check': 'older_than_upload', 'fields': ['issue_date'], 'level': 'note'}
+assert older_than_upload(date(2025, 11, 1), batch) is None  # within 6 months
+assert older_than_upload(date(2024, 1, 20), batch[:2]) is None  # too few others to compare
+assert older_than_upload(None, batch) is None
 print('ok')

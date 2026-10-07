@@ -119,6 +119,17 @@ def review(issues):
     return [i for i in issues if i.get('level') != 'note']
 
 
+def older_than_upload(issue_date, others):
+    # a stray old receipt in a current batch; a whole backlog uploaded together never triggers it
+    if issue_date is None or len(others) < 3:
+        return None
+    middle = sorted(others)[len(others) // 2]
+    if (middle - issue_date).days <= 183:
+        return None
+    return {'message': f'This document is dated {issue_date:%m/%Y}. The rest of this upload is from {middle:%m/%Y}.',
+            'check': 'older_than_upload', 'fields': ['issue_date'], 'level': 'note'}
+
+
 B36 = string.digits + string.ascii_uppercase
 GSTIN = re.compile(r'\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]')
 

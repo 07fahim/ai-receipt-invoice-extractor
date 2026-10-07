@@ -184,6 +184,17 @@ try:
     d = c.get(f'/documents/{novat_id}').json()
     assert d['status'] == 'passed' and [x['check'] for x in d['checks']] == ['tax_id_missing'], d
 
+    # a 2015 receipt uploaded with three from 2016, by a user with no other documents: a note on the old one only
+    for k in ('good2', 'good3', 'good4'):
+        ANSWERS[k] = ANSWERS['good'].replace('Green Field', f'Field {k}')
+    ANSWERS['old'] = ANSWERS['good'].replace('2016-05-26', '2015-01-10').replace('5/26/2016', 'January 10, 2015')
+    olga = as_user(str(uuid.uuid4()))
+    files = [('files', (f'{k}.jpg', io.BytesIO(JPG + k.encode()), 'image/jpeg')) for k in ('good2', 'good3', 'good4', 'old')]
+    ids = [x['id'] for x in c.post('/documents', files=files, headers=olga).json()]
+    d = c.get(f'/documents/{ids[-1]}', headers=olga).json()
+    assert d['status'] == 'passed' and [x['check'] for x in d['checks']] == ['older_than_upload'], d
+    assert [x['check'] for x in c.get(f'/documents/{ids[0]}', headers=olga).json()['checks']] == []
+
     # ambiguous date -> needs review; confirming the vendor's MDY order fixes the date and re-checks
     amb_id = upload(('inv.jpg', JPG + b'ambiguous')).json()[0]['id']
     d = c.get(f'/documents/{amb_id}').json()
