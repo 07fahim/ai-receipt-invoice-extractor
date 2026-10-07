@@ -130,14 +130,23 @@ def tools():
                 'A second AI reading differs. Compare with the photo.',
                 'The amounts look 1,000 times too small. The total would be 64,430.',
                 'আম: is the quantity 1.89? Then the line adds up.',
-                'Did you mean 8.50 instead of 85.0? Then every sum adds up.']
+                'Did you mean 8.50 instead of 85.0? Then every sum adds up.',
+                'VAT 15% of 851.20 is 127.68. The document says 120.',
+                'GST 5% of 1,000 is 50. The document says 60.',
+                'Tax 8.5% of 80.44 is at most 6.84. The document says 8.55.',
+                '10% of 26.85 is 2.69. The discount is 3.49.',
+                'GB123 4567 89 is not a valid UK VAT number. Check it on the document.',
+                '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.',
+                'No seller VAT number found. It is needed to claim this VAT back.',
+                'No seller GSTIN found. It is needed to claim this GST back.',
+                'This document is dated 01/2024. The rest of this upload is from 03/2026.']
     assert len(examples) == len(assistant.BANGLA)
     # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
-    # 13 checks, 3 suggestions (2 found.append, 1 direct return) in validate.py, 2 check messages in app.py
+    # 18 checks, 3 suggestions (2 found.append, 1 direct return), 1 note dict in validate.py
     src, app_src = open('validate.py', encoding='utf-8').read(), open('app.py', encoding='utf-8').read()
-    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (13, 2, 1, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
+    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (18, 2, 2, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
     for m in examples:
-        assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '')), m
+        assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '').replace('07AAHCA1234F1Z6', '')), m
     assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English
 
     # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case
