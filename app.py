@@ -393,13 +393,14 @@ def second_read(doc_id):
                         (Jsonb(second.model_dump(mode='json')), doc_id))
             # re-read: the document may have been re-saved while the model call was in flight
             # (a vendor date-order re-check, a retry's new first reading), so decide on it as it is now
-            fresh = con.execute('SELECT status, document, user_id FROM documents WHERE id = %s FOR UPDATE', (doc_id,)).fetchone()
+            fresh = con.execute('SELECT status, document, extracted, user_id FROM documents WHERE id = %s FOR UPDATE', (doc_id,)).fetchone()
             if fresh and fresh['document']:
                 uid = str(fresh['user_id'])
                 order = store.date_order(con, uid, fresh['document']['vendor'])
                 doc = apply_date_order(Document(**fresh['document']), order)
                 if fresh['status'] == 'passed':
-                    if meaningful_changes(doc, apply_date_order(second, order)):
+                    first = apply_date_order(Document(**fresh['extracted']), order) if fresh['extracted'] else None
+                    if meaningful_changes(doc, apply_date_order(second, order), first):
                         checks = run_checks(con, uid, doc, order, doc_id)
                         changed = con.execute("UPDATE documents SET status = 'needs_review', checks = %s, updated_at = now() "
                                               "WHERE id = %s AND status = 'passed'", (Jsonb(checks), doc_id)).rowcount
