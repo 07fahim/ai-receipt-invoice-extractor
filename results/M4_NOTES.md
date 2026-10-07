@@ -69,3 +69,63 @@ and Harbor Fresh, tax_rate is right on every one except Walmart (0.00%).
 Re-runs with 36d2b5dd of CORD test (100), invoices test (26) and validation (48), US receipts first 30, and the
 rate-reading accuracy on invoices (`python eval_rates.py 36d2b5dd`). Waiting on a decision about the Walmart
 reading and the Arax false alarm.
+
+## 4. Prompt 9db1851c (2026-10-07): printed 0% copied as 0, VAT-included total by the printed rate
+Two changes: the prompt says `0 if "0%" or "0.00%" is printed` for tax_rate; `total_math` also accepts VAT included
+when the printed rate gives exactly the tax (tax within 0.01 of total x rate / (100 + rate)), with no line total
+needed. The Arax VAT rule (water left out of VAT) is unchanged on purpose.
+
+### Live samples (35 calls, Gemini 3.1 Flash-Lite, no retries), against 36d2b5dd with today's rules
+Expected catches: 6 of 6. Walmart now reads tax_rate 0 and gets `tax_rate` ("Tax 0% of 29.18 is at most 0.00");
+its row numbers are no longer read as quantities, so line_math is gone. Maple, GreenLeaf (rate + invalid VAT no.),
+Nandan, Mehedi and Target unchanged. Star Hotel passes (the "Water" line with no amount is still there).
+
+Other changes, each checked on the image:
+
+| Sample | Change | Real? |
+|---|---|---|
+| handwritten.png | new items_sum + line_math; date 20/05 read as 20/06 | Misreads: line 3 280 (printed 240, caught); the date is not caught |
+| memo.png | items_sum + line_math gone | Better: line 3 now 240 as printed |
+| utility bill.png | new total_math | Total now the "Bill month total" 9,983,196.70 (was the 9,983,196.00 to be paid); the service charge 10 is read again on top of the principal, which already holds it. The cents remove the rounding room that hid this |
+| costco-receipt.png | tax_rate 0 | No % printed (only "Tax $0.00"); harmless, no check runs |
+| images (3).jpg | seller_tax_id 143775668 | Right: the Greek "ΑΦΜ" number |
+| images (8).jpg | "Auto Round -0.25" no longer a discount; currency BDT | Total still passes; BDT right (Dhaka) |
+| images (4), (6) | doc_number / vendor dropped | Old values were a payment number and a table number; no check uses them |
+
+### Datasets (same prompt, no retries, under 12 calls a minute)
+Baselines from results/M3_NOTES.md: be0376e0 for CORD and invoices, 9edae16b for US receipts. Three prompt changes
+lie in between (a19decf8, 36d2b5dd, 9db1851c), so a change cannot be pinned on one of them. "Unflagged" = wrong and
+no check fired except the day/month question. Old answers were re-checked with today's rules: same counts as stored.
+
+| Set | Fully correct | Total correct | Wrong and unflagged | Correct but flagged |
+|---|---|---|---|---|
+| CORD test (100) | 91 → 87 | 90 → 88 of 96 | 2 → 1 | 5 → 5 |
+| Invoices test (26) | 20 → 19 | 25 → 25 | 6 → 7 | 6 → 5 |
+| Invoices validation (48) | 31 → 32 | 48 → 48 | 17 → 16 | 8 → 9 |
+| US receipts, first 30 (no answer key) | passed 20 → 21 | | | |
+
+Most invoice "unflagged" errors are day/month dates, which the vendor's date order fixes. Without them: test 2 → 2
+(13, 22), validation 4 → 5 (new: 48, buyer "Hopkins-Moreono", printed "Hopkins-Moreno"; no check reads names).
+
+CORD changes, images opened:
+- 33, 94 (were right) and 14 (already wrong): the service charge is added into the tax (33: 11,070 + 19,557 =
+  30,627). All flagged by total_math.
+- 41: the 5% service charge is also copied as tax (none printed). Scored correct (the key has no tax), flagged.
+- 34, 63 (were right): "93.500" and "57.000" read as 93.5 and 57. Flagged by total_format. Not opened (total_text and
+  the key agree on what is printed).
+- 58: now right; the "PB1" tax line is no longer listed as an item. 39: items_total gone, the line discounts now
+  give 3,112,800 as printed (the key has no total).
+- 90: **new false alarm**. Prints "Pb1 2,681" with no rate; the model filled in 10%. 10% of 26,818 is 2,681.80,
+  the receipt drops the 0.80, over the 0.5 room.
+
+US receipts: 15 **new false alarm** (total_math). The model now lists the unpriced side dishes ("Mac n Cheese",
+"French Fries") as lines with no amount, so the rule cannot see that the -6.00 discount is already inside the
+lines; without those two lines the receipt passes. 11: line_math gone, the weighed beef ribs now read 1 x 36.86
+(money right; the quantity suggestion no longer fires). 18 and 24 read their printed rates (8.25%, 9%) and lose the
+check number; 25 gains "Order 97". No other change.
+
+Rate reading on invoices (`python eval_rates.py 9db1851c`): 53 right, 20 wrong of 73. All 20 are null where the
+summary prints one rate (10%), e.g. test 10 (opened). Missed reads only: the rate check is skipped, no false alarm.
+Answer keys and planted taxes unchanged from section 1 (0 / 472 false; 456/463, 469/469, 469/469, 466/469).
+
+CORD validation was not run: the plan was to stop and report if CORD test dropped.
