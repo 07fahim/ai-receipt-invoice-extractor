@@ -34,7 +34,8 @@ TOOLS = [
             'date_to': {'type': 'string', 'description': 'YYYY-MM-DD'}}}}},
     {'type': 'function', 'function': {
         'name': 'get_document',
-        'description': 'One document: fields, line items, the checks that failed with their reasons, a suggested fix, '
+        'description': 'One document: fields, line items, the checks (failures and notes; notes are marked '
+                       'note and never send a document to review) with their reasons, a suggested fix, '
                        'and where a second AI reading differs.',
         'parameters': {'type': 'object', 'required': ['id'], 'properties': {'id': {'type': 'integer'}}}}},
     {'type': 'function', 'function': {
@@ -147,6 +148,8 @@ def plain_check(doc, c, in_bangla=False):
     if c['check'] in validate.SUM_CHECKS:  # the numbers come from the AI's reading, not from the model seeing the image
         message = ('এআই-এর পড়া অনুযায়ী: ' if in_bangla else "In the AI's reading: ") + message
     out = {'fields': [plain_field(f) for f in c['fields']], 'message': message}
+    if c.get('level') == 'note':
+        out['note'] = True
     if c['check'] == 'date_ambiguous' and doc is not None:
         field = c['fields'][0]
         month_first = getattr(validate.apply_date_order(doc, 'MDY'), field)

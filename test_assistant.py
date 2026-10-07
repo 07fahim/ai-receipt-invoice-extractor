@@ -160,6 +160,13 @@ def tools():
     dump = json.dumps(amb)
     assert 'date_ambiguous' not in dump and 'needs_review' not in dump, dump
 
+    # a note check (level note) is marked note so the chat model doesn't read it as a failure; a normal check isn't
+    note_check = assistant.plain_check(None, {'check': 'tax_id_missing', 'fields': ['seller_tax_id'],
+                                              'message': 'No seller VAT number found.', 'level': 'note'})
+    assert note_check.get('note') is True, note_check
+    plain = assistant.plain_check(None, {'check': 'total_present', 'fields': ['total'], 'message': 'No total found.'})
+    assert 'note' not in plain, plain
+
     assert [d['id'] for d in tool(ALICE, 'due_bills', days=7)] == [bill]
     hits = tool(ALICE, 'search_items', text='latte')
     assert [d['id'] for d in hits] == [latte] and hits[0]['matches'] == ['Caffe Latte'], hits
