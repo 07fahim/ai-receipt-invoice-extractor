@@ -108,6 +108,12 @@ hotel = dict(subtotal=D('830'), tax=D('39.52'), total=D('830'), tax_rate=5, tax_
              seller_tax_id='000107602-0201', items=[Item(amount=D('790')), Item(amount=D('40')), Item(description='Water')])
 assert checks(**hotel) == []
 assert checks(**{**hotel, 'tax_rate': None}) == ['total_math'] and checks(**{**hotel, 'tax': D('41.50')}) == ['total_math']
+# same shape but sales tax: a subtotal misread as the total must not pass just because the printed rate's
+# included share happens to match (that proof is VAT/GST only, see I-1)
+hotel_sales = dict(subtotal=D('108.50'), tax=D('8.50'), total=D('108.50'), tax_rate=D('8.5'), tax_kind='sales_tax',
+                    tax_included=False, items=[Item(amount=D('60')), Item(amount=D('40')), Item(description='Water')])
+assert 'total_math' in checks(**hotel_sales), checks(**hotel_sales)
+assert checks(**hotel) == []  # hotel VAT case still passes
 # ...but never without lines that reach the total: 10% on top with the subtotal read as the total looks the same
 assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000'), items=[Item(amount=D('150000'))]) == ['items_sum', 'total_math']
 # a discount recorded on the item and again on the receipt, printed before SUBTTL (CORD test 33): not subtracted twice
