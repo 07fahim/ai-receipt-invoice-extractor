@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Lock, MessageCircle, Scale, ScanText, Sparkles, Store, Trash2, Upload, Wallet, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DemoFix } from "@/components/demo-fix";
 import { DemoVideo } from "@/components/demo-video";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -169,11 +170,7 @@ export default function Home() {
                 Fixes are suggested from the math. Nothing changes until you click.
               </p>
             </div>
-            <div className="lg:order-first">
-              <DemoVideo name="fix"
-                label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
-              <p className="mt-2 text-xs text-muted-foreground">Recorded on an earlier version of the reader.</p>
-            </div>
+            <DemoFix className="lg:order-first" />
           </div>
         </section>
 
