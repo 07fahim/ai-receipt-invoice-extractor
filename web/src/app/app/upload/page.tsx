@@ -28,9 +28,9 @@ const PREVIEWABLE = ["image/jpeg", "image/png", "image/webp"]; // browsers canno
 
 // Public-domain (CC0) US receipts and our own synthetic Dhaka bill, so visitors can try the app without their own files.
 const SAMPLES = [
-  { file: "grand-lux-cafe.jpg", label: "US restaurant", note: "Passes all checks" },
-  { file: "taco-bell.jpg", label: "US fast food", note: "Has an unclear date" },
-  { file: "dhaka-restaurant.png", label: "Dhaka restaurant", note: "With service charge and VAT" },
+  { file: "maple-street-market.png", label: "US grocery receipt", note: "One line overcharged" },
+  { file: "greenleaf-market-invoice.png", label: "UK VAT invoice", note: "Wrong VAT number" },
+  { file: "nandan-super-shop-invoice.png", label: "Bangladesh VAT invoice", note: "Lines don't match the subtotal" },
 ];
 
 export default function UploadPage() {
@@ -151,7 +151,7 @@ export default function UploadPage() {
     <div className="mx-auto max-w-5xl">
       <h1 className="text-2xl font-semibold tracking-tight">Upload</h1>
       <p className="mt-0.5 text-sm text-muted-foreground">
-        Up to 20 files at a time. Google&apos;s Gemini AI reads them. Please use sample receipts.{" "}
+        Up to 20 files at a time. Google&apos;s Gemini AI reads them. Please use sample documents.{" "}
         <Link href="/privacy" className="underline">Privacy</Link>
       </p>
 
@@ -262,7 +262,7 @@ export default function UploadPage() {
               className="flex items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-xs transition-colors hover:border-primary hover:bg-[#F8FAFF] dark:hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- tiny static thumbnails */}
-              <img src={`/samples/${s.file}`} alt="" className="h-14 w-11 shrink-0 rounded-md border object-cover object-top" />
+              <img src={`/samples/thumbs/${s.file.replace(".png", ".jpg")}`} alt="" className="h-14 w-11 shrink-0 rounded-md border object-cover object-top" />
               <span className="min-w-0">
                 <span className="block text-sm font-medium">{s.label}</span>
                 <span className="block text-[13px] text-muted-foreground">{s.note}</span>

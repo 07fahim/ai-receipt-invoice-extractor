@@ -108,7 +108,7 @@ export default function Home() {
               <Button size="lg" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Try it free</Link></Button>
               <Button size="lg" variant="outline" className="h-11 px-5 text-[15px]" asChild><a href="#checks">See what it checks</a></Button>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">Sign up with email or Google. Sample receipts included.</p>
+            <p className="mt-4 text-sm text-muted-foreground">Sign up with email or Google. Sample receipts and invoices included.</p>
           </div>
 
           <div className="grid items-start sm:grid-cols-[1fr_minmax(0,250px)]" aria-label="A photographed receipt and the checks run on it">
@@ -265,8 +265,8 @@ export default function Home() {
         <section className="border-t bg-background px-6 pt-12 pb-20">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 rounded-2xl bg-foreground p-8 text-white dark:border dark:bg-card md:p-12">
             <div>
-              <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt</h2>
-              <p className="mt-1.5 text-white/75">Sign up free. Sample receipts are ready to try.</p>
+              <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt or invoice</h2>
+              <p className="mt-1.5 text-white/75">Sign up free. Sample receipts and invoices are ready to try.</p>
             </div>
             <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Try the demo</Link></Button>
           </div>
