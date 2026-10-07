@@ -103,6 +103,17 @@ assert checks(subtotal=D('434.80'), discount=D('30.44'), total=D('404'),
 assert checks(subtotal=D('434.80'), discount=D('30.44'), total=D('403')) == ['total_math']
 star = dict(subtotal=D('830'), total=D('830'), items=[Item(amount=D('790')), Item(amount=D('40'))], tax_included=False)
 assert checks(**star, tax=D('39.52')) == [] and checks(**star, tax=D('41.50')) == ['total_math']
+# Star Hotel read with a line that has no amount: the printed 5% is enough to show the VAT is inside the 830
+hotel = dict(subtotal=D('830'), tax=D('39.52'), total=D('830'), tax_rate=5, tax_kind='vat', tax_included=False,
+             seller_tax_id='000107602-0201', items=[Item(amount=D('790')), Item(amount=D('40')), Item(description='Water')])
+assert checks(**hotel) == []
+assert checks(**{**hotel, 'tax_rate': None}) == ['total_math'] and checks(**{**hotel, 'tax': D('41.50')}) == ['total_math']
+# same shape but sales tax: a subtotal misread as the total must not pass just because the printed rate's
+# included share happens to match (that proof is VAT/GST only, see I-1)
+hotel_sales = dict(subtotal=D('108.50'), tax=D('8.50'), total=D('108.50'), tax_rate=D('8.5'), tax_kind='sales_tax',
+                    tax_included=False, items=[Item(amount=D('60')), Item(amount=D('40')), Item(description='Water')])
+assert 'total_math' in checks(**hotel_sales), checks(**hotel_sales)
+assert checks(**hotel) == []  # hotel VAT case still passes
 # ...but never without lines that reach the total: 10% on top with the subtotal read as the total looks the same
 assert checks(subtotal=D('165000'), tax=D('15000'), total=D('165000'), items=[Item(amount=D('150000'))]) == ['items_sum', 'total_math']
 # a discount recorded on the item and again on the receipt, printed before SUBTTL (CORD test 33): not subtracted twice
@@ -151,4 +162,80 @@ msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D
 assert msg == 'The total is printed as 22.000. Is it 22,000?', msg
 from validate import num
 assert [num(D(x)) for x in ('1270.0', '0.6', '0.63', '1.005', '9983196.70')] == ['1,270', '0.60', '0.63', '1.005', '9,983,196.70']
+
+from validate import review
+def found(**kw):
+    return {i['check']: i['message'] for i in validate(Document(**kw), today=TODAY)}
+mehedi = dict(currency='BDT', subtotal=D('896'), discount=D('44.80'), tax=D('120'), total=D('971.20'), tax_rate=15, tax_kind='vat',
+              seller_tax_id='0012-3456-7890', items=[Item(amount=D('896'))])
+assert found(**mehedi) == {'tax_rate': 'VAT 15% of 851.20 is 127.68. The document says 120.'}, found(**mehedi)
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88')}) == {}
+assert found(**{**mehedi, 'tax': D('111.03'), 'total': D('962.23')}) == {}  # VAT included in the prices
+greenleaf = dict(subtotal=D('16'), discount=D('1.60'), tax=D('3.20'), total=D('17.60'), tax_rate=20, tax_kind='vat',
+                 seller_tax_id='GB123456782', items=[Item(amount=D('16'))])
+assert found(**greenleaf) == {'tax_rate': 'VAT 20% of 14.40 is 2.88. The document says 3.20.'}  # VAT before the discount
+restaurant = dict(subtotal=D('1000'), service_charge=D('100'), tax=D('165'), total=D('1265'), tax_rate=15, tax_kind='vat',
+                  seller_tax_id='004567891-0102', items=[Item(amount=D('1000'))])
+assert found(**restaurant) == {}  # VAT on subtotal + service charge
+gst_halves = dict(currency='INR', subtotal=D('1000'), tax=D('50'), total=D('1050'), tax_rate=5, tax_kind='gst',
+                  seller_tax_id='07AAHCA1234F1Z5', items=[Item(amount=D('1000'))])
+assert found(**gst_halves) == {}
+maple = dict(subtotal=D('80.44'), discount=D('8.04'), tax=D('8.55'), total=D('80.95'), tax_rate=D('8.5'), tax_kind='sales_tax',
+             items=[Item(amount=D('80.44'))])
+assert found(**maple) == {'tax_rate': 'Tax 8.5% of 80.44 is at most 6.84. The document says 8.55.'}
+target_tax = dict(subtotal=D('26.85'), tax=D('1.20'), total=D('28.05'), tax_rate=7, tax_kind='sales_tax', items=[Item(amount=D('26.85'))])
+assert found(**target_tax) == {}  # less sales tax than the rate: some items can be exempt
+walmart = dict(subtotal=D('29.18'), tax=D('2.86'), total=D('32.04'), tax_rate=0, tax_kind='sales_tax', items=[Item(amount=D('29.18'))])
+assert found(**walmart) == {'tax_rate': 'Tax 0% of 29.18 is at most 0.00. The document says 2.86.'}
+# the ceiling is subtotal + service charge: the message must print that sum, not the subtotal alone (M-2)
+service_tax = dict(subtotal=D('100'), service_charge=D('18'), tax=D('13'), total=D('131'), tax_rate=10, tax_kind='sales_tax',
+                    items=[Item(amount=D('100'))])
+assert found(**service_tax) == {'tax_rate': 'Tax 10% of 118 is at most 11.80. The document says 13.'}, found(**service_tax)
+target_disc = dict(subtotal=D('26.85'), discount=D('3.49'), tax=D('1.64'), total=D('25.00'), discount_rate=10, items=[Item(amount=D('26.85'))])
+assert found(**target_disc) == {'discount_rate': '10% of 26.85 is 2.69. The discount is 3.49.'}
+assert found(**{**target_disc, 'discount': D('2.69'), 'total': D('25.80')}) == {}
+assert found(**{**mehedi, 'tax_rate': None}) == {} and found(**{**mehedi, 'tax_kind': None}) == {}  # nothing printed: skipped
+# a whole-unit tax can be truncated instead of rounded (CORD 90: 10% of 26,818 = 2,681.80, printed 2,681)
+cord90 = dict(subtotal=D('26818'), tax=D('2681'), total=D('29499'), tax_rate=10, tax_kind='vat',
+              seller_tax_id='01.234.567.8-901.000', items=[Item(amount=D('26818'))])
+assert found(**cord90) == {}
+assert found(**{**cord90, 'tax': D('2679'), 'total': D('29497')}) == {
+    'tax_rate': 'VAT 10% of 26,818 is 2,681.80. The document says 2,679.'}
+# CORD test 33: discount recorded on the item and again on SUBTTL, so the subtotal already has it taken off;
+# the tax_rate base must not subtract it a second time (the base still fails: the shop taxed the pre-discount amount)
+cord33 = dict(currency='IDR', subtotal=D('117500'), discount=D('67000'), tax=D('19557'), tax_included=False,
+              service_charge=D('11070'), total=D('148127'), tax_rate=D('10'), tax_kind='vat', discount_rate=D('100'),
+              items=[Item(description='GRILLED BABY POTATO (R', quantity=D('1'), unit_price=D('50500'), amount=D('50500')),
+                     Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000')),
+                     Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000'), discount=D('67000'))])
+assert found(**cord33) == {'tax_rate': 'VAT 10% of 117,500 is 11,750. The document says 19,557.'}, found(**cord33)
+# no VAT number: Indonesian rupiah receipts tax a local restaurant tax, no VAT/GST number applies there
+assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
+
+from validate import gstin_valid, uk_vat_valid
+assert gstin_valid('07AAHCA1234F1Z5') and not gstin_valid('07AAHCA1234F1Z6') and not gstin_valid('99AAHCA1234F1Z5')
+# 1234567: weights 8..2 give 112; 112 + 82 = 194 = 2 x 97 (old scheme); 112 + 27 + 55 = 194 (new scheme)
+assert uk_vat_valid('123456782') and uk_vat_valid('123456727') and not uk_vat_valid('123456789')
+assert found(**{**greenleaf, 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_id': 'GB123 4567 89'}) == \
+    {'tax_id_invalid': 'GB123 4567 89 is not a valid UK VAT number. Check it on the document.'}
+assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \
+    {'tax_id_invalid': '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.'}
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None}) == \
+    {'tax_id_missing': 'No seller VAT number found. It is needed to claim this VAT back.'}
+assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No seller GSTIN found. It is needed to claim this GST back.'}
+# the note only fires where a VAT/GST number is expected (BDT, INR, GBP, EUR); Indonesian local tax has none
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None, 'currency': 'IDR'}) == {}
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None, 'currency': None}) == {}
+assert found(**{**maple, 'tax': D('6.15'), 'total': D('78.55')}) == {}  # US sales tax: no tax number needed
+note = [i for i in validate(Document(**{**gst_halves, 'seller_tax_id': None}), today=TODAY)]
+assert note[0]['level'] == 'note' and review(note) == []
+
+from validate import older_than_upload
+batch = [date(2026, 3, d) for d in (2, 9, 15)]
+assert older_than_upload(date(2024, 1, 20), batch) == {
+    'message': 'This document is dated 01/2024. The rest of this upload is from 03/2026.',
+    'check': 'older_than_upload', 'fields': ['issue_date'], 'level': 'note'}
+assert older_than_upload(date(2025, 11, 1), batch) is None  # within 6 months
+assert older_than_upload(date(2024, 1, 20), batch[:2]) is None  # too few others to compare
+assert older_than_upload(None, batch) is None
 print('ok')

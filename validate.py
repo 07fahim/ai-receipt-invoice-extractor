@@ -1,6 +1,7 @@
 import re
+import string
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from schema import Document
 
@@ -29,6 +30,9 @@ CENTS_PRINTED = re.compile(r'[.,]\d{2}\s*$')
 # VAT rates whose "VAT included" share can be recognised from the numbers alone (Bangladesh: 5, 7.5, 10, 15%).
 # Bangladeshi rates only: 20% added on top misread as 25% included would pass, so check before adding rates.
 INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
+
+# countries where a seller VAT/GST number is expected: BIN (BDT), GSTIN (INR), UK VAT (GBP), EU VAT (EUR)
+VAT_ID_EXPECTED = {'BDT', 'INR', 'GBP', 'EUR'}
 
 
 def close(a, b, rel=Decimal(0)):
@@ -106,14 +110,68 @@ def num(d):
     return f'{d:,f}' if d.as_tuple().exponent < -2 else f'{d:,.2f}'  # weighed items keep their 3 decimals
 
 
+CENT = Decimal('0.01')
+
+
+def pct(r):
+    return f'{r.normalize():f}'  # 15, 8.5, 0
+
+
+def review(issues):
+    # notes are shown on the document but never send it to review
+    return [i for i in issues if i.get('level') != 'note']
+
+
+def older_than_upload(issue_date, others):
+    # a stray old receipt in a current batch; a whole backlog uploaded together never triggers it
+    if issue_date is None or len(others) < 3:
+        return None
+    middle = sorted(others)[len(others) // 2]
+    if (middle - issue_date).days <= 183:
+        return None
+    return {'message': f'This document is dated {issue_date:%m/%Y}. The rest of this upload is from {middle:%m/%Y}.',
+            'check': 'older_than_upload', 'fields': ['issue_date'], 'level': 'note'}
+
+
+B36 = string.digits + string.ascii_uppercase
+GSTIN = re.compile(r'\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]')
+
+
+def gstin_valid(s):
+    # state code 01-38, then the GST mod-36 check character
+    if not GSTIN.fullmatch(s) or not 1 <= int(s[:2]) <= 38:
+        return False
+    total = 0
+    for n, ch in enumerate(s[:14]):
+        p = B36.index(ch) * (2 if n % 2 else 1)
+        total += p // 36 + p % 36
+    return B36[(36 - total % 36) % 36] == s[14]
+
+
+def uk_vat_valid(digits):
+    # HMRC mod-97: the old scheme or the new one (+55)
+    total = sum(w * int(c) for w, c in zip(range(8, 1, -1), digits[:7])) + int(digits[7:9])
+    return total % 97 == 0 or (total + 55) % 97 == 0
+
+
+def tax_id_problem(raw):
+    # only formats with a public check digit; a Bangladeshi BIN or other EU numbers are not checked
+    s = re.sub(r'[\s.-]', '', raw or '').upper()
+    if re.fullmatch(r'GB(\d{9}|\d{12})', s):
+        return None if uk_vat_valid(s[2:11]) else f'{raw} is not a valid UK VAT number. Check it on the document.'
+    if len(s) == 15 and s[:2].isdigit() and s[13] == 'Z':
+        return None if gstin_valid(s) else f'{raw} is not a valid GSTIN. Check it on the document.'
+    return None
+
+
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     # checks with missing inputs are skipped, except a missing total
     today = today or date.today()
     doc = apply_date_order(doc, date_order)
     issues = []
 
-    def fail(check, fields, message):
-        issues.append({'check': check, 'fields': fields, 'message': message})
+    def fail(check, fields, message, level=None):
+        issues.append({'check': check, 'fields': fields, 'message': message, **({'level': level} if level else {})})
 
     if doc.is_document is False:  # one clear message instead of "No total found" and friends
         fail('is_document', [], "This doesn't look like a receipt or invoice.")
@@ -152,14 +210,20 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
 
     # The same discount on an item and on the receipt ("Disc -100% (ITM06)" then SUBTTL): the lines already hold it
     twice = bool(doc.discount) and net is not None and close(sum(abs(i.discount or 0) for i in doc.items), abs(doc.discount))
+    # subtotal already has the discount taken off: don't subtract it again (CORD test 33, used below and by tax_rate)
+    discount_in_subtotal = twice and doc.subtotal is not None and close(net, doc.subtotal)
 
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so
     # or the numbers prove it (included_share): the arithmetic decides, so a wrong tax_included=True on an invoice
     # whose tax is added on top does no harm.
     if doc.subtotal is not None and doc.total is not None:
-        discount = 0 if twice and close(net, doc.subtotal) else abs(doc.discount or 0)
+        discount = 0 if discount_in_subtotal else abs(doc.discount or 0)
         expected = doc.subtotal + tax + (doc.service_charge or 0) - discount
-        included = tax and near(expected - tax) and (doc.tax_included or included_share(tax, doc.total, net, whole))
+        # a printed rate whose included share matches the tax is proof on its own, no line total needed
+        # (VAT/GST only: a US sales tax subtotal misread as the total would pass the same arithmetic by chance)
+        printed = doc.tax_kind in ('vat', 'gst') and doc.tax_rate and abs(
+            tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
+        included = tax and near(expected - tax) and (doc.tax_included or printed or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
@@ -170,6 +234,37 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         included = tax and near(expected - tax) and (doc.tax_included is not False or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
             fail('items_total', ['items', 'total'], f'Line items add up to {num(expected)}. The total is {num(doc.total)}.')
+
+    # Printed rates: the shop's own arithmetic, so no fix is ever suggested for these. VAT/GST is charged on the
+    # amount after the discount (HMRC VAT Notice 700 for basic discounts), with or without the service charge,
+    # added on top or included in the prices. US sales tax can skip exempt items: only too much tax is flagged.
+    if doc.tax_rate is not None and doc.tax is not None and doc.subtotal is not None and doc.tax_kind:
+        rate = doc.tax_rate / 100
+        base = doc.subtotal if discount_in_subtotal else doc.subtotal - abs(doc.discount or 0)
+        room = Decimal('1') if doc.tax == doc.tax.to_integral_value() else CENT * max(1, len(doc.items))
+        if doc.tax_kind in ('vat', 'gst'):
+            bases = [base] + ([base + doc.service_charge] if doc.service_charge else [])
+            if not any(abs(doc.tax - b * rate) <= room or abs(doc.tax - b * rate / (1 + rate)) <= room for b in bases):
+                fail('tax_rate', ['tax'], f'{doc.tax_kind.upper()} {pct(doc.tax_rate)}% of {num(base)} is '
+                     f'{num((base * rate).quantize(CENT, ROUND_HALF_UP))}. The document says {num(doc.tax)}.')
+        else:
+            base = doc.subtotal + (doc.service_charge or 0)
+            top = base * rate
+            if (rate == 0 and doc.tax > 0) or doc.tax > top + room:
+                fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(base)} is at most '
+                     f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
+    if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
+        most = doc.subtotal * doc.discount_rate / 100
+        if abs(doc.discount) > most + CENT:
+            fail('discount_rate', ['discount'], f'{pct(doc.discount_rate)}% of {num(doc.subtotal)} is '
+                 f'{num(most.quantize(CENT, ROUND_HALF_UP))}. The discount is {num(abs(doc.discount))}.')
+
+    problem = tax_id_problem(doc.seller_tax_id)
+    if problem:
+        fail('tax_id_invalid', ['seller_tax_id'], problem)
+    if doc.tax_kind in ('vat', 'gst') and doc.tax and not doc.seller_tax_id and (doc.currency or '').upper() in VAT_ID_EXPECTED:
+        name, label = ('GST', 'GSTIN') if doc.tax_kind == 'gst' else ('VAT', 'VAT number')
+        fail('tax_id_missing', ['seller_tax_id'], f'No seller {label} found. It is needed to claim this {name} back.', 'note')
 
     for n, i in enumerate(doc.items):
         # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step

@@ -28,10 +28,11 @@ export type Doc = {
   service_charge: string | null;
   total: string | null;
   total_text?: string | null;
+  seller_tax_id?: string | null;
   items: Item[];
 };
 
-export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number };
+export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number; level?: "note" };
 
 // A fix worked out from the numbers (e.g. 280 read for 240): shown in review, applied only when the user clicks.
 export type Suggestion = { message: string; changes: { field: string; from: string; to: string }[] };

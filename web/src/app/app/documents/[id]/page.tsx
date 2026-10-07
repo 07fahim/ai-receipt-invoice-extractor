@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, RotateCw, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRight, Info, RotateCw, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,6 +19,9 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Subtotal + tax = total", ["total_math"]],
   ["Total read as printed", ["total_format"]],
   ["Quantity × price = amount", ["line_math"]],
+  ["Tax matches its rate", ["tax_rate"]],
+  ["Discount matches its rate", ["discount_rate"]],
+  ["Tax number is valid", ["tax_id_invalid"]],
   ["Dates are valid", ["date_future", "due_before_issue"]],
   ["Currency is valid", ["currency_code"]],
   ["Total and line items present", ["total_present", "items_missing"]],
@@ -150,12 +153,14 @@ export default function ReviewPage() {
     if (dirty && !window.confirm("Leave without saving your changes?")) e.preventDefault();
   }
 
-  const failed = new Set(checks.map((c) => c.check));
-  const flagged = new Set(checks.flatMap((c) => c.fields));
+  const issues = checks.filter((c) => c.level !== "note");
+  const notes = checks.filter((c) => c.level === "note");
+  const failed = new Set(issues.map((c) => c.check));
+  const flagged = new Set(issues.flatMap((c) => c.fields));
   const dateUnclear = failed.has("date_ambiguous") && !order;
   // keep the date-format choice on screen once made (the check then passes), so it can be changed
   const dateChoice = failed.has("date_ambiguous") || order !== null;
-  const otherFailing = checks.filter((c) => c.check !== "date_ambiguous");
+  const otherFailing = issues.filter((c) => c.check !== "date_ambiguous");
 
   // the document's current value for a field, item field included (e.g. "items[0].amount")
   function current(field: string) {
@@ -480,9 +485,9 @@ export default function ReviewPage() {
           <Panel className="p-4 lg:col-span-2 xl:col-span-1 xl:sticky xl:top-5">
             <h2 className="mb-2.5 flex items-center justify-between text-sm font-semibold">
               Checks
-              {checks.length > 0 && !checkError && (
+              {issues.length > 0 && !checkError && (
                 <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">
-                  {checks.length} to fix
+                  {issues.length} to fix
                 </span>
               )}
             </h2>
@@ -525,8 +530,10 @@ export default function ReviewPage() {
             )}
             <ul className={cn("divide-y text-sm", checkError && "hidden")}>
               {CHECK_GROUPS.filter(([, names]) => !names.includes("second_reading") || detail.second_read
-                || checks.some((c) => names.includes(c.check))).map(([label, names]) => {
-                const issue = checks.find((c) => names.includes(c.check));
+                || issues.some((c) => names.includes(c.check)))
+                .filter(([, names]) => !names.includes("tax_id_invalid") || !!doc?.seller_tax_id)
+                .map(([label, names]) => {
+                const issue = issues.find((c) => names.includes(c.check));
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>
                     <span className={cn("w-4 text-center", !issue && "text-ok")}>
@@ -554,6 +561,16 @@ export default function ReviewPage() {
                 </li>
               )}
             </ul>
+            {notes.length > 0 && !checkError && (
+              <ul aria-label="Notes" className="mt-2 space-y-1.5 border-t pt-2.5 text-xs text-muted-foreground">
+                {notes.map((n) => (
+                  <li key={n.check} className="flex gap-2">
+                    <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+                    {n.message}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         )}
       </div>

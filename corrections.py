@@ -2,7 +2,7 @@ from collections import Counter
 from decimal import Decimal
 
 from schema import Document
-from validate import validate
+from validate import review, validate
 
 FIELDS = ['doc_type', 'vendor', 'branch', 'buyer', 'doc_number', 'issue_date', 'due_date', 'currency',
           'subtotal', 'discount', 'tax', 'service_charge', 'total']
@@ -33,7 +33,7 @@ def report(rows):
         if diff:
             corrected += 1
             fields.update(diff)
-            if not validate(first):  # checks re-run with today's rules, not those at reading time
+            if not review(validate(first)):  # checks re-run with today's rules, not those at reading time
                 missed += 1
     n = len(rows)
     lines = [f'{n} reviewed documents, {corrected} corrected' + (f' ({corrected / n:.0%})' if n else '')]

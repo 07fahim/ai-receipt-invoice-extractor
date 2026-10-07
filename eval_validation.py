@@ -7,7 +7,7 @@ from pathlib import Path
 
 import cord
 import invoices
-from validate import validate
+from validate import review, validate
 
 ROOT = Path(__file__).parent
 
@@ -48,7 +48,7 @@ def main(split='test'):
         docs = [(i, {}, doc) for i, _, doc in invoices.load(split.removeprefix('invoices_'))]
     else:
         docs = [(i, p, cord.to_document(p)) for i, _, p, _ in cord.load(ROOT / 'data' / f'cord_v2_{split}.parquet')]
-    false_alarms = {i: [x['message'] for x in validate(doc)] for i, _, doc in docs}
+    false_alarms = {i: [x['message'] for x in review(validate(doc))] for i, _, doc in docs}
     false_alarms = {i: m for i, m in false_alarms.items() if m}
 
     caught, examples = defaultdict(list), defaultdict(list)
@@ -56,7 +56,7 @@ def main(split='test'):
         if i in false_alarms:
             continue
         for name, broken in mutations(doc, p, rng):
-            flagged = bool(validate(broken))
+            flagged = bool(review(validate(broken)))
             caught[name].append(flagged)
             if not flagged and len(examples[name]) < 3:
                 examples[name].append(i)

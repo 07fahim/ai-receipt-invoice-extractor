@@ -1,0 +1,91 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "b4907187",
+  "split": "test",
+  "docs": 2,
+  "failed_calls_or_invalid_json": 0,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 0,
+    "n": 1
+   },
+   "tax": {
+    "rate": 0,
+    "n": 1
+   },
+   "discount": {
+    "rate": 0,
+    "n": 1
+   },
+   "total": {
+    "rate": 0,
+    "n": 2
+   },
+   "item_amounts_f1": {
+    "rate": 0.25,
+    "n": 2
+   },
+   "item_names_f1": {
+    "rate": 0.75,
+    "n": 2
+   },
+   "all_correct": {
+    "rate": 0,
+    "n": 2
+   }
+  },
+  "wrong_docs_flagged_by_validation": "2 / 2",
+  "correct_docs_flagged_by_validation": "0 / 0",
+  "median_seconds": 10.79,
+  "calls_with_retries": 0,
+  "median_tokens_in_out": [
+   1823.0,
+   318.5
+  ],
+  "issue_date_with_vendor_order": null,
+  "wrong_dates_flagged_ambiguous": "0 / 0",
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 9.26,
+   "in": 1823,
+   "out": 307,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format",
+    "total_math",
+    "line_math"
+   ],
+   "score": {
+    "subtotal": false,
+    "tax": false,
+    "discount": false,
+    "total": false,
+    "item_amounts_f1": 0.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   }
+  },
+  {
+   "id": 79,
+   "seconds": 12.32,
+   "in": 1823,
+   "out": 330,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_format"
+   ],
+   "score": {
+    "total": false,
+    "item_amounts_f1": 0.5,
+    "item_names_f1": 0.5,
+    "all_correct": false
+   }
+  }
+ ]
+}
