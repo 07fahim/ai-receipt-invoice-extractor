@@ -13,7 +13,7 @@ import cord
 import invoices
 import providers
 import wildreceipt
-from validate import apply_date_order, validate
+from validate import apply_date_order, review, validate
 
 ROOT = Path(__file__).parent
 HEADER = ('subtotal', 'tax', 'service_charge', 'discount', 'total')
@@ -141,7 +141,7 @@ def main(name, split='test', limit=None, prompt_version=None):
         if rec['error'] is None:
             try:
                 pred = providers.parse(rec['text'])
-                row['flagged'] = [i['check'] for i in validate(pred)]
+                row['flagged'] = [i['check'] for i in review(validate(pred))]
                 if gold is None:  # unlabelled: keep the key fields for a manual spot check
                     row['extracted'] = {k: str(getattr(pred, k)) for k in ('vendor', 'doc_number', 'issue_date_text', 'currency', 'subtotal', 'tax', 'total')}
                     row['items'] = len(pred.items)

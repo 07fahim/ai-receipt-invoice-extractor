@@ -34,6 +34,9 @@ def as_user(sub, **kw):
     return {'Authorization': f'Bearer {token(sub, **kw)}'}
 
 ANSWERS = {
+    # VAT 15% correct, but no seller tax number: a note only, the document still passes
+    'novat': '{"doc_type": "receipt", "vendor": "Mehedi Super Shop", "currency": "BDT", "subtotal": 851.20, "tax": 127.68,'
+             ' "tax_rate": 15, "tax_kind": "vat", "total": 978.88, "items": [{"description": "Rice", "amount": 851.20}]}',
     'good': '{"doc_type": "receipt", "vendor": "Green Field", "branch": "017314", "issue_date": "2016-05-26", "issue_date_text": "5/26/2016",'
             ' "currency": "USD", "subtotal": 51.90, "tax": 4.68, "total": 56.58,'
             ' "items": [{"description": "Coffee", "amount": 3.00}, {"description": "Lunch", "amount": 45.90},'
@@ -177,6 +180,10 @@ try:
     assert d['status'] == 'passed' and d['vendor'] == 'Green Field' and d['total'] == 56.58 and 'file' not in d
     assert d['model'] == app.MODEL and d['tokens_in'] == 100
 
+    novat_id = upload(('novat.jpg', JPG + b'novat')).json()[0]['id']
+    d = c.get(f'/documents/{novat_id}').json()
+    assert d['status'] == 'passed' and [x['check'] for x in d['checks']] == ['tax_id_missing'], d
+
     # ambiguous date -> needs review; confirming the vendor's MDY order fixes the date and re-checks
     amb_id = upload(('inv.jpg', JPG + b'ambiguous')).json()[0]['id']
     d = c.get(f'/documents/{amb_id}').json()
@@ -251,8 +258,9 @@ try:
     flush()
     kinds = [(e['event'], e['id']) for e, _, _ in events]
     # Dave's reviewed document and the resumed one belong to other users: not sent
-    assert kinds == [('document.passed', good_id), ('document.needs_review', amb_id), ('document.passed', amb_id),
-                     ('document.failed', bad_id), ('document.failed', bad_id), ('document.reviewed', good_id)], kinds
+    assert kinds == [('document.passed', good_id), ('document.passed', novat_id), ('document.needs_review', amb_id),
+                     ('document.passed', amb_id), ('document.failed', bad_id), ('document.failed', bad_id),
+                     ('document.reviewed', good_id)], kinds
     failed_event = next(e for e, _, _ in events if e['event'] == 'document.failed')
     assert 'busy' in failed_event['error'] and 'HTTP' not in failed_event['error']  # the short public message only
     e, sig, raw = events[-1]
@@ -292,12 +300,12 @@ try:
 
     # stats: spend counts only checked documents (passed or reviewed), never failed or waiting ones
     s = c.get('/stats').json()
-    assert s['documents'] == 3 and s['by_status'] == {'reviewed': 1, 'passed': 1, 'failed': 1}
-    assert {x['currency']: x['total'] for x in s['spend_by_currency']} == {'USD': 60.0, None: 10.0}
+    assert s['documents'] == 4 and s['by_status'] == {'reviewed': 1, 'passed': 2, 'failed': 1}
+    assert {x['currency']: x['total'] for x in s['spend_by_currency']} == {'USD': 60.0, None: 10.0, 'BDT': 978.88}
     assert sum(x['total'] for x in s['tax_by_currency']) > 0
     # a date range narrows the money figures (the 2016 receipt drops out) but not the counts
     later = c.get('/stats', params={'date_from': '2021-01-01'}).json()
-    assert later['documents'] == 3 and later['by_status'] == s['by_status']
+    assert later['documents'] == 4 and later['by_status'] == s['by_status']
     assert all(m['month'] >= '2021-01' for m in later['by_month']) and sum(x['n'] for x in later['spend_by_currency']) < sum(x['n'] for x in s['spend_by_currency'])
     assert c.get('/stats', params={'date_from': 'soon'}).status_code == 422
     erin = as_user(str(uuid.uuid4()))  # a document waiting for review is not spend yet
@@ -331,10 +339,10 @@ try:
     # export: CSV one row per non-failed document; XLSX has Documents + Items with numbers
     from openpyxl import load_workbook
     csv_text = c.get('/export', params={'format': 'csv'}).content.decode('utf-8-sig')
-    assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_text.splitlines()) == 3
+    assert csv_text.splitlines()[0].startswith('id,file_name,status') and len(csv_text.splitlines()) == 4
     assert 'vendor,branch,buyer' in csv_text.splitlines()[0] and ',Green Field,017314,' in csv_text
     wb = load_workbook(io.BytesIO(c.get('/export').content))
-    assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 3 and wb['Items'].max_row == 5
+    assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 4 and wb['Items'].max_row == 6
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
     dates = {h.value: x for h, x in zip(wb['Documents'][1], wb['Documents'][2])}
     assert dates['issue_date'].value.date() == date(2016, 5, 26) and dates['issue_date'].number_format == 'yyyy-mm-dd'  # a real date

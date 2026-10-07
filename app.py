@@ -35,7 +35,7 @@ import assistant
 import providers
 import store
 from schema import Document
-from validate import apply_date_order, suggest, validate
+from validate import apply_date_order, review, suggest, validate
 
 providers.load_env()
 pillow_heif.register_heif_opener()   # lets Pillow open iPhone HEIC photos
@@ -131,7 +131,7 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
     doc = apply_date_order(doc, order)
     checks = run_checks(con, uid, doc, order, doc_id)
     if status is None:
-        status = 'needs_review' if checks else 'passed'
+        status = 'needs_review' if review(checks) else 'passed'
     fields = {'document': Jsonb(doc.model_dump(mode='json')), 'checks': Jsonb(checks), 'status': status,
               'error': None, 'vendor': doc.vendor, 'currency': doc.currency, 'issue_date': doc.issue_date,
               'total': doc.total, **(extra or {})}
@@ -366,7 +366,7 @@ def second_read(doc_id):
             if not row or row['second_read_at'] is not None:
                 return
             passed = row['status'] == 'passed'
-            flagged = row['status'] == 'needs_review' and {c['check'] for c in row['checks'] or []} - REAL_CHECK_EXCLUDED
+            flagged = row['status'] == 'needs_review' and {c['check'] for c in review(row['checks'] or [])} - REAL_CHECK_EXCLUDED
             if not passed and not flagged:
                 return
             uid = str(row['user_id'])
