@@ -128,6 +128,12 @@ assert suggest(Document(**memo))['changes'] == [{'field': 'items[1].amount', 'fr
 assert suggest(Document(**{**memo, 'total': D('1270'), 'subtotal': D('1270')})) is None  # nothing fails
 assert suggest(Document(subtotal=D('100'), total=D('180'))) is None  # one failed check: never guess
 assert suggest(Document(subtotal=D('21'), total=D('21'), items=[Item(amount=D('10')), Item(amount=D('10'))])) is None  # items_sum alone: one check, no guess
+# CORD test 0: "60.000" read as 60. Other sums fail before and after x1000, so x1000 is offered when it adds no new failure
+cord0 = {'currency': 'IDR', 'subtotal': D('60.0'), 'discount': D('60.0'), 'tax': D('5.455'), 'total': D('60.0'),
+         'total_text': '60.000', 'tax_kind': 'vat',
+         'items': [Item(description='TICKET CP', quantity=D(2), unit_price=D('60.0'), amount=D('60.0'))]}
+s = suggest(Document(**cord0))
+assert s and 'The total would be 60,000' in s['message'], s
 k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
 assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
 # a weighed item read as quantity 1 ("Beef Ribs 1.89 lb @ 19.50 = 36.86")
