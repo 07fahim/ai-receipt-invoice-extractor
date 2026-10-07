@@ -309,6 +309,9 @@ try:
     assert c.put(f'/documents/{good_id}', json=doc).status_code == 200
     back = c.get(f'/documents/{good_id}').json()['document']
     assert (back['tax_rate'], back['seller_tax_id']) == ('7.5', '000123456-0101'), back
+    # a rate typed outside 0-100 is refused, not a crash in the checks (100 + -100 divides by zero)
+    assert c.put(f'/documents/{good_id}', json={**doc, 'tax_rate': '-100'}).status_code == 422
+    assert c.post('/check', json={**doc, 'discount_rate': '150'}).status_code == 422
 
     # bad query values are 422, not server errors
     for bad_q in ({'date_from': 'nope'}, {'limit': -1}, {'offset': -1}, {'limit': 0}):
