@@ -31,7 +31,7 @@ export type Doc = {
   items: Item[];
 };
 
-export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number };
+export type Check = { check: string; fields: string[]; message: string; duplicate_of?: number; level?: "note" };
 
 // A fix worked out from the numbers (e.g. 280 read for 240): shown in review, applied only when the user clicks.
 export type Suggestion = { message: string; changes: { field: string; from: string; to: string }[] };
