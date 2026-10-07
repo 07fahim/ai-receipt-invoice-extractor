@@ -153,7 +153,7 @@ export default function Home() {
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
               <p className="mt-4 text-lg text-foreground/75">
-                Every document is checked. When the numbers do not add up, Crosscheck shows what is wrong and suggests a fix.
+                Every document is checked. When the numbers do not add up, Crosscheck shows what is wrong. For common misreads it suggests a fix.
               </p>
               <h3 id="fixes" className="mt-8 text-sm font-semibold">What it fixes</h3>
               <ul className="mt-3 grid gap-2" aria-labelledby="fixes">
