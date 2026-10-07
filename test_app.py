@@ -710,6 +710,10 @@ try:
     r = c.post('/check', json=typed, params={'doc_id': memo_id}, headers=erin).json()
     assert [x['field'] for x in r['second_reading']] == ['issue_date'], r['second_reading']
     assert [ck['fields'] for ck in r['checks'] if ck['check'] == 'second_reading'] == [['issue_date']], r['checks']
+    # the same for a top-level amount, and for a line removed by hand
+    for change in ({'total': '999'}, {'items': edited['items'][:2]}):
+        r = c.post('/check', json={**edited, **change}, params={'doc_id': memo_id}, headers=erin).json()
+        assert [x['field'] for x in r['second_reading']] == ['issue_date'], (change, r['second_reading'])
     assert c.post('/check', json=edited, params={'doc_id': memo_id}).json()['second_reading'] == []  # Alice: not her document
     assert c.get(f'/documents/{passed_id}', headers=erin).json()['second_reading'] == []
     # once reviewed, /check no longer offers the second reading for it (GET already stops: status != needs_review)
@@ -820,7 +824,7 @@ try:
     assert race_row['status'] == 'needs_review'
     assert race_row['document']['items'][0]['amount'] == '100'  # the concurrent fix; second_read never touches document
     # on the fixed document, items_sum now passes; the amount also differs from the AI's first reading (extracted),
-    # so task 1's rule (a value already moved on from the first reading is not re-flagged) drops the second reading too
+    # and a value moved on from the AI's first reading is not re-flagged, so the second reading drops out too
     assert race_row['checks'] == [], race_row['checks']
     print('ok')
 finally:

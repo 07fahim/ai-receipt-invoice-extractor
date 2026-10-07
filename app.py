@@ -559,7 +559,7 @@ def user_changed(doc: Document, first: Document | None, field: str) -> bool:
         return False
     if field == 'items' or field.startswith('items['):
         if len(first.items) != len(doc.items):
-            return True  # lines added or removed by hand
+            return True  # lines added or removed by hand: indexes shift, so every line counts as the user's
         if field == 'items':
             return False
         n, f = int(field[6:field.index(']')]), field.split('.')[1]
