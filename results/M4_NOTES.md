@@ -129,3 +129,45 @@ summary prints one rate (10%), e.g. test 10 (opened). Missed reads only: the rat
 Answer keys and planted taxes unchanged from section 1 (0 / 472 false; 456/463, 469/469, 469/469, 466/469).
 
 CORD validation was not run: the plan was to stop and report if CORD test dropped.
+
+## 5. Prompt b4907187 (2026-10-07): rate copied only when printed; tax never holds the service charge
+Same rules as section 4, plus: whole-number tax room 1 (a truncated 2,681 for 2,681.80), the tax rate base no longer
+takes off a discount the subtotal already holds, and the missing tax number note only for BDT, INR, GBP and EUR.
+Gemini 3.1 Flash-Lite, under 12 calls a minute; 503 "high demand" retries on CORD, 1 invoice read failed after retries.
+
+### Live samples (35)
+6/6 expected catches (Maple, GreenLeaf rate and VAT number, Nandan, Mehedi, Target discount, Walmart 0% tax).
+Star Hotel passes. Changes against 9db1851c, images opened: handwritten memo now fully correct (240 and 20/05/2024 as
+printed; was 280 and 20/06), utility bill loses its total_math false alarm. Arax still flagged (water left out of VAT
+and service charge; kept by decision).
+
+### Datasets (baseline be0376e0 for CORD and invoices, 9edae16b for US)
+| Set | Fully correct | Total correct | Wrong and unflagged | Correct but flagged |
+|---|---|---|---|---|
+| CORD test (100) | 91 / 87 / **90** | 90 / 88 / **88** of 96 | 2 / 1 / **1** | 5 / 5 / **4** |
+| Invoices test (26) | 20 / 19 / **18** | 25 / 25 / **25** | 2 / 2 / **2** | 6 / 5 / **4** |
+| Invoices validation | 31/48 / 32/48 / **32/47** | 48 / 48 / **47 of 47** | 3 / 3 / **3** | 8 / 9 / **9** |
+| US receipts, first 30 | passed 20 / 21 / **21** | | | |
+(baseline / 9db1851c / b4907187; unflagged counts include day/month date errors)
+
+CORD changes against the baseline, images opened:
+- 0 and 79 (were right): every amount printed as "60.000" / "22.000" with no other separator; read as 60 and 22.
+  Same answer on 3 reads each (repeat2, repeat3), so it is this prompt, not chance. Both flagged (total_format);
+  79 also gets the "1,000 times too small" fix, 0 does not (its tax 5.455 keeps the math off).
+- 58: now right. 34 and 63 (wrong under 9db1851c) right again.
+- 33: tax_rate fires. The shop charged PB1 10% on the amount before the 67,000 item discount
+  (10% of 184,500 + 11,070 = 19,557); message now "VAT 10% of 117,500 is 11,750. The document says 19,557."
+Invoices test 3 and 8: day and month swapped, both flagged date_ambiguous. US 11 (Smoke City): the weighed brisket now
+reads 1 x 36.86 (money right, the 1.89 lb weight lost, no flag); the quantity suggestion no longer fires there.
+US 15 false alarm from section 4 is gone.
+
+New checks on the datasets after the fixes: CORD tax_rate 1 (33), no other rate, discount or tax number flag and no
+missing tax number note (was 33 of 100 CORD receipts before the currency rule). Invoices and US: none.
+
+Rate reading (`python eval_rates.py b4907187`): 72 right, 0 wrong (9db1851c: 53 / 20). Answer keys: 0 / 472 false
+flags; planted tax caught +1% 455/463, +5% 468/469, +10% 469/469, -5% 465/469 (room 1 for whole-number tax costs
+one catch in three of the four rows).
+
+Ship rule: not met as written. Fully correct drops 1 on CORD and 2 on invoices test; CORD totals drop 2 (0 and 79).
+Every new error is flagged and no money error is silent. Decision (user, 2026-10-07): keep b4907187, no more prompt
+rounds on the free quota (each round of ~240 calls moved 2-4 borderline documents in both directions).
