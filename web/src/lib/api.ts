@@ -28,6 +28,7 @@ export type Doc = {
   service_charge: string | null;
   total: string | null;
   total_text?: string | null;
+  tax_rate?: string | null;
   seller_tax_id?: string | null;
   items: Item[];
 };

@@ -408,6 +408,7 @@ export default function ReviewPage() {
                 )}
                 <Text label="Currency" id="currency" doc={doc} edit={edit} flagged={flagged} list="currencies" />
                 <Text label="Buyer" id="buyer" doc={doc} edit={edit} flagged={flagged} />
+                <Text label="Seller tax number" id="seller_tax_id" doc={doc} edit={edit} flagged={flagged} />
                 <datalist id="currencies">
                   {["USD", "BDT", "INR", "EUR", "GBP", "IDR", "AED", "SAR"].map((c) => <option key={c} value={c} />)}
                 </datalist>
@@ -472,10 +473,9 @@ export default function ReviewPage() {
                 <Text label="Subtotal" id="subtotal" doc={doc} edit={edit} flagged={flagged} numeric />
                 <Text label="Discount" id="discount" doc={doc} edit={edit} flagged={flagged} numeric />
                 <Text label="Tax" id="tax" doc={doc} edit={edit} flagged={flagged} numeric />
+                <Text label="Tax rate (%)" id="tax_rate" doc={doc} edit={edit} flagged={flagged} numeric />
                 <Text label="Service charge" id="service_charge" doc={doc} edit={edit} flagged={flagged} numeric />
-                <div className="sm:col-span-2">
-                  <Text label="Total" id="total" doc={doc} edit={edit} flagged={flagged} numeric />
-                </div>
+                <Text label="Total" id="total" doc={doc} edit={edit} flagged={flagged} numeric />
               </div>
             </Group>
           </form>
@@ -663,7 +663,8 @@ function FieldBox({ label, id, children }: { label: string; id: string; children
   );
 }
 
-type TextKey = "vendor" | "branch" | "buyer" | "doc_number" | "currency" | "subtotal" | "discount" | "tax" | "service_charge" | "total";
+type TextKey = "vendor" | "branch" | "buyer" | "doc_number" | "currency" | "subtotal" | "discount" | "tax" | "service_charge" | "total"
+  | "tax_rate" | "seller_tax_id";
 
 function Text({ label, id, doc, edit, flagged, numeric, list }: {
   label: string; id: TextKey; doc: Doc; edit: (p: Partial<Doc>) => void; flagged: Set<string>; numeric?: boolean; list?: string;
