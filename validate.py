@@ -214,7 +214,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     if doc.subtotal is not None and doc.total is not None:
         discount = 0 if twice and close(net, doc.subtotal) else abs(doc.discount or 0)
         expected = doc.subtotal + tax + (doc.service_charge or 0) - discount
-        included = tax and near(expected - tax) and (doc.tax_included or included_share(tax, doc.total, net, whole))
+        # a printed rate whose included share matches the tax is proof on its own, no line total needed
+        printed = doc.tax_rate and abs(tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
+        included = tax and near(expected - tax) and (doc.tax_included or printed or included_share(tax, doc.total, net, whole))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
