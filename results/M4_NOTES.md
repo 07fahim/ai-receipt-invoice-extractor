@@ -192,3 +192,25 @@ Gap: a weight on its own sub-line with the line quantity printed as 1 (Smoke Cit
 is read 1 x 36.86: money right, weight and per-pound price lost, not flagged. Not measured: grams sold at a per-kg
 price ("500 g @ 650/kg"). Next task: about 8 made-up receipts for sub-line weights, grams per kg and fuel; one prompt
 rule for "weight @ price per unit" sub-lines; test on those plus Smoke City (about 9 calls) before any dataset re-run.
+
+### 6a. Sub-line weight rule (prompt fef31308, 2026-10-08)
+One rule added: "If a sub-line prints a weight @ price per unit, use them as the quantity and unit price."
+Tested on 8 made-up receipts (invented shops, rendered from HTML, answer key from the same script) and Smoke City:
+9 calls. The made-up receipts were not read with b4907187, so Smoke City is the only before/after.
+
+| Receipt | Case | Result |
+|---|---|---|
+| Smoke City (real, CC0) | weight sub-line, qty column 1 | 1.89 x 19.50 (was 1 x 36.86), no flag |
+| Oak Pit BBQ | same layout | 2.14 x 18.75 right |
+| Corner Deli | two weight sub-lines + "2 @ $1.25" | all right, bagels stay 2 x 1.25 |
+| Hillside Butchers | kg sub-line, GBP | 0.742 x 9.80 right |
+| Meghna Bazar | kg sub-line, BDT | 1.25 x 780 right |
+| Padma Fish | grams at a per-kg price, item line | 0.5 x 1600, 0.25 x 1200 right |
+| Green Basket | grams on item line and sub-line | 0.75 x 2.40, 0.4 x 0.90 right |
+| Ridgeline Fuel | gallons sub-line | 12.345 x 3.899 right |
+| Lindenhof Fuel | litres, comma decimals, VAT included | 32.5 x 1.479 right |
+
+No money amount wrong. Two differences from the key were key mistakes, checked on the images: the coffee line prints
+no quantity or unit price (read null, as the prompt asks), and the VAT-included fuel receipt prints no subtotal (read
+null). Every made-up receipt got date_ambiguous: the made-up date 10/05/2026 really is ambiguous. Smoke City got no
+flag. Next: the dataset re-measure before this prompt ships.
