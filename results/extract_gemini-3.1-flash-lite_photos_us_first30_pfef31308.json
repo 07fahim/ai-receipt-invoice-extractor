@@ -1,0 +1,619 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "fef31308",
+  "split": "photos_us",
+  "docs": 30,
+  "failed_calls_or_invalid_json": 0,
+  "passed_all_checks": "21 / 30",
+  "checks_failed": [
+   [
+    "date_ambiguous",
+    8
+   ],
+   [
+    "items_sum",
+    2
+   ],
+   [
+    "total_math",
+    2
+   ]
+  ],
+  "median_seconds": 5.5,
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 20.44,
+   "in": 1831,
+   "out": 420,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "GREEN FIELD",
+    "doc_number": "69923",
+    "issue_date_text": "5/26/2016",
+    "currency": "USD",
+    "subtotal": "51.9",
+    "tax": "4.68",
+    "total": "56.58"
+   },
+   "items": 3
+  },
+  {
+   "id": 1,
+   "seconds": 3.0,
+   "in": 1833,
+   "out": 529,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "GRAND LUX CAFE",
+    "doc_number": "None",
+    "issue_date_text": "04/25/15",
+    "currency": "USD",
+    "subtotal": "63.75",
+    "tax": "5.5",
+    "total": "69.25"
+   },
+   "items": 5
+  },
+  {
+   "id": 2,
+   "seconds": 7.75,
+   "in": 1831,
+   "out": 473,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Taco Bell",
+    "doc_number": "378752",
+    "issue_date_text": "9/1/2016",
+    "currency": "USD",
+    "subtotal": "6.98",
+    "tax": "0.63",
+    "total": "7.61"
+   },
+   "items": 4
+  },
+  {
+   "id": 3,
+   "seconds": 6.38,
+   "in": 1831,
+   "out": 313,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "El Gran Mar de Plata",
+    "doc_number": "8262",
+    "issue_date_text": "4/20/2017",
+    "currency": "USD",
+    "subtotal": "5.0",
+    "tax": "0.35",
+    "total": "5.35"
+   },
+   "items": 1
+  },
+  {
+   "id": 4,
+   "seconds": 8.24,
+   "in": 1831,
+   "out": 427,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "GOLDEN BOWL TERIYAKI",
+    "doc_number": "000141",
+    "issue_date_text": "05-18-2019",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "1.4",
+    "total": "15.03"
+   },
+   "items": 3
+  },
+  {
+   "id": 5,
+   "seconds": 4.0,
+   "in": 1831,
+   "out": 721,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "SASKA'S",
+    "doc_number": "10005",
+    "issue_date_text": "08/15/2017",
+    "currency": "USD",
+    "subtotal": "167.0",
+    "tax": "12.94",
+    "total": "179.94"
+   },
+   "items": 8
+  },
+  {
+   "id": 6,
+   "seconds": 7.58,
+   "in": 1856,
+   "out": 682,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Akira",
+    "doc_number": "37",
+    "issue_date_text": "2018-11-18",
+    "currency": "USD",
+    "subtotal": "86.65",
+    "tax": "6.93",
+    "total": "93.58"
+   },
+   "items": 8
+  },
+  {
+   "id": 7,
+   "seconds": 8.53,
+   "in": 1831,
+   "out": 725,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Katana Sushi",
+    "doc_number": "93",
+    "issue_date_text": "05/11/18",
+    "currency": "USD",
+    "subtotal": "131.0",
+    "tax": "12.71",
+    "total": "143.71"
+   },
+   "items": 9
+  },
+  {
+   "id": 8,
+   "seconds": 2.67,
+   "in": 1831,
+   "out": 513,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Dona Mercedes Restaurant",
+    "doc_number": "None",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "22.25",
+    "tax": "2.22",
+    "total": "24.47"
+   },
+   "items": 5
+  },
+  {
+   "id": 9,
+   "seconds": 6.83,
+   "in": 1856,
+   "out": 411,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Bella Pasta",
+    "doc_number": "4",
+    "issue_date_text": "08/09/19",
+    "currency": "USD",
+    "subtotal": "28.48",
+    "tax": "2.28",
+    "total": "30.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 10,
+   "seconds": 4.15,
+   "in": 1831,
+   "out": 579,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Friendly Red's",
+    "doc_number": "10076",
+    "issue_date_text": "07/21/2018",
+    "currency": "USD",
+    "subtotal": "71.4",
+    "tax": "6.43",
+    "total": "77.83"
+   },
+   "items": 6
+  },
+  {
+   "id": 11,
+   "seconds": 3.14,
+   "in": 1831,
+   "out": 640,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Smoke City Market",
+    "doc_number": "234673",
+    "issue_date_text": "Jun 26, 15",
+    "currency": "USD",
+    "subtotal": "59.11",
+    "tax": "5.32",
+    "total": "64.43"
+   },
+   "items": 7
+  },
+  {
+   "id": 12,
+   "seconds": 6.21,
+   "in": 1842,
+   "out": 435,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "HP Pho Ga",
+    "doc_number": "59980",
+    "issue_date_text": "Apr 01, 2019",
+    "currency": "USD",
+    "subtotal": "22.25",
+    "tax": "2.11",
+    "total": "33.26"
+   },
+   "items": 3
+  },
+  {
+   "id": 13,
+   "seconds": 4.94,
+   "in": 1831,
+   "out": 346,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "ALBETOS MEXICAN FOOD",
+    "doc_number": "01029",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "8.85",
+    "tax": "0.73",
+    "total": "9.58"
+   },
+   "items": 2
+  },
+  {
+   "id": 14,
+   "seconds": 4.5,
+   "in": 1831,
+   "out": 728,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Loaded Cafe",
+    "doc_number": "2763",
+    "issue_date_text": "Feb23'19",
+    "currency": "USD",
+    "subtotal": "44.32",
+    "tax": "4.21",
+    "total": "48.53"
+   },
+   "items": 9
+  },
+  {
+   "id": 15,
+   "seconds": 4.12,
+   "in": 1831,
+   "out": 523,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "HAMMOCKS TRADING COMPANY",
+    "doc_number": "202524",
+    "issue_date_text": "3/10/2017",
+    "currency": "USD",
+    "subtotal": "47.0",
+    "tax": "3.29",
+    "total": "50.29"
+   },
+   "items": 5
+  },
+  {
+   "id": 16,
+   "seconds": 3.97,
+   "in": 1831,
+   "out": 484,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Chef Wang",
+    "doc_number": "1022",
+    "issue_date_text": "02/02/19",
+    "currency": "USD",
+    "subtotal": "32.7",
+    "tax": "2.82",
+    "total": "35.52"
+   },
+   "items": 4
+  },
+  {
+   "id": 17,
+   "seconds": 3.07,
+   "in": 1831,
+   "out": 367,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "UMIX",
+    "doc_number": "215406",
+    "issue_date_text": "4/24/2016",
+    "currency": "USD",
+    "subtotal": "10.2",
+    "tax": "0.84",
+    "total": "11.04"
+   },
+   "items": 2
+  },
+  {
+   "id": 18,
+   "seconds": 4.42,
+   "in": 1831,
+   "out": 331,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "IN-N-OUT BURGER",
+    "doc_number": "12",
+    "issue_date_text": "2012-04-27",
+    "currency": "USD",
+    "subtotal": "2.0",
+    "tax": "0.17",
+    "total": "2.17"
+   },
+   "items": 1
+  },
+  {
+   "id": 19,
+   "seconds": 3.08,
+   "in": 1856,
+   "out": 747,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Grotto Pizzeria & Tavern",
+    "doc_number": "22037",
+    "issue_date_text": "5/12/2017",
+    "currency": "USD",
+    "subtotal": "43.0",
+    "tax": "2.58",
+    "total": "45.58"
+   },
+   "items": 9
+  },
+  {
+   "id": 20,
+   "seconds": 6.06,
+   "in": 1831,
+   "out": 545,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Deccan Spice",
+    "doc_number": "80110",
+    "issue_date_text": "7/26/2019",
+    "currency": "USD",
+    "subtotal": "35.95",
+    "tax": "2.98",
+    "total": "47.02"
+   },
+   "items": 5
+  },
+  {
+   "id": 21,
+   "seconds": 3.28,
+   "in": 1831,
+   "out": 445,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "HAWWI ETHIOPIAN RESTAU",
+    "doc_number": "000016",
+    "issue_date_text": "13-Jul-2018",
+    "currency": "USD",
+    "subtotal": "62.85",
+    "tax": "6.91",
+    "total": "69.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 22,
+   "seconds": 2.78,
+   "in": 1831,
+   "out": 327,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Moonstar Restaurant",
+    "doc_number": "2406",
+    "issue_date_text": "10/29/2018",
+    "currency": "USD",
+    "subtotal": "29.88",
+    "tax": "3.01",
+    "total": "37.37"
+   },
+   "items": 1
+  },
+  {
+   "id": 23,
+   "seconds": 3.07,
+   "in": 1831,
+   "out": 442,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Thai Gusto",
+    "doc_number": "None",
+    "issue_date_text": "6/16/2017",
+    "currency": "USD",
+    "subtotal": "27.48",
+    "tax": "2.67",
+    "total": "30.15"
+   },
+   "items": 3
+  },
+  {
+   "id": 24,
+   "seconds": 6.23,
+   "in": 1867,
+   "out": 348,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "New Asia Buffet",
+    "doc_number": "None",
+    "issue_date_text": "ov-15-06-N",
+    "currency": "USD",
+    "subtotal": "31.12",
+    "tax": "2.8",
+    "total": "33.92"
+   },
+   "items": 2
+  },
+  {
+   "id": 25,
+   "seconds": 9.13,
+   "in": 1831,
+   "out": 421,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "McDonald's",
+    "doc_number": "None",
+    "issue_date_text": "02/07/2019",
+    "currency": "USD",
+    "subtotal": "6.64",
+    "tax": "0.63",
+    "total": "7.27"
+   },
+   "items": 3
+  },
+  {
+   "id": 26,
+   "seconds": 9.16,
+   "in": 1831,
+   "out": 813,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CHRIS'S HAMBURGERS",
+    "doc_number": "00154",
+    "issue_date_text": "07/22/2018",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "4.39",
+    "total": "51.82"
+   },
+   "items": 11
+  },
+  {
+   "id": 27,
+   "seconds": 12.4,
+   "in": 1831,
+   "out": 515,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Longboards",
+    "doc_number": "24016",
+    "issue_date_text": "01/11/2019",
+    "currency": "USD",
+    "subtotal": "42.75",
+    "tax": "1.86",
+    "total": "44.31"
+   },
+   "items": 5
+  },
+  {
+   "id": 28,
+   "seconds": 9.55,
+   "in": 1831,
+   "out": 756,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "DOUGLAS BURGERS",
+    "doc_number": "20018",
+    "issue_date_text": "2/09/19",
+    "currency": "USD",
+    "subtotal": "31.24",
+    "tax": "2.97",
+    "total": "34.21"
+   },
+   "items": 9
+  },
+  {
+   "id": 29,
+   "seconds": 22.01,
+   "in": 1831,
+   "out": 778,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "RINCON MEXICANO",
+    "doc_number": "45",
+    "issue_date_text": "09-May-2017",
+    "currency": "USD",
+    "subtotal": "28.95",
+    "tax": "2.03",
+    "total": "30.98"
+   },
+   "items": 10
+  }
+ ]
+}

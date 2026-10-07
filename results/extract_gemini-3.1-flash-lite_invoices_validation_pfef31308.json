@@ -1,0 +1,1313 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "fef31308",
+  "split": "invoices_validation",
+  "docs": 48,
+  "failed_calls_or_invalid_json": 0,
+  "field_accuracy": {
+   "subtotal": {
+    "rate": 1,
+    "n": 48
+   },
+   "tax": {
+    "rate": 1,
+    "n": 48
+   },
+   "total": {
+    "rate": 1,
+    "n": 48
+   },
+   "doc_number": {
+    "rate": 1,
+    "n": 48
+   },
+   "issue_date": {
+    "rate": 0.75,
+    "n": 48
+   },
+   "vendor": {
+    "rate": 0.9792,
+    "n": 48
+   },
+   "buyer": {
+    "rate": 1,
+    "n": 48
+   },
+   "currency": {
+    "rate": 1,
+    "n": 46
+   },
+   "item_amounts_f1": {
+    "rate": 0.9928,
+    "n": 48
+   },
+   "item_names_f1": {
+    "rate": 1.0,
+    "n": 48
+   },
+   "all_correct": {
+    "rate": 0.6875,
+    "n": 48
+   }
+  },
+  "wrong_docs_flagged_by_validation": "12 / 15",
+  "correct_docs_flagged_by_validation": "10 / 33",
+  "median_seconds": 7.005000000000001,
+  "calls_with_retries": 0,
+  "median_tokens_in_out": [
+   1859.0,
+   585.5
+  ],
+  "issue_date_with_vendor_order": {
+   "rate": 1,
+   "n": 48
+  },
+  "wrong_dates_flagged_ambiguous": "12 / 12",
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 13.23,
+   "in": 1859,
+   "out": 585,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 2,
+   "seconds": 6.07,
+   "in": 1859,
+   "out": 425,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 3,
+   "seconds": 2.55,
+   "in": 1859,
+   "out": 541,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 4,
+   "seconds": 13.08,
+   "in": 1859,
+   "out": 428,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 5,
+   "seconds": 6.59,
+   "in": 1859,
+   "out": 645,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 6,
+   "seconds": 8.98,
+   "in": 1859,
+   "out": 630,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 0.8888888888888888,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 7,
+   "seconds": 4.46,
+   "in": 1859,
+   "out": 753,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 8,
+   "seconds": 9.16,
+   "in": 1859,
+   "out": 486,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 9,
+   "seconds": 4.55,
+   "in": 1859,
+   "out": 705,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 10,
+   "seconds": 8.6,
+   "in": 1859,
+   "out": 560,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": false,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 11,
+   "seconds": 4.16,
+   "in": 1859,
+   "out": 806,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 0.9090909090909091,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 12,
+   "seconds": 3.77,
+   "in": 1859,
+   "out": 833,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 13,
+   "seconds": 3.38,
+   "in": 1859,
+   "out": 805,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 14,
+   "seconds": 3.19,
+   "in": 1859,
+   "out": 575,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 15,
+   "seconds": 6.78,
+   "in": 1859,
+   "out": 600,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 16,
+   "seconds": 25.7,
+   "in": 1859,
+   "out": 545,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 17,
+   "seconds": 8.41,
+   "in": 1859,
+   "out": 833,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 18,
+   "seconds": 5.56,
+   "in": 1859,
+   "out": 487,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 19,
+   "seconds": 2.66,
+   "in": 1859,
+   "out": 369,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 20,
+   "seconds": 9.35,
+   "in": 1859,
+   "out": 734,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 21,
+   "seconds": 10.13,
+   "in": 1859,
+   "out": 800,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 22,
+   "seconds": 11.6,
+   "in": 1859,
+   "out": 699,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 23,
+   "seconds": 6.13,
+   "in": 1859,
+   "out": 449,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 24,
+   "seconds": 7.84,
+   "in": 1859,
+   "out": 350,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 25,
+   "seconds": 9.22,
+   "in": 1859,
+   "out": 828,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 26,
+   "seconds": 17.12,
+   "in": 1859,
+   "out": 672,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 27,
+   "seconds": 3.94,
+   "in": 1859,
+   "out": 648,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 28,
+   "seconds": 9.45,
+   "in": 1859,
+   "out": 744,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 30,
+   "seconds": 3.67,
+   "in": 1859,
+   "out": 740,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 31,
+   "seconds": 5.21,
+   "in": 1859,
+   "out": 509,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 32,
+   "seconds": 2.44,
+   "in": 1859,
+   "out": 347,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 33,
+   "seconds": 3.12,
+   "in": 1859,
+   "out": 482,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 34,
+   "seconds": 3.53,
+   "in": 1859,
+   "out": 342,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 35,
+   "seconds": 3.93,
+   "in": 1859,
+   "out": 475,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 36,
+   "seconds": 4.19,
+   "in": 1859,
+   "out": 413,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 37,
+   "seconds": 5.45,
+   "in": 1859,
+   "out": 600,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 38,
+   "seconds": 7.23,
+   "in": 1859,
+   "out": 411,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 39,
+   "seconds": 8.22,
+   "in": 1859,
+   "out": 586,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 40,
+   "seconds": 2.8,
+   "in": 1859,
+   "out": 356,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 41,
+   "seconds": 10.84,
+   "in": 1859,
+   "out": 362,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 42,
+   "seconds": 8.38,
+   "in": 1859,
+   "out": 486,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 43,
+   "seconds": 11.85,
+   "in": 1859,
+   "out": 371,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 44,
+   "seconds": 2.35,
+   "in": 1859,
+   "out": 438,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 45,
+   "seconds": 9.37,
+   "in": 1859,
+   "out": 700,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 46,
+   "seconds": 10.66,
+   "in": 1859,
+   "out": 705,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": true
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 47,
+   "seconds": 8.45,
+   "in": 1859,
+   "out": 615,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": true,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 0.8571428571428571,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": false,
+   "date_wrong_raw": false
+  },
+  {
+   "id": 48,
+   "seconds": 8.91,
+   "in": 1859,
+   "out": 799,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  },
+  {
+   "id": 49,
+   "seconds": 9.14,
+   "in": 1859,
+   "out": 775,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "score": {
+    "subtotal": true,
+    "tax": true,
+    "total": true,
+    "doc_number": true,
+    "issue_date": false,
+    "vendor": true,
+    "buyer": true,
+    "currency": true,
+    "item_amounts_f1": 1.0,
+    "item_names_f1": 1.0,
+    "all_correct": false
+   },
+   "date_ok_with_vendor_order": true,
+   "date_flagged_ambiguous": true,
+   "date_wrong_raw": true
+  }
+ ]
+}
