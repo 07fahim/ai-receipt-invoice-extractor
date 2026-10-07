@@ -169,8 +169,11 @@ export default function Home() {
                 Fixes are suggested from the math. Nothing changes until you click.
               </p>
             </div>
-            <DemoVideo name="fix" className="lg:order-first"
-              label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
+            <div className="lg:order-first">
+              <DemoVideo name="fix"
+                label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
+              <p className="mt-2 text-xs text-muted-foreground">Recorded on an earlier version of the reader.</p>
+            </div>
           </div>
         </section>
 

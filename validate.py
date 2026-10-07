@@ -312,7 +312,8 @@ def suggest(doc: Document) -> dict | None:
 
     if 'total_format' in failing:  # decides alone: the rules below never run when the total looks 1,000 times off
         updates = {f: v * 1000 for f, v in amounts}
-        if sums_fail(changed(updates)):
+        after = sums_fail(changed(updates))
+        if 'total_format' in after or not after <= failing:  # other sums may still fail, but x1000 must not add one
             return None
         return {'message': f'The amounts look 1,000 times too small. The total would be {num(doc.total * 1000)}.',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}

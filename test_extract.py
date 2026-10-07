@@ -118,5 +118,7 @@ d = parse_rates('{"total": 10, "seller_tax_id": 123456789}')
 assert d.seller_tax_id == '123456789', d
 d = parse_rates('{"total": 10, "seller_tax_id": true}')
 assert d.seller_tax_id is None, d  # bool is an int subclass: must not pass through as "True"
+d = parse_rates('{"total": 10, "seller_tax_id": "Applied"}')
+assert d.seller_tax_id is None, d  # "BIN: Applied" on Arax: a word, not a number
 
 print('ok')
