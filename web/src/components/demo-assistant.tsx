@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, SendHorizontal, Sparkles } from "lucide-react";
+import { Check, MessageSquareText, SendHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DemoFrame, useSteps } from "@/components/demo-frame";
 
@@ -32,8 +32,8 @@ const DURATIONS = CHATS.flatMap(() => PHASES);
 
 function Avatar({ className }: { className?: string }) {
   return (
-    <span className={cn("grid size-[1.9em] flex-none place-items-center rounded-md bg-gradient-to-br from-primary to-violet-600 text-white dark:from-blue-600", className)}>
-      <Sparkles className="size-[1.1em]" />
+    <span className={cn("grid size-[1.9em] flex-none place-items-center rounded-md bg-primary text-primary-foreground", className)}>
+      <MessageSquareText className="size-[1.1em]" />
     </span>
   );
 }
