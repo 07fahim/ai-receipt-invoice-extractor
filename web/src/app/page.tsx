@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Lock, MessageCircle, Scale, ScanText, Sparkles, Store, Trash2, Upload, Wallet, WandSparkles } from "lucide-react";
+import {
+  Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Languages, Lock, MessageCircle, MousePointerClick, Scale,
+  ScanSearch, ScanText, Search, Store, Trash2, Upload, Wallet, Webhook,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DemoAssistant } from "@/components/demo-assistant";
 import { DemoFix } from "@/components/demo-fix";
@@ -10,8 +13,11 @@ import { cn } from "@/lib/utils";
 
 const features = [
   { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are read in about five seconds." },
-  { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. The reason is shown too." },
-  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import." },
+  { icon: Languages, title: "English and Bangla", text: "Reads receipts and memos in both languages. Bangla digits and units like কেজি are read too." },
+  { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. Fix a value and the checks run again." },
+  { icon: Search, title: "Find any document", text: "Search by vendor or file name and filter by status. The dashboard shows spend, tax paid and top vendors." },
+  { icon: Download, title: "Export anywhere", text: "CSV or Excel with every field, including tax rate and tax number. Or a QuickBooks bill import." },
+  { icon: Webhook, title: "Send to your tools", text: "Every change goes out as a signed webhook. Connect Google Sheets or alerts with n8n." },
 ];
 
 // Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
@@ -31,7 +37,7 @@ const fixes = [
   { icon: Scale, text: "Weights read as whole numbers" },
   { icon: Hash, text: "Misread digits in prices and totals" },
   { icon: CalendarDays, text: "Dates that can be read two ways" },
-  { icon: Sparkles, text: "A second AI reading on flagged receipts" },
+  { icon: ScanSearch, text: "A second reading by another model, shown field by field" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -40,9 +46,12 @@ const checks = [
   ["Line items match the subtotal", "After any line discounts"],
   ["Totals add up", "Subtotal + tax + service − discount"],
   ["Each line adds up", "Quantity × unit price"],
+  ["Tax and discount match their rate", "VAT 15% is checked against the tax line"],
+  ["Tax numbers are valid", "Indian GSTIN and UK VAT check digits"],
   ["Dates are valid", "Unclear dates like 05/11 go to review"],
   ["Nothing is missing", "Total, line items and a valid currency"],
   ["No duplicates", "The same invoice uploaded twice is flagged"],
+  ["One document per file", "Two receipts in one photo are flagged"],
 ];
 
 // The sample receipt's lines and checks, as the app would show them.
@@ -92,7 +101,7 @@ export default function Home() {
               Every receipt read <span className="text-primary">and checked</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-foreground/80">
-              Upload one receipt or a whole batch. Crosscheck reads the vendor, date, items and totals. Then it checks the
+              Upload one receipt or a whole batch, in English or Bangla. Crosscheck reads the vendor, date, items and totals. Then it checks the
               numbers and <span className="mark">flags anything it is not sure about</span>. You only look at those.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -166,7 +175,7 @@ export default function Home() {
                 ))}
               </ul>
               <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <WandSparkles className="size-4 shrink-0 text-primary" aria-hidden />
+                <MousePointerClick className="size-4 shrink-0 text-primary" aria-hidden />
                 Fixes are suggested from the math. Nothing changes until you click.
               </p>
             </div>
@@ -230,7 +239,7 @@ export default function Home() {
               ))}
             </ul>
             <p className="mt-6 text-foreground/75">
-              When a check fails, a second AI model can read the document again and suggest fixes. Nothing changes until you choose.
+              When a check fails, a second model reads the document again and shows where the two readings differ. Nothing changes until you choose.
             </p>
           </div>
         </section>
