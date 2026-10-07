@@ -65,6 +65,9 @@ ANSWERS = {
     # a real check (items_sum) fails; fake_call fixes the stored document (simulating a concurrent re-save)
     # while the second model call is "in flight", so second_read must decide on the fixed document, not the stale one
     'race': '{"vendor": "Race Co", "subtotal": 100, "total": 100, "items": [{"amount": 90}]}',
+    # only problem is an invalid GSTIN (bad checksum: ...Z6, valid would be ...Z5): a second reading can't settle it either
+    'taxid': '{"vendor": "Gupta Traders", "subtotal": 1000, "tax": 50, "total": 1050, "tax_rate": 5, "tax_kind": "gst",'
+             ' "seller_tax_id": "07AAHCA1234F1Z6", "items": [{"amount": 1000}]}',
 }
 calls = []
 
@@ -675,6 +678,13 @@ try:
     assert second_of(passed_id)['second_read_at'] is not None and second_of(date_id)['second_read_at'] is None
     # date_id never got a second reading (only date_ambiguous, excluded): second_read says so
     assert c.get(f'/documents/{date_id}', headers=erin).json()['second_read'] is False
+    # same for a document flagged only for an invalid tax number: a second reading can't settle that either
+    taxid_id = c.post('/documents', files=[('files', ('t.jpg', io.BytesIO(JPG + b'taxid'), 'image/jpeg'))], headers=erin).json()[0]['id']
+    second_done()
+    taxid_row = second_of(taxid_id)
+    assert taxid_row['status'] == 'needs_review' and [ck['check'] for ck in taxid_row['checks']] == ['tax_id_invalid']
+    assert taxid_row['second_read_at'] is None
+    assert c.get(f'/documents/{taxid_id}', headers=erin).json()['second_read'] is False
     # the differences, field by field; a date comes with its printed text
     d = c.get(f'/documents/{memo_id}', headers=erin).json()
     assert {(x['field'], x['from'], x['to']) for x in d['second_reading']} == {('items[1].amount', '280', '240'), ('issue_date', '2024-06-20', '2024-05-20')}, d['second_reading']
