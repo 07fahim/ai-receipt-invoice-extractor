@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 const features = [
   { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are read in about five seconds." },
-  { icon: Languages, title: "English and Bangla", text: "Reads receipts and memos in both languages. Bangla digits and units like কেজি are read too." },
+  { icon: Languages, title: "English and Bangla", text: "Reads receipts and memos in both languages, including Bangla digits and units like কেজি." },
   { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. Fix a value and the checks run again." },
   { icon: Search, title: "Find any document", text: "Search by vendor or file name and filter by status. The dashboard shows spend, tax paid and top vendors." },
   { icon: Download, title: "Export anywhere", text: "CSV or Excel with every field, including tax rate and tax number. Or a QuickBooks bill import." },
@@ -37,7 +37,7 @@ const fixes = [
   { icon: Scale, text: "Weights read as whole numbers" },
   { icon: Hash, text: "Misread digits in prices and totals" },
   { icon: CalendarDays, text: "Dates that can be read two ways" },
-  { icon: ScanSearch, text: "A second reading by another model, shown field by field" },
+  { icon: ScanSearch, text: "A second model reads it again so you can compare each field" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -101,7 +101,7 @@ export default function Home() {
               Every receipt read <span className="text-primary">and checked</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-foreground/80">
-              Upload one receipt or a whole batch, in English or Bangla. Crosscheck reads the vendor, date, items and totals. Then it checks the
+              Upload a receipt or a whole batch in English or Bangla. Crosscheck reads the vendor, date, items and totals. Then it checks the
               numbers and <span className="mark">flags anything it is not sure about</span>. You only look at those.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
