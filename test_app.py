@@ -194,10 +194,10 @@ try:
     d = c.get(f'/documents/{ids[-1]}', headers=olga).json()
     assert d['status'] == 'passed' and [x['check'] for x in d['checks']] == ['older_than_upload'], d
     assert [x['check'] for x in c.get(f'/documents/{ids[0]}', headers=olga).json()['checks']] == []
-    # /check?doc_id=<olga's id> must not use olga's upload time as the anchor for the caller's own documents
-    old_doc = c.get(f'/documents/{ids[-1]}', headers=olga).json()['document']
-    leak = c.post('/check', json=old_doc, params={'doc_id': ids[0]}).json()
-    assert 'older_than_upload' not in [x['check'] for x in leak['checks']], leak
+    # upload_dates must not use another user's document as the anchor for the caller's own documents
+    # (Alice's own documents were created within 10 minutes of olga's batch, so the old join would return their dates)
+    with store.conn() as con:
+        assert store.upload_dates(con, ALICE, ids[0]) == []
 
     # ambiguous date -> needs review; confirming the vendor's MDY order fixes the date and re-checks
     amb_id = upload(('inv.jpg', JPG + b'ambiguous')).json()[0]['id']
