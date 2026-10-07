@@ -207,12 +207,14 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
 
     # The same discount on an item and on the receipt ("Disc -100% (ITM06)" then SUBTTL): the lines already hold it
     twice = bool(doc.discount) and net is not None and close(sum(abs(i.discount or 0) for i in doc.items), abs(doc.discount))
+    # subtotal already has the discount taken off: don't subtract it again (CORD test 33, used below and by tax_rate)
+    discount_in_subtotal = twice and doc.subtotal is not None and close(net, doc.subtotal)
 
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so
     # or the numbers prove it (included_share): the arithmetic decides, so a wrong tax_included=True on an invoice
     # whose tax is added on top does no harm.
     if doc.subtotal is not None and doc.total is not None:
-        discount = 0 if twice and close(net, doc.subtotal) else abs(doc.discount or 0)
+        discount = 0 if discount_in_subtotal else abs(doc.discount or 0)
         expected = doc.subtotal + tax + (doc.service_charge or 0) - discount
         # a printed rate whose included share matches the tax is proof on its own, no line total needed
         printed = doc.tax_rate and abs(tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
@@ -232,7 +234,8 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     # amount after the discount (HMRC VAT Notice 700 for basic discounts), with or without the service charge,
     # added on top or included in the prices. US sales tax can skip exempt items: only too much tax is flagged.
     if doc.tax_rate is not None and doc.tax is not None and doc.subtotal is not None and doc.tax_kind:
-        rate, base = doc.tax_rate / 100, doc.subtotal - abs(doc.discount or 0)
+        rate = doc.tax_rate / 100
+        base = doc.subtotal if discount_in_subtotal else doc.subtotal - abs(doc.discount or 0)
         room = Decimal('1') if doc.tax == doc.tax.to_integral_value() else CENT * max(1, len(doc.items))
         if doc.tax_kind in ('vat', 'gst'):
             bases = [base] + ([base + doc.service_charge] if doc.service_charge else [])

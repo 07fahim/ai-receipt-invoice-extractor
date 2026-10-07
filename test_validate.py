@@ -191,6 +191,15 @@ cord90 = dict(subtotal=D('26818'), tax=D('2681'), total=D('29499'), tax_rate=10,
 assert found(**cord90) == {}
 assert found(**{**cord90, 'tax': D('2679'), 'total': D('29497')}) == {
     'tax_rate': 'VAT 10% of 26,818 is 2,681.80. The document says 2,679.'}
+# CORD test 33: discount recorded on the item and again on SUBTTL, so the subtotal already has it taken off;
+# the tax_rate base must not subtract it a second time (the base still fails: the shop taxed the pre-discount amount)
+cord33 = dict(currency='IDR', subtotal=D('117500'), discount=D('67000'), tax=D('19557'), tax_included=False,
+              service_charge=D('11070'), total=D('148127'), tax_rate=D('10'), tax_kind='vat', discount_rate=D('100'),
+              items=[Item(description='GRILLED BABY POTATO (R', quantity=D('1'), unit_price=D('50500'), amount=D('50500')),
+                     Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000')),
+                     Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000'), discount=D('67000'))])
+assert found(**cord33) == {'tax_rate': 'VAT 10% of 117,500 is 11,750. The document says 19,557.',
+                           'tax_id_missing': 'No seller VAT number found. It is needed to claim this VAT back.'}, found(**cord33)
 assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
 
 from validate import gstin_valid, uk_vat_valid
