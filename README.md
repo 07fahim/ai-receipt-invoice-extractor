@@ -81,11 +81,13 @@ Recorded on an earlier version of the reader.
 Gemini 3.1 Flash-Lite, temperature 0, prompt version `be0376e0`, measured 2026-09-30. The result files are in
 [`results/`](results), with notes in [`results/M3_NOTES.md`](results/M3_NOTES.md).
 
-The app now runs prompt `a19decf8`, which adds two rules: coupon and discount lines are never items, and lines that
+Prompt `a19decf8` added two rules: coupon and discount lines are never items, and lines that
 add up other lines (a subtotal) are never items. It was measured on 117 WildReceipt receipts (the flagged wrong ones,
 and the right ones with a discount, coupon or savings line) and on 17 Bangladeshi samples. On those, real errors went
 from 12 to 5, all still flagged. The other WildReceipt receipts, CORD and the invoices were not re-run, so the table
 below is from `be0376e0`.
+
+The app now runs prompt `b4907187` (2026-10-07). It also reads the printed tax rate, discount rate and seller tax number, for new checks: tax and discount must match their printed rate, Indian GSTIN and UK VAT numbers must pass their check digit, and a note appears when a VAT or GST document has no seller tax number. Re-measured with this prompt: CORD test 90% fully correct, invoices test 69.2%, invoices validation 68.1% (32 of 47), and every new error is flagged. Details in [`results/M4_NOTES.md`](results/M4_NOTES.md).
 
 | Set | Documents | Fully correct | Total amount correct | Wrong and not flagged | Correct but sent to review |
 |---|---|---|---|---|---|
@@ -248,6 +250,8 @@ page. For the server's n8n it is `WEBHOOK_SECRET`.
   "event_id": 57
 }
 ```
+A check with `"level": "note"` is information only. It never sends a document to review.
+
 `document` holds every field read (shortened here). Amounts are strings, so no precision is lost.
 
 Check the signature before trusting the body:
