@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Lock, MessageCircle, Scale, ScanText, Sparkles, Store, Trash2, Upload, Wallet, WandSparkles } from "lucide-react";
+import {
+  Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Languages, Lock, MessageCircle, MousePointerClick, Scale,
+  ScanSearch, ScanText, Search, Store, Trash2, Upload, Wallet, Webhook,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DemoAssistant } from "@/components/demo-assistant";
 import { DemoFix } from "@/components/demo-fix";
@@ -9,9 +12,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const features = [
-  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are read in about five seconds." },
-  { icon: ClipboardCheck, title: "Review only what needs it", text: "Each flagged field sits next to the original. The reason is shown too." },
-  { icon: Download, title: "Export anywhere", text: "Download CSV, Excel or a QuickBooks bill import." },
+  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are ready in about five seconds." },
+  { icon: Languages, title: "English and Bangla", text: "Works with receipts, invoices and handwritten memos in either language." },
+  { icon: ClipboardCheck, title: "Review only what needs it", text: "Receipts that pass every check go straight to your export. You only open the ones that need a look." },
+  { icon: Search, title: "Find any document", text: "Search by supplier and filter by status. The dashboard shows what you spent, the tax you paid and your top suppliers." },
+  { icon: Download, title: "Export anywhere", text: "Download a CSV or Excel file for your accountant, or a file QuickBooks imports as bills." },
+  { icon: Webhook, title: "Send to your tools", text: "Add each document to Google Sheets, or get an email or Telegram alert when one needs review." },
 ];
 
 // Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
@@ -28,21 +34,24 @@ const useCases = [
 
 // What the review page can fix or flag. Nothing changes until the user clicks.
 const fixes = [
-  { icon: Scale, text: "Weights read as whole numbers" },
-  { icon: Hash, text: "Misread digits in prices and totals" },
-  { icon: CalendarDays, text: "Dates that can be read two ways" },
-  { icon: Sparkles, text: "A second AI reading on flagged receipts" },
+  { icon: Scale, text: "Weighed items like meat and produce" },
+  { icon: Hash, text: "A wrong digit in a price or total" },
+  { icon: CalendarDays, text: "Dates that could mean two different days" },
+  { icon: ScanSearch, text: "A second opinion from another AI model on anything flagged" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
 
 const checks = [
-  ["Line items match the subtotal", "After any line discounts"],
-  ["Totals add up", "Subtotal + tax + service − discount"],
-  ["Each line adds up", "Quantity × unit price"],
-  ["Dates are valid", "Unclear dates like 05/11 go to review"],
-  ["Nothing is missing", "Total, line items and a valid currency"],
-  ["No duplicates", "The same invoice uploaded twice is flagged"],
+  ["Line items match the subtotal", "Line discounts included"],
+  ["Totals add up", "Subtotal, tax, service charge and discount"],
+  ["Each line adds up", "Quantity times price equals the amount"],
+  ["Tax matches the rate on the bill", "VAT, GST or sales tax, and printed discounts"],
+  ["Tax numbers are valid", "Catches mistyped GSTIN and UK VAT numbers"],
+  ["Dates make sense", "A date like 05/11 is sent to you to confirm"],
+  ["Nothing is missing", "Total, items and currency are all there"],
+  ["No duplicates", "The same bill uploaded twice is caught"],
+  ["One bill per photo", "Two receipts in one photo are flagged"],
 ];
 
 // The sample receipt's lines and checks, as the app would show them.
@@ -78,7 +87,7 @@ export default function Home() {
             <a href="#privacy" className="hidden whitespace-nowrap hover:text-foreground lg:block">Privacy</a>
             <ThemeToggle />
             <Link href="/login" className="whitespace-nowrap hover:text-foreground">Log in</Link>
-            <Button asChild><Link href="/signup">Get started</Link></Button>
+            <Button asChild><Link href="/signup">Try it free</Link></Button>
           </nav>
         </div>
       </header>
@@ -87,19 +96,19 @@ export default function Home() {
         <section className="px-6">
           <div className="mx-auto grid max-w-6xl items-center gap-14 pt-14 pb-20 lg:grid-cols-[1fr_1.1fr] lg:pt-20">
           <div>
-            <p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">Receipts and invoices to spreadsheet rows</p>
+            <p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">For bookkeepers, shops and finance teams</p>
             <h1 className="display mt-4 text-[clamp(40px,4.6vw,64px)]">
               Every receipt read <span className="text-primary">and checked</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-foreground/80">
-              Upload one receipt or a whole batch. Crosscheck reads the vendor, date, items and totals. Then it checks the
-              numbers and <span className="mark">flags anything it is not sure about</span>. You only look at those.
+              Upload a stack of receipts or invoices in English or Bangla. Crosscheck turns them into clean spreadsheet rows and
+              <span className="mark">checks every total</span>. You only fix the few that need it.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Get started</Link></Button>
+              <Button size="lg" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Try it free</Link></Button>
               <Button size="lg" variant="outline" className="h-11 px-5 text-[15px]" asChild><a href="#checks">See what it checks</a></Button>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">Sign up with email or Google</p>
+            <p className="mt-4 text-sm text-muted-foreground">Sign up with email or Google. Sample receipts included.</p>
           </div>
 
           <div className="grid items-start sm:grid-cols-[1fr_minmax(0,250px)]" aria-label="A photographed receipt and the checks run on it">
@@ -152,11 +161,11 @@ export default function Home() {
         <section id="review" className="border-t px-6 py-22">
           <div className="mx-auto grid max-w-6xl items-center gap-11 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
             <div>
-              <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
+              <h2 className="display text-[clamp(30px,3.6vw,44px)]">Fix mistakes in one click</h2>
               <p className="mt-4 text-lg text-foreground/75">
-                Every document is checked. When the numbers do not add up, Crosscheck shows what is wrong. For common misreads it suggests a fix.
+                When a total doesn&apos;t add up, Crosscheck shows the wrong line and suggests the fix. Check it against the photo and apply it in one click.
               </p>
-              <h3 id="fixes" className="mt-8 text-sm font-semibold">What it fixes</h3>
+              <h3 id="fixes" className="mt-8 text-sm font-semibold">What it catches</h3>
               <ul className="mt-3 grid gap-2" aria-labelledby="fixes">
                 {fixes.map(({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-2.5 rounded-xl border bg-card px-4 py-2.5 text-sm font-medium shadow-xs">
@@ -166,8 +175,8 @@ export default function Home() {
                 ))}
               </ul>
               <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <WandSparkles className="size-4 shrink-0 text-primary" aria-hidden />
-                Fixes are suggested from the math. Nothing changes until you click.
+                <MousePointerClick className="size-4 shrink-0 text-primary" aria-hidden />
+                Nothing in your data changes until you click Apply.
               </p>
             </div>
             <DemoFix className="lg:order-first" />
@@ -179,8 +188,8 @@ export default function Home() {
             <div>
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Ask about your documents</h2>
               <p className="mt-4 text-lg text-foreground/75">
-                Ask in English or Bangla. The assistant looks up your documents and explains each flag with the numbers the
-                checks found. It only reads your data and never changes it.
+                Ask in English or Bangla, the way you would ask your bookkeeper. The assistant finds the answer in your documents
+                and explains every flag. It can read your data but never changes it.
               </p>
               <ul className="mt-8 flex flex-col items-start gap-2.5" aria-label="Example questions">
                 {questions.map((q) => (
@@ -215,7 +224,7 @@ export default function Home() {
         <section id="checks" className="border-t bg-background px-6 py-22">
           <div className="mx-auto max-w-6xl">
             <h2 className="display text-[clamp(30px,3.6vw,44px)]">Every document is checked</h2>
-            <p className="mt-4 text-lg text-foreground/75">A document that fails a check goes to your review list.</p>
+            <p className="mt-4 text-lg text-foreground/75">Anything that fails a check waits in your review list.</p>
             <ul className="mt-11 grid gap-3 md:grid-cols-3">
               {checks.map(([title, text]) => (
                 <li key={title} className="flex gap-3 rounded-xl border bg-card p-4">
@@ -230,7 +239,7 @@ export default function Home() {
               ))}
             </ul>
             <p className="mt-6 text-foreground/75">
-              When a check fails, a second AI model can read the document again and suggest fixes. Nothing changes until you choose.
+              When a check fails, a second AI model reads the document again and shows where the two readings disagree.
             </p>
           </div>
         </section>
