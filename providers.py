@@ -47,7 +47,7 @@ issue_date_text and due_date_text (each date exactly as printed, character for c
 currency (ISO 4217 code), subtotal, discount,
 tax (all taxes and duties together, e.g. VAT plus supplementary duty),
 tax_included (true if the printed prices already include the tax, e.g. "VAT included"; false if it is added on top),
-tax_rate (the tax percentage printed for the whole document, e.g. 15 for "VAT 15%"; CGST and SGST halves count as their sum, e.g. 5 for "CGST 2.5% + SGST 2.5%"; null if several different rates are printed or none),
+tax_rate (the tax percentage printed for the whole document, e.g. 15 for "VAT 15%"; CGST and SGST halves count as their sum, e.g. 5 for "CGST 2.5% + SGST 2.5%"; 0 if "0%" or "0.00%" is printed; null if several different rates are printed or none),
 tax_kind ("vat", "gst" or "sales_tax"; null if no tax is printed),
 discount_rate (the percentage printed on a discount line for the whole document, e.g. 10 for "Discount (10%)"; null otherwise),
 seller_tax_id (the seller's VAT number, BIN or GSTIN exactly as printed; null if not printed),
