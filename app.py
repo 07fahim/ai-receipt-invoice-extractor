@@ -919,7 +919,8 @@ def stats(date_from: date | None = None, uid: str = Depends(current_user)):
 
 
 DOC_COLUMNS = ['id', 'file_name', 'status', 'doc_type', 'vendor', 'branch', 'buyer', 'doc_number', 'issue_date', 'due_date',
-               'currency', 'subtotal', 'discount', 'tax', 'service_charge', 'total']
+               'currency', 'subtotal', 'discount', 'tax', 'service_charge', 'total',
+               'tax_rate', 'tax_kind', 'discount_rate', 'seller_tax_id']  # added last, so older columns keep their places
 ITEM_COLUMNS = ['document_id', 'description', 'quantity', 'unit_price', 'amount', 'discount']
 
 
@@ -937,7 +938,7 @@ def export_rows(uid, status):
     return docs, items
 
 
-NUMERIC = {'subtotal', 'discount', 'tax', 'service_charge', 'total', 'quantity', 'unit_price', 'amount'}
+NUMERIC = {'subtotal', 'discount', 'tax', 'service_charge', 'total', 'quantity', 'unit_price', 'amount', 'tax_rate', 'discount_rate'}
 
 
 def cell(column, v, xlsx=False):
