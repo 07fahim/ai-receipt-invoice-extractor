@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Archive, Calculator, ClipboardCheck, Download, Lock, MessageCircle, ScanText, Store, Trash2, Upload, Wallet } from "lucide-react";
+import { Archive, CalendarDays, Calculator, ClipboardCheck, Download, Hash, Lock, MessageCircle, Scale, ScanText, Sparkles, Store, Trash2, Upload, Wallet, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DemoVideo } from "@/components/demo-video";
 import { Logo } from "@/components/logo";
@@ -23,6 +23,14 @@ const useCases = [
     text: "Staff photograph their receipts. You check the flagged ones and export the rest." },
   { icon: Archive, title: "Year-end and audits", docs: "Last year's receipts",
     text: "Clear a backlog 20 at a time. Duplicates are caught before they count twice." },
+];
+
+// What the review page can fix or flag. Nothing changes until the user clicks.
+const fixes = [
+  { icon: Scale, text: "Weights read as whole numbers" },
+  { icon: Hash, text: "Misread digits in prices and totals" },
+  { icon: CalendarDays, text: "Dates that can be read two ways" },
+  { icon: Sparkles, text: "A second AI reading on flagged receipts" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -141,13 +149,27 @@ export default function Home() {
         </section>
 
         <section id="review" className="border-t px-6 py-22">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
-            <p className="mt-4 max-w-2xl text-lg text-foreground/75">
-              The AI read the beef ribs as 1 item. The receipt says 1.89 lbs. The math check catches it and suggests 1.89. One
-              click fixes it.
-            </p>
-            <DemoVideo name="fix" className="mt-11"
+          <div className="mx-auto grid max-w-6xl items-center gap-11 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
+            <div>
+              <h2 className="display text-[clamp(30px,3.6vw,44px)]">See what needs a fix</h2>
+              <p className="mt-4 text-lg text-foreground/75">
+                Every document is checked. When the numbers do not add up, Crosscheck shows what is wrong. For common misreads it suggests a fix.
+              </p>
+              <h3 id="fixes" className="mt-8 text-sm font-semibold">What it fixes</h3>
+              <ul className="mt-3 grid gap-2" aria-labelledby="fixes">
+                {fixes.map(({ icon: Icon, text }) => (
+                  <li key={text} className="flex items-center gap-2.5 rounded-xl border bg-card px-4 py-2.5 text-sm font-medium shadow-xs">
+                    <Icon className="size-4 shrink-0 text-primary" aria-hidden />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <WandSparkles className="size-4 shrink-0 text-primary" aria-hidden />
+                Fixes are suggested from the math. Nothing changes until you click.
+              </p>
+            </div>
+            <DemoVideo name="fix" className="lg:order-first"
               label="Demo: a Smoke City Market receipt is flagged, the assistant explains the line math, the suggested quantity 1.89 is applied and the receipt is saved as reviewed." />
           </div>
         </section>
