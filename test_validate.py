@@ -159,6 +159,9 @@ assert both['changes'] == [] and both['message'] == 'The tax or the total was mi
 assert [(o['label'], o['changes']) for o in both['options']] == [
     ('Tax 3.30', [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]),
     ('Total 41.30', [{'field': 'total', 'from': '36.30', 'to': '41.30'}])], both
+big = [Item(description='x', quantity=D(1), unit_price=D(a), amount=D(a)) for a in ('1000.00', '200.00')]
+labels = suggest(Document(currency='GBP', subtotal=D('1200.00'), tax=D('880.50'), total=D('1380.50'), total_text='1,380.50', items=big))
+assert [o['label'] for o in labels['options']] == ['Tax 180.50', 'Total 2,080.50'], labels  # thousands get commas
 # a printed rate decides: 10% of 33 is 3.30, so the tax is the misread
 one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', tax_rate=D(10), tax_kind='vat', items=lines))
 assert one == {'message': 'Is the tax 3.30? Then the total adds up.', 'changes': [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]}, one

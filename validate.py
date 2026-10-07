@@ -164,6 +164,12 @@ def tax_id_problem(raw):
     return None
 
 
+def line_net(doc: Document):
+    # the lines after their own discounts; None when a line has no amount
+    amounts = [i.amount for i in doc.items]
+    return sum(i.amount - abs(i.discount or 0) for i in doc.items) if amounts and None not in amounts else None
+
+
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     # checks with missing inputs are skipped, except a missing total
     today = today or date.today()
@@ -198,7 +204,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
 
     tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
-    net = sum(i.amount - abs(i.discount or 0) for i in doc.items) if amounts and None not in amounts else None
+    net = line_net(doc)
     if doc.subtotal is not None and net is not None:
         # tax-inclusive prices: lines add up to subtotal + tax
         gross = sum(amounts)  # item discounts listed apart, already inside the discount line
@@ -354,8 +360,7 @@ def suggest(doc: Document) -> dict | None:
                         return None  # two different fixes both fit: the numbers can't tell which is right
     # Only "subtotal + tax + service - discount = total" fails: the tax or the total was misread. Each candidate
     # must make every sum pass. A printed rate keeps the one whose tax matches it; otherwise both are offered.
-    line_amounts = [i.amount for i in doc.items]
-    net = sum(i.amount - abs(i.discount or 0) for i in doc.items) if line_amounts and None not in line_amounts else None
+    net = line_net(doc)
     rate = doc.tax_rate if doc.tax_kind in ('vat', 'gst') else None
     if (not found and failing == {'total_math'} and doc.tax and doc.subtotal is not None and doc.total is not None
             # the tax looks included in the prices (CORD test 43): adding it on top would be wrong.
