@@ -160,7 +160,7 @@ assert [num(D(x)) for x in ('1270.0', '0.6', '0.63', '1.005', '9983196.70')] == 
 from validate import review
 def found(**kw):
     return {i['check']: i['message'] for i in validate(Document(**kw), today=TODAY)}
-mehedi = dict(subtotal=D('896'), discount=D('44.80'), tax=D('120'), total=D('971.20'), tax_rate=15, tax_kind='vat',
+mehedi = dict(currency='BDT', subtotal=D('896'), discount=D('44.80'), tax=D('120'), total=D('971.20'), tax_rate=15, tax_kind='vat',
               seller_tax_id='0012-3456-7890', items=[Item(amount=D('896'))])
 assert found(**mehedi) == {'tax_rate': 'VAT 15% of 851.20 is 127.68. The document says 120.'}, found(**mehedi)
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88')}) == {}
@@ -171,7 +171,7 @@ assert found(**greenleaf) == {'tax_rate': 'VAT 20% of 14.40 is 2.88. The documen
 restaurant = dict(subtotal=D('1000'), service_charge=D('100'), tax=D('165'), total=D('1265'), tax_rate=15, tax_kind='vat',
                   seller_tax_id='004567891-0102', items=[Item(amount=D('1000'))])
 assert found(**restaurant) == {}  # VAT on subtotal + service charge
-gst_halves = dict(subtotal=D('1000'), tax=D('50'), total=D('1050'), tax_rate=5, tax_kind='gst',
+gst_halves = dict(currency='INR', subtotal=D('1000'), tax=D('50'), total=D('1050'), tax_rate=5, tax_kind='gst',
                   seller_tax_id='07AAHCA1234F1Z5', items=[Item(amount=D('1000'))])
 assert found(**gst_halves) == {}
 maple = dict(subtotal=D('80.44'), discount=D('8.04'), tax=D('8.55'), total=D('80.95'), tax_rate=D('8.5'), tax_kind='sales_tax',
@@ -198,8 +198,8 @@ cord33 = dict(currency='IDR', subtotal=D('117500'), discount=D('67000'), tax=D('
               items=[Item(description='GRILLED BABY POTATO (R', quantity=D('1'), unit_price=D('50500'), amount=D('50500')),
                      Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000')),
                      Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000'), discount=D('67000'))])
-assert found(**cord33) == {'tax_rate': 'VAT 10% of 117,500 is 11,750. The document says 19,557.',
-                           'tax_id_missing': 'No seller VAT number found. It is needed to claim this VAT back.'}, found(**cord33)
+assert found(**cord33) == {'tax_rate': 'VAT 10% of 117,500 is 11,750. The document says 19,557.'}, found(**cord33)
+# no VAT number: Indonesian rupiah receipts tax a local restaurant tax, no VAT/GST number applies there
 assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
 
 from validate import gstin_valid, uk_vat_valid
@@ -213,6 +213,9 @@ assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None}) == \
     {'tax_id_missing': 'No seller VAT number found. It is needed to claim this VAT back.'}
 assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No seller GSTIN found. It is needed to claim this GST back.'}
+# the note only fires where a VAT/GST number is expected (BDT, INR, GBP, EUR); Indonesian local tax has none
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None, 'currency': 'IDR'}) == {}
+assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None, 'currency': None}) == {}
 assert found(**{**maple, 'tax': D('6.15'), 'total': D('78.55')}) == {}  # US sales tax: no tax number needed
 note = [i for i in validate(Document(**{**gst_halves, 'seller_tax_id': None}), today=TODAY)]
 assert note[0]['level'] == 'note' and review(note) == []

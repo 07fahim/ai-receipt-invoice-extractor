@@ -31,6 +31,9 @@ CENTS_PRINTED = re.compile(r'[.,]\d{2}\s*$')
 # Bangladeshi rates only: 20% added on top misread as 25% included would pass, so check before adding rates.
 INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
 
+# countries where a seller VAT/GST number is expected: BIN (BDT), GSTIN (INR), UK VAT (GBP), EU VAT (EUR)
+VAT_ID_EXPECTED = {'BDT', 'INR', 'GBP', 'EUR'}
+
 
 def close(a, b, rel=Decimal(0)):
     return abs(a - b) <= max(Decimal('0.01'), abs(b) * rel)
@@ -256,7 +259,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     problem = tax_id_problem(doc.seller_tax_id)
     if problem:
         fail('tax_id_invalid', ['seller_tax_id'], problem)
-    if doc.tax_kind in ('vat', 'gst') and doc.tax and not doc.seller_tax_id:
+    if doc.tax_kind in ('vat', 'gst') and doc.tax and not doc.seller_tax_id and (doc.currency or '').upper() in VAT_ID_EXPECTED:
         name, label = ('GST', 'GSTIN') if doc.tax_kind == 'gst' else ('VAT', 'VAT number')
         fail('tax_id_missing', ['seller_tax_id'], f'No seller {label} found. It is needed to claim this {name} back.', 'note')
 
