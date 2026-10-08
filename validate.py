@@ -164,6 +164,12 @@ def tax_id_problem(raw):
     return None
 
 
+def line_net(doc: Document):
+    # the lines after their own discounts; None when a line has no amount
+    amounts = [i.amount for i in doc.items]
+    return sum(i.amount - abs(i.discount or 0) for i in doc.items) if amounts and None not in amounts else None
+
+
 def validate(doc: Document, today: date | None = None, date_order: str | None = None) -> list[dict]:
     # checks with missing inputs are skipped, except a missing total
     today = today or date.today()
@@ -198,7 +204,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
 
     tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
-    net = sum(i.amount - abs(i.discount or 0) for i in doc.items) if amounts and None not in amounts else None
+    net = line_net(doc)
     if doc.subtotal is not None and net is not None:
         # tax-inclusive prices: lines add up to subtotal + tax
         gross = sum(amounts)  # item discounts listed apart, already inside the discount line
@@ -352,6 +358,33 @@ def suggest(doc: Document) -> dict | None:
                     found.append((field, value, candidate, f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.'))
                     if len(found) > 1:
                         return None  # two different fixes both fit: the numbers can't tell which is right
+    # Only "subtotal + tax + service - discount = total" fails: the tax or the total was misread. Each candidate
+    # must make every sum pass. A printed rate keeps the one whose tax matches it; otherwise both are offered.
+    net = line_net(doc)
+    rate = doc.tax_rate if doc.tax_kind in ('vat', 'gst') else None
+    if (not found and failing == {'total_math'} and doc.tax and doc.subtotal is not None and doc.total is not None
+            # the tax looks included in the prices (CORD test 43): adding it on top would be wrong.
+            # The subtotal may already hold it: 15,000 is 10/110 of 165,000
+            and not doc.tax_included and not close(doc.subtotal, doc.total)
+            and not included_share(doc.tax, doc.subtotal, net, False)
+            and not (rate and abs(doc.tax - doc.subtotal * rate / (100 + rate)) <= CENT)
+            # a total rounded to whole units (CORD test 51) gives no exact candidate
+            and CENTS_PRINTED.search(doc.total_text or '') and doc.currency and doc.currency.upper() not in WHOLE_UNIT_CASH):
+        rest = doc.subtotal + (doc.service_charge or 0) - abs(doc.discount or 0)
+        options = [(f, v) for f, v in (('tax', doc.total - rest), ('total', rest + doc.tax))
+                   if v > 0 and v != getattr(doc, f) and not sums_fail(changed({f: v}))]
+        if doc.tax_rate is not None and doc.tax_kind:
+            fits = [(f, v) for f, v in options if not any(i['check'] == 'tax_rate' for i in validate(changed({f: v})))]
+            if len(fits) == 1:
+                options = fits
+        change = lambda f, v: [{'field': f, 'from': str(getattr(doc, f)), 'to': str(v)}]
+        if len(options) == 1:
+            f, v = options[0]
+            msg = 'Then the total adds up.' if f == 'tax' else 'Then every sum adds up.'
+            return {'message': f'Is the {f} {num(v)}? {msg}', 'changes': change(f, v)}
+        if len(options) == 2:
+            return {'message': 'The tax or the total was misread. Pick the one the photo shows.', 'changes': [],
+                    'options': [{'label': f'{f.capitalize()} {num(v)}', 'changes': change(f, v)} for f, v in options]}
     if not found:
         return None
     field, value, candidate, message = found[0]
