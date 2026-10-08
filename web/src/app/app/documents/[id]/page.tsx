@@ -510,7 +510,7 @@ export default function ReviewPage() {
                             <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
                           ))}
                         </ul>
-                        <Button size="sm" className="mt-2" onClick={() => applySuggestion({ message: suggestion.message, changes: o.changes })}>Apply</Button>
+                        <Button size="sm" className="mt-2" aria-label={`Apply ${o.label}`} onClick={() => applySuggestion({ message: suggestion.message, changes: o.changes })}>Apply</Button>
                       </div>
                     ))}
                   </div>
