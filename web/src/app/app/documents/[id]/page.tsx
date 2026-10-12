@@ -417,14 +417,14 @@ export default function ReviewPage() {
 
             <Group title="Line items">
               <div className="overflow-x-auto">
-                {/* number boxes fit values like 1.875 and 9999.99; the description takes the rest */}
-                <table className="w-full min-w-[340px] table-fixed text-sm">
+                {/* money boxes fit values like 1250000.00; the description takes the rest */}
+                <table className="w-full min-w-[380px] table-fixed text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground">
                       <th className="px-1 pb-1.5 font-medium">Description</th>
                       <th className="w-14 px-1 pb-1.5 text-right font-medium">Qty</th>
-                      <th className="w-[4.5rem] px-1 pb-1.5 text-right font-medium">Unit price</th>
-                      <th className="w-[4.5rem] px-1 pb-1.5 text-right font-medium">Amount</th>
+                      <th className="w-24 px-1 pb-1.5 text-right font-medium">Unit price</th>
+                      <th className="w-24 px-1 pb-1.5 text-right font-medium">Amount</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
