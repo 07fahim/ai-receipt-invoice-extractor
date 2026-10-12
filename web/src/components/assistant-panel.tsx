@@ -206,7 +206,8 @@ export function AssistantPanel() {
       className={`fixed z-40 flex flex-col bg-card max-md:inset-0 ${
         mode === "small"
           ? "md:right-6 md:bottom-6 md:h-[560px] md:w-[380px] md:overflow-hidden md:rounded-2xl md:border md:shadow-2xl"
-          : "md:inset-y-0 md:right-0 md:w-[380px] md:border-l"
+          : // docked from 1280px up (globals.css); between 768 and 1280 it shows as the small window
+            "md:max-xl:right-6 md:max-xl:bottom-6 md:max-xl:h-[560px] md:max-xl:w-[380px] md:max-xl:overflow-hidden md:max-xl:rounded-2xl md:max-xl:border md:max-xl:shadow-2xl xl:inset-y-0 xl:right-0 xl:w-[380px] xl:border-l"
       }`}
     >
       <header className="flex items-center gap-1 border-b px-3 py-2">
@@ -221,7 +222,7 @@ export function AssistantPanel() {
           <History className="size-4" />
         </button>
         <button className={icon} aria-label="New chat" disabled={busy} onClick={newChat}><Plus className="size-4" /></button>
-        <button className={`${icon} max-md:hidden`} aria-label={mode === "small" ? "Dock to the side" : "Make it small"}
+        <button className={`${icon} max-xl:hidden`} aria-label={mode === "small" ? "Dock to the side" : "Make it small"}
           onClick={() => setMode(mode === "small" ? "docked" : "small")}>
           {mode === "small" ? <PanelRight className="size-4" /> : <Minimize2 className="size-4" />}
         </button>

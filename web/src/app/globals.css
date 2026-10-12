@@ -206,7 +206,8 @@
   }
 }
 
-/* the docked assistant panel takes the right 380px; the app moves over instead of hiding under it */
-@media (min-width: 768px) {
+/* the docked assistant panel takes the right 380px; the app moves over instead of hiding under it.
+   Only on wide screens: below 1280px the nav plus the panel leave too little room, so it stays a small window there. */
+@media (min-width: 1280px) {
   html[data-assistant="docked"] body { padding-right: 380px; }
 }
