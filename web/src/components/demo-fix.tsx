@@ -32,13 +32,13 @@ const DURATIONS = SCENES.flatMap(() => PHASES);
 const LABELS = ["Line items match subtotal", "Quantity × price = amount"];
 
 export function DemoFix({ className }: { className?: string }) {
-  const { ref, step, shown } = useSteps(DURATIONS, 2); // reduced motion: the flag with its fix
+  const { ref, step, shown, pause } = useSteps(DURATIONS, 2); // reduced motion: the flag with its fix
   const s = SCENES[Math.floor(step / PHASES.length)];
   const p = step % PHASES.length;
   const flagged = p >= 1 && p <= 4;
   const passed = p === 5;
   return (
-    <DemoFrame frameRef={ref} shown={shown} className={className}
+    <DemoFrame frameRef={ref} shown={shown} pause={pause} className={className}
       label="Demo: a receipt line that does not add up is flagged, the suggested fix is applied and every check passes. Shown on a US grocery receipt and a handwritten Bangla memo.">
       <div className="absolute inset-0 grid grid-cols-[40%_1fr] @md:grid-cols-[46%_1fr] @xl:grid-cols-[50%_1fr] text-[9px] leading-snug @md:text-[11px] @xl:text-[13.5px]">
         <div className="border-r bg-card @md:bg-background @md:p-4 @xl:p-5">

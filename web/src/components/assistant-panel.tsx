@@ -104,7 +104,11 @@ export function AssistantPanel() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [heard, setHeard] = useState(""); // the newest reply, read out once by screen readers
   const end = useRef<HTMLDivElement>(null);
+  const launcher = useRef<HTMLButtonElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const userMoved = useRef(false); // focus moves only after the user opens or closes, never on page load
   const docId = path.match(/^\/app\/documents\/(\d+)/)?.[1];
 
   useLayoutEffect(() => {
@@ -123,6 +127,12 @@ export function AssistantPanel() {
     if (mode !== "closed") localStorage.setItem(SIZE, mode);
     return () => { delete document.documentElement.dataset.assistant; };
   }, [mode]);
+  // opening puts the cursor in the question box; closing returns focus to the button that opened it
+  useEffect(() => {
+    if (!userMoved.current) return;
+    if (mode === "closed") launcher.current?.focus();
+    else input.current?.focus();
+  }, [mode]);
   // braces: newer browsers return a Promise from scrollIntoView, and an effect may only return a cleanup
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs, busy]);
 
@@ -132,7 +142,8 @@ export function AssistantPanel() {
     else localStorage.removeItem(CHAT);
   }
 
-  const open = () => setMode((localStorage.getItem(SIZE) as Mode | null) ?? "small");
+  const open = () => { userMoved.current = true; setMode((localStorage.getItem(SIZE) as Mode | null) ?? "small"); };
+  const close = () => { userMoved.current = true; setMode("closed"); };
 
   function newChat() {
     keep(null);
@@ -164,6 +175,7 @@ export function AssistantPanel() {
       });
       keep(r.chat_id);
       setMsgs((m) => [...m, { role: "assistant", content: r.reply, steps: r.steps }]);
+      setHeard(r.reply);
     } catch (err) {
       setMsgs((m) => m.slice(0, -1));
       setText((t) => (t.trim() ? t : q)); // the question stays in the box to send again
@@ -181,6 +193,7 @@ export function AssistantPanel() {
   if (mode === "closed")
     return (
       <button
+        ref={launcher}
         onClick={open}
         aria-label="Open the assistant"
         className="fixed right-4 bottom-20 z-30 grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg md:right-6 md:bottom-6"
@@ -189,7 +202,7 @@ export function AssistantPanel() {
       </button>
     );
 
-  const icon = "grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50";
+  const icon = "grid size-8 pointer-coarse:size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50";
   const label = "text-[11px] font-semibold tracking-wide text-muted-foreground uppercase";
   const chip = (s: { q: string; icon: typeof Wallet }) => (
     <button key={s.q} disabled={busy} onClick={() => ask(s.q)}
@@ -203,10 +216,12 @@ export function AssistantPanel() {
   return (
     <aside
       aria-label="Assistant"
+      onKeyDown={(e) => { if (e.key === "Escape" && !e.nativeEvent.isComposing) close(); }}
       className={`fixed z-40 flex flex-col bg-card max-md:inset-0 ${
         mode === "small"
           ? "md:right-6 md:bottom-6 md:h-[560px] md:w-[380px] md:overflow-hidden md:rounded-2xl md:border md:shadow-2xl"
-          : "md:inset-y-0 md:right-0 md:w-[380px] md:border-l"
+          : // docked from 1280px up (globals.css); between 768 and 1280 it shows as the small window
+            "md:max-xl:right-6 md:max-xl:bottom-6 md:max-xl:h-[560px] md:max-xl:w-[380px] md:max-xl:overflow-hidden md:max-xl:rounded-2xl md:max-xl:border md:max-xl:shadow-2xl xl:inset-y-0 xl:right-0 xl:w-[380px] xl:border-l"
       }`}
     >
       <header className="flex items-center gap-1 border-b px-3 py-2">
@@ -221,11 +236,11 @@ export function AssistantPanel() {
           <History className="size-4" />
         </button>
         <button className={icon} aria-label="New chat" disabled={busy} onClick={newChat}><Plus className="size-4" /></button>
-        <button className={`${icon} max-md:hidden`} aria-label={mode === "small" ? "Dock to the side" : "Make it small"}
+        <button className={`${icon} max-xl:hidden`} aria-label={mode === "small" ? "Dock to the side" : "Make it small"}
           onClick={() => setMode(mode === "small" ? "docked" : "small")}>
           {mode === "small" ? <PanelRight className="size-4" /> : <Minimize2 className="size-4" />}
         </button>
-        <button className={icon} aria-label="Close" onClick={() => setMode("closed")}><X className="size-4" /></button>
+        <button className={icon} aria-label="Close" onClick={close}><X className="size-4" /></button>
       </header>
 
       {chats ? (
@@ -322,9 +337,11 @@ export function AssistantPanel() {
       )}
 
       <div className="border-t p-3">
-        {error && <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+        <p className="sr-only" aria-live="polite">{heard}</p>
+        {error && <p role="alert" className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
         <form onSubmit={send} className="flex items-end gap-2 rounded-xl border bg-background p-1.5 pl-3 focus-within:ring-2 focus-within:ring-ring">
           <textarea
+            ref={input}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) send(e); }}

@@ -332,7 +332,7 @@ export default function ReviewPage() {
         </div>
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(280px,1fr)_minmax(380px,1.2fr)_260px] lg:grid-cols-[1fr_1.25fr]">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(280px,1fr)_minmax(380px,1.2fr)_260px] lg:grid-cols-[1fr_1.25fr]">
         <Viewer id={id} mime={detail.mime} fileName={detail.file_name} onReadAgain={canReadAgain ? () => (dirty ? setConfirm("read") : readAgain()) : undefined} onDelete={() => setConfirm("delete")} />
 
         {detail.status === "processing" && <Panel className="p-6 text-muted-foreground">Reading the document…</Panel>}
@@ -345,7 +345,7 @@ export default function ReviewPage() {
         )}
 
         {doc && (
-          <form className="rounded-xl border bg-card px-5 shadow-xs" onSubmit={(e) => e.preventDefault()} aria-label="Document fields">
+          <form className="rounded-xl border bg-card px-5 shadow-xs max-lg:order-2" onSubmit={(e) => e.preventDefault()} aria-label="Document fields">
             <Group title="Details">
               <div className="grid gap-x-4 gap-y-3.5 sm:grid-cols-2">
                 <FieldBox label="Type" id="doc_type">
@@ -364,13 +364,14 @@ export default function ReviewPage() {
                 <Text label="Vendor" id="vendor" doc={doc} edit={edit} flagged={flagged} />
                 <Text label="Branch" id="branch" doc={doc} edit={edit} flagged={flagged} />
                 <div className="sm:col-span-2">
-                  <FieldBox label="Issue date" id="issue_date">
+                  <FieldBox label="Issue date" id="issue_date" flagged={dateUnclear || flagged.has("issue_date")}>
                     <input
                       id="issue_date"
                       type="date"
                       className={cn(inputClass, (dateUnclear || flagged.has("issue_date")) && flagClass)}
                       value={dateUnclear ? "" : doc.issue_date ?? ""}
                       disabled={dateUnclear}
+                      aria-invalid={dateUnclear || flagged.has("issue_date") || undefined}
                       aria-describedby={dateUnclear ? "date-why" : undefined}
                       onChange={(e) => edit({ issue_date: e.target.value || null })}
                     />
@@ -402,8 +403,8 @@ export default function ReviewPage() {
                   )}
                 </div>
                 {doc.doc_type === "invoice" && (
-                  <FieldBox label="Due date" id="due_date">
-                    <input id="due_date" type="date" className={cn(inputClass, flagged.has("due_date") && flagClass)} value={doc.due_date ?? ""} onChange={(e) => edit({ due_date: e.target.value || null })} />
+                  <FieldBox label="Due date" id="due_date" flagged={flagged.has("due_date")}>
+                    <input id="due_date" type="date" aria-invalid={flagged.has("due_date") || undefined} className={cn(inputClass, flagged.has("due_date") && flagClass)} value={doc.due_date ?? ""} onChange={(e) => edit({ due_date: e.target.value || null })} />
                   </FieldBox>
                 )}
                 <Text label="Currency" id="currency" doc={doc} edit={edit} flagged={flagged} list="currencies" />
@@ -417,36 +418,41 @@ export default function ReviewPage() {
 
             <Group title="Line items">
               <div className="overflow-x-auto">
-                {/* number boxes fit values like 1.875 and 9999.99; the description takes the rest */}
-                <table className="w-full min-w-[340px] table-fixed text-sm">
-                  <thead>
+                {/* money boxes fit values like 1250000.00; the description takes the rest.
+                    Phones: each line is a small card, description on top and the three numbers under it. */}
+                <table className="w-full table-fixed text-sm max-sm:block sm:min-w-[380px]">
+                  <thead className="max-sm:hidden">
                     <tr className="text-left text-xs text-muted-foreground">
                       <th className="px-1 pb-1.5 font-medium">Description</th>
                       <th className="w-14 px-1 pb-1.5 text-right font-medium">Qty</th>
-                      <th className="w-[4.5rem] px-1 pb-1.5 text-right font-medium">Unit price</th>
-                      <th className="w-[4.5rem] px-1 pb-1.5 text-right font-medium">Amount</th>
-                      <th className="w-8" />
+                      <th className="w-24 px-1 pb-1.5 text-right font-medium">Unit price</th>
+                      <th className="w-24 px-1 pb-1.5 text-right font-medium">Amount</th>
+                      <th className="w-10" />
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="max-sm:block max-sm:divide-y">
                     {doc.items.map((it, n) => (
-                      <tr key={n} className={cn(flagged.has(`items[${n}]`) && "bg-warn-soft")}>
-                        {(["description", "quantity", "unit_price", "amount"] as const).map((k) => (
-                          <td key={k} className="p-0.5">
+                      <tr key={n} className={cn("max-sm:grid max-sm:grid-cols-[4rem_1fr_1fr_auto] max-sm:py-1.5", flagged.has(`items[${n}]`) && "bg-warn-soft")}>
+                        {(["description", "quantity", "unit_price", "amount"] as const).map((k, c) => (
+                          <td key={k} data-label={PHONE_LABEL[k]} className={cn("p-0.5",
+                            c === 0 ? "max-sm:col-span-3" : "max-sm:row-start-2 max-sm:before:block max-sm:before:px-1 max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]",
+                            c === 1 && "max-sm:col-start-1", c === 2 && "max-sm:col-start-2", c === 3 && "max-sm:col-start-3")}>
                             <input
                               aria-label={`Line ${n + 1} ${k.replace("_", " ")}`}
+                              aria-invalid={flagged.has(`items[${n}]`) || undefined}
                               inputMode={k === "description" ? undefined : "decimal"}
-                              className={cn(inputClass, "h-8", k === "description" ? "px-2" : "px-1 text-right tabular-nums")}
+                              className={cn(inputClass, "h-8 pointer-coarse:h-11", k === "description" ? "px-2" : "px-1 text-right tabular-nums")}
                               value={it[k] ?? ""}
                               onChange={(e) => editItem(n, { [k]: blank(e.target.value) })}
                             />
                           </td>
                         ))}
-                        <td className="p-0.5 text-center">
+                        <td className="p-0.5 text-center whitespace-nowrap max-sm:col-start-4 max-sm:row-start-1">
+                          {flagged.has(`items[${n}]`) && <b className="text-warn" aria-hidden>!</b>}
                           <button
                             type="button"
                             aria-label={`Remove line ${n + 1}`}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"
+                            className="rounded-md p-1.5 pointer-coarse:p-3.5 text-muted-foreground hover:bg-secondary"
                             onClick={() => { setDoc((d) => d && { ...d, items: d.items.filter((_, i) => i !== n) }); setDirty(true); }}
                           >
                             <X className="size-4" />
@@ -482,7 +488,7 @@ export default function ReviewPage() {
         )}
 
         {doc && (
-          <Panel className="p-4 lg:col-span-2 xl:col-span-1 xl:sticky xl:top-5">
+          <Panel className="p-4 max-lg:order-1 lg:col-span-2 xl:col-span-1 xl:sticky xl:top-5">
             <h2 className="mb-2.5 flex items-center justify-between text-sm font-semibold">
               Checks
               {issues.length > 0 && !checkError && (
@@ -531,7 +537,7 @@ export default function ReviewPage() {
             {second.length > 0 && (
               <div className="mb-3 rounded-md border p-3 text-sm">
                 <p className="font-medium">Second reading</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">A second AI read this receipt. Compare with the photo first.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Another reading found different values. Compare with the photo first.</p>
                 <ul className="mt-1.5 space-y-1 text-xs">
                   {second.map((c) => (
                     <li key={c.field} className="flex items-center justify-between gap-2">
@@ -638,7 +644,8 @@ export default function ReviewPage() {
 }
 
 const inputClass =
-  "h-9 w-full rounded-md border border-input bg-card px-2.5 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-secondary disabled:text-muted-foreground placeholder:text-muted-foreground";
+  "h-9 pointer-coarse:h-11 w-full rounded-md border border-input bg-card px-2.5 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-secondary disabled:text-muted-foreground placeholder:text-muted-foreground";
+const PHONE_LABEL = { description: "", quantity: "Qty", unit_price: "Unit price", amount: "Amount" };
 const flagClass = "border-warn-line ring-1 ring-warn-line";
 
 const ITEM_FIELD = /^items\[(\d+)\]\.(\w+)$/;
@@ -672,10 +679,14 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function FieldBox({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
+// a flagged field gets a "!" by its label, so it is not marked by colour alone
+function FieldBox({ label, id, flagged, children }: { label: string; id: string; flagged?: boolean; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-medium text-foreground/80">{label}</label>
+      <label htmlFor={id} className="text-[13px] font-medium text-foreground/80">
+        {label}
+        {flagged && <><b className="ml-1 text-warn" aria-hidden>!</b><span className="sr-only"> (check this)</span></>}
+      </label>
       {children}
     </div>
   );
@@ -688,10 +699,11 @@ function Text({ label, id, doc, edit, flagged, numeric, list }: {
   label: string; id: TextKey; doc: Doc; edit: (p: Partial<Doc>) => void; flagged: Set<string>; numeric?: boolean; list?: string;
 }) {
   return (
-    <FieldBox label={label} id={id}>
+    <FieldBox label={label} id={id} flagged={flagged.has(id)}>
       <input
         id={id}
         list={list}
+        aria-invalid={flagged.has(id) || undefined}
         inputMode={numeric ? "decimal" : undefined}
         placeholder="Not on document"
         className={cn(inputClass, flagged.has(id) && flagClass)}
@@ -732,7 +744,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
   }, [id, page]);
 
   const label = useMemo(() => (pages > 1 ? `${fileName} · page ${page + 1} of ${pages}` : fileName), [fileName, page, pages]);
-  const tool = "grid size-8 place-items-center rounded-md border border-input bg-card hover:bg-secondary disabled:opacity-40";
+  const tool = "grid size-8 pointer-coarse:size-11 place-items-center rounded-md border border-input bg-card hover:bg-secondary disabled:opacity-40";
 
   return (
     <section aria-label="Original document" className="overflow-hidden rounded-xl border bg-card shadow-xs xl:sticky xl:top-5">
@@ -748,7 +760,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
           <button className={tool} aria-label="Zoom out" disabled={zoom <= 1} onClick={() => setZoom(zoom - 0.5)}><ZoomOut className="size-4" /></button>
           <button className={tool} aria-label="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(zoom + 0.5)}><ZoomIn className="size-4" /></button>
           <button className={tool} aria-label="Rotate" onClick={() => setTurn((turn + 90) % 360)}><RotateCw className="size-4" /></button>
-          {onReadAgain && <button className="h-8 rounded-md border border-input px-2.5 font-medium text-foreground hover:bg-secondary" onClick={onReadAgain}>Read again</button>}
+          {onReadAgain && <button className="h-8 pointer-coarse:h-11 rounded-md border border-input px-2.5 font-medium text-foreground hover:bg-secondary" onClick={onReadAgain}>Read again</button>}
           <button className={tool} aria-label="Delete document" onClick={onDelete}><Trash2 className="size-4" /></button>
         </span>
       </div>

@@ -43,7 +43,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-6xl [&>*]:max-w-2xl">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <ThemeToggle className="md:hidden" />
@@ -75,7 +75,7 @@ export default function AccountPage() {
           </DialogHeader>
           <input
             aria-label="Type DELETE to confirm"
-            className="h-9 rounded-md border border-input px-2.5 text-sm"
+            className="h-9 rounded-md border border-input px-2.5 text-sm pointer-coarse:h-11"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             autoFocus
@@ -151,7 +151,7 @@ function WebhookCard() {
     <section className="mt-5 rounded-xl border bg-card px-5 py-4 shadow-xs">
       <h2 className="font-semibold">Webhook</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Send each document to your own address, like an n8n webhook. You get the data read from it, not the file.
+        Send each document to your own address, like an n8n webhook. It gets the data read from each document. The file stays here.
         Saving an address makes a new secret.
       </p>
       <div className="mt-4 grid gap-1.5">

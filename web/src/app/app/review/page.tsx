@@ -11,13 +11,13 @@ import { clearSkipped, skippedIds } from "@/lib/utils";
 // Once every waiting document was skipped, it starts again from the oldest.
 export default function ReviewQueue() {
   const router = useRouter();
-  const [empty, setEmpty] = useState(false);
+  const [empty, setEmpty] = useState<"none" | "done" | null>(null); // none: no documents at all yet
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getJSON<DocumentRow[]>("/documents?status=needs_review&oldest=true&limit=200")
       .then((rows) => {
-        if (!rows.length) return setEmpty(true);
+        if (!rows.length) return getJSON<DocumentRow[]>("/documents?limit=1").then((any) => setEmpty(any.length ? "done" : "none"));
         const next = rows.find((r) => !skippedIds().includes(r.id));
         if (!next) clearSkipped();
         router.replace(`/app/documents/${(next ?? rows[0]).id}`);
@@ -28,9 +28,11 @@ export default function ReviewQueue() {
   if (error) return <p className="text-bad">{error}</p>;
   if (!empty) return <p className="text-muted-foreground">Opening the review queue…</p>;
   return (
-    <div className="mx-auto mt-16 max-w-md text-center">
+    <div className="max-w-6xl rounded-xl border bg-card px-6 py-14 text-center shadow-xs">
       <h1 className="text-xl font-semibold">Nothing to review</h1>
-      <p className="mt-1.5 text-muted-foreground">Every document passed its checks or has been reviewed.</p>
+      <p className="mt-1.5 text-muted-foreground">
+        {empty === "none" ? "Upload a receipt or invoice. Any that need a look will wait here." : "Every document passed its checks or has been reviewed."}
+      </p>
       <Button asChild className="mt-5"><Link href="/app/upload">Upload documents</Link></Button>
     </div>
   );
