@@ -79,9 +79,6 @@ async def lifespan(_):
 
 
 app = FastAPI(title='Crosscheck API', lifespan=lifespan)
-# the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
-app.add_middleware(CORSMiddleware, allow_origins=[o.strip().rstrip('/') for o in os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(',')],
-                   allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped', 'Content-Disposition'])  # export file names
 _jwks = None
 
 
@@ -483,6 +480,12 @@ async def limit_body_size(request, call_next):
         except HTTPException as e:
             return Response(e.detail, status_code=e.status_code)
     return await call_next(request)
+
+
+# added last, so it wraps the size check too: the browser can read a 401 or 413 from it
+# the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
+app.add_middleware(CORSMiddleware, allow_origins=[o.strip().rstrip('/') for o in os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(',')],
+                   allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped', 'Content-Disposition'])  # export file names
 
 
 HEIF_BRANDS = (b'heic', b'heix', b'hevc', b'hevx', b'heim', b'heis', b'mif1', b'msf1')

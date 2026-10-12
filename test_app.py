@@ -830,7 +830,9 @@ try:
     # hardening: small bodies everywhere but the upload, and the upload's sign-in is checked before its body is read
     assert c.post('/check', content=b'{}', headers={'content-length': str(2 * 1024 * 1024), 'content-type': 'application/json'}).status_code == 413
     assert c.put('/documents/1', content=b'{}', headers={'content-length': 'x', 'content-type': 'application/json'}).status_code == 411
-    assert anon.post('/documents', content=b'x', headers={'content-length': '1000', 'content-type': 'multipart/form-data; boundary=x'}).status_code == 401
+    early = anon.post('/documents', content=b'x', headers={'content-length': '1000', 'content-type': 'multipart/form-data; boundary=x',
+                                                           'origin': 'http://localhost:3000'})
+    assert early.status_code == 401 and early.headers['access-control-allow-origin'] == 'http://localhost:3000'  # the browser can read it
     # Supabase's keys unreachable: try again later (503), never "sign in again" (the web app would sign the user out)
     real_key = app.signing_key
     app.signing_key = lambda t: (_ for _ in ()).throw(jwt.PyJWKClientConnectionError('timed out'))
