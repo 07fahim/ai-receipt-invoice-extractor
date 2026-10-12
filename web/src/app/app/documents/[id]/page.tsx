@@ -364,7 +364,7 @@ export default function ReviewPage() {
                 <Text label="Vendor" id="vendor" doc={doc} edit={edit} flagged={flagged} />
                 <Text label="Branch" id="branch" doc={doc} edit={edit} flagged={flagged} />
                 <div className="sm:col-span-2">
-                  <FieldBox label="Issue date" id="issue_date">
+                  <FieldBox label="Issue date" id="issue_date" flagged={dateUnclear || flagged.has("issue_date")}>
                     <input
                       id="issue_date"
                       type="date"
@@ -402,7 +402,7 @@ export default function ReviewPage() {
                   )}
                 </div>
                 {doc.doc_type === "invoice" && (
-                  <FieldBox label="Due date" id="due_date">
+                  <FieldBox label="Due date" id="due_date" flagged={flagged.has("due_date")}>
                     <input id="due_date" type="date" className={cn(inputClass, flagged.has("due_date") && flagClass)} value={doc.due_date ?? ""} onChange={(e) => edit({ due_date: e.target.value || null })} />
                   </FieldBox>
                 )}
@@ -425,7 +425,7 @@ export default function ReviewPage() {
                       <th className="w-14 px-1 pb-1.5 text-right font-medium">Qty</th>
                       <th className="w-24 px-1 pb-1.5 text-right font-medium">Unit price</th>
                       <th className="w-24 px-1 pb-1.5 text-right font-medium">Amount</th>
-                      <th className="w-8" />
+                      <th className="w-10" />
                     </tr>
                   </thead>
                   <tbody>
@@ -435,6 +435,7 @@ export default function ReviewPage() {
                           <td key={k} className="p-0.5">
                             <input
                               aria-label={`Line ${n + 1} ${k.replace("_", " ")}`}
+                              aria-invalid={flagged.has(`items[${n}]`) || undefined}
                               inputMode={k === "description" ? undefined : "decimal"}
                               className={cn(inputClass, "h-8", k === "description" ? "px-2" : "px-1 text-right tabular-nums")}
                               value={it[k] ?? ""}
@@ -442,7 +443,8 @@ export default function ReviewPage() {
                             />
                           </td>
                         ))}
-                        <td className="p-0.5 text-center">
+                        <td className="p-0.5 text-center whitespace-nowrap">
+                          {flagged.has(`items[${n}]`) && <b className="text-warn" aria-hidden>!</b>}
                           <button
                             type="button"
                             aria-label={`Remove line ${n + 1}`}
@@ -672,10 +674,14 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function FieldBox({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
+// a flagged field gets a "!" by its label, so it is not marked by colour alone
+function FieldBox({ label, id, flagged, children }: { label: string; id: string; flagged?: boolean; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-medium text-foreground/80">{label}</label>
+      <label htmlFor={id} className="text-[13px] font-medium text-foreground/80">
+        {label}
+        {flagged && <><b className="ml-1 text-warn" aria-hidden>!</b><span className="sr-only"> (check this)</span></>}
+      </label>
       {children}
     </div>
   );
@@ -688,10 +694,11 @@ function Text({ label, id, doc, edit, flagged, numeric, list }: {
   label: string; id: TextKey; doc: Doc; edit: (p: Partial<Doc>) => void; flagged: Set<string>; numeric?: boolean; list?: string;
 }) {
   return (
-    <FieldBox label={label} id={id}>
+    <FieldBox label={label} id={id} flagged={flagged.has(id)}>
       <input
         id={id}
         list={list}
+        aria-invalid={flagged.has(id) || undefined}
         inputMode={numeric ? "decimal" : undefined}
         placeholder="Not on document"
         className={cn(inputClass, flagged.has(id) && flagClass)}
