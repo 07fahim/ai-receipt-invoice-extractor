@@ -826,8 +826,68 @@ try:
     # on the fixed document, items_sum now passes; the amount also differs from the AI's first reading (extracted),
     # and a value moved on from the AI's first reading is not re-flagged, so the second reading drops out too
     assert race_row['checks'] == [], race_row['checks']
+
+    # hardening: small bodies everywhere but the upload, and the upload's sign-in is checked before its body is read
+    assert c.post('/check', content=b'{}', headers={'content-length': str(2 * 1024 * 1024), 'content-type': 'application/json'}).status_code == 413
+    assert c.put('/documents/1', content=b'{}', headers={'content-length': 'x', 'content-type': 'application/json'}).status_code == 411
+    assert anon.post('/documents', content=b'x', headers={'content-length': '1000', 'content-type': 'multipart/form-data; boundary=x'}).status_code == 401
+    # Supabase's keys unreachable: try again later (503), never "sign in again" (the web app would sign the user out)
+    real_key = app.signing_key
+    app.signing_key = lambda t: (_ for _ in ()).throw(jwt.PyJWKClientConnectionError('timed out'))
+    assert c.get('/usage').status_code == 503
+    app.signing_key = real_key
+    assert c.get('/usage', headers=as_user(str(uuid.uuid4()), is_anonymous=True)).status_code == 401
+
+    # parallel uploads can't pass the daily cap together
+    app.DAILY_UPLOAD_LIMIT = 2
+    kim = as_user(str(uuid.uuid4()))
+    results = []
+    def one():
+        r = c.post('/documents', files=[('files', ('k.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=kim)
+        results.append(r.status_code == 202 and 'id' in r.json()[0])
+    workers = [threading.Thread(target=one) for _ in range(6)]
+    for w in workers: w.start()
+    for w in workers: w.join()
+    assert sum(results) == 2, results
+    app.DAILY_UPLOAD_LIMIT = 50
+    # the app-wide cap on first readings
+    with store.conn() as con:
+        app.READS_DAILY_LIMIT = con.execute('SELECT count(*) AS n FROM reads').fetchone()['n']
+    r = c.post('/documents', files=[('files', ('x.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=as_user(str(uuid.uuid4())))
+    assert r.status_code == 429 and 'demo' in r.json()['detail'], r.text
+    app.READS_DAILY_LIMIT = 450
+
+    # the assistant counts a message before the model call (parallel ones take turns) and gives it back when no model answers
+    real_chat = app.providers.chat
+    app.providers.chat = lambda *a, **k: (_ for _ in ()).throw(RuntimeError('all models busy'))
+    lee_id = str(uuid.uuid4())
+    assert c.post('/assistant/messages', json={'text': 'hi'}, headers=as_user(lee_id)).status_code == 503
+    with store.conn() as con:
+        assert con.execute('SELECT count(*) AS n FROM assistant_messages WHERE user_id = %s', (lee_id,)).fetchone()['n'] == 0
+    app.providers.chat = real_chat
+    # a tool argument like 1e999 is a tool error the model sees, not a crash
+    with store.conn() as con:
+        assert 'error' in json.loads(app.assistant.run_tool(con, lee_id, 'search_documents', {'limit': 1e999}))
+
+    # a document stuck in 'processing' (its job lost in a deploy) is read again by the sweep
+    stuck = c.post('/documents', files=[('files', ('s.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))]).json()[0]['id']
+    with store.conn() as con:
+        con.execute("UPDATE documents SET status = 'processing', updated_at = now() - interval '1 hour' WHERE id = %s", (stuck,))
+    app.resume_stale()
+    for _ in range(50):
+        if c.get(f'/documents/{stuck}').json()['status'] != 'processing':
+            break
+        time.sleep(0.1)
+    assert c.get(f'/documents/{stuck}').json()['status'] == 'passed'
+    # control characters typed into a field can't break the Excel export
+    assert app.cell('vendor', 'A\x01B', xlsx=True) == 'AB'
     print('ok')
 finally:
-    import store
-    with store.conn() as con:
-        con.execute(f'DROP SCHEMA {store.schema_name()} CASCADE')
+    import psycopg, store
+    for attempt in range(5):  # the background loops (webhooks, stuck-document sweep) may hold a lock for a moment
+        try:
+            with store.conn() as con:
+                con.execute(f'DROP SCHEMA {store.schema_name()} CASCADE')
+            break
+        except psycopg.errors.DeadlockDetected:
+            time.sleep(1)
