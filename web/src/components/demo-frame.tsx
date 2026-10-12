@@ -45,7 +45,7 @@ export function DemoFrame({ frameRef, shown, label, pause, className, children }
   return (
     <div ref={frameRef} data-shown={shown || undefined}
       className={cn("rise overflow-hidden rounded-xl border bg-card shadow-[0_18px_40px_-18px_rgba(17,24,39,0.35)]", className)}>
-      <div className="flex h-10 items-center gap-1.5 border-b bg-background px-4">
+      <div className="flex h-10 items-center gap-1.5 border-b bg-background px-4 pointer-coarse:h-11">
         <span className="size-2.5 rounded-full bg-border" aria-hidden />
         <span className="size-2.5 rounded-full bg-border" aria-hidden />
         <span className="size-2.5 rounded-full bg-border" aria-hidden />
@@ -56,7 +56,9 @@ export function DemoFrame({ frameRef, shown, label, pause, className, children }
           </button>
         )}
       </div>
-      <div role="img" aria-label={label} className="@container relative aspect-[16/10] w-full overflow-hidden bg-background">
+      {/* paused also freezes CSS animations inside (typing dots, caret) */}
+      <div role="img" aria-label={label} data-paused={pause?.paused || undefined}
+        className="@container [&[data-paused]_*]:[animation-play-state:paused] relative aspect-[16/10] w-full overflow-hidden bg-background">
         <div aria-hidden className="contents">{children}</div>
       </div>
     </div>
