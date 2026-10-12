@@ -12,11 +12,11 @@
 
 <p align="center">
   <a href="https://github.com/07fahim/ai-receipt-invoice-extractor/actions/workflows/ci.yml"><img src="https://github.com/07fahim/ai-receipt-invoice-extractor/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://crosscheck-gamma.vercel.app"><img src="https://img.shields.io/badge/live_demo-crosscheck--gamma.vercel.app-1D4ED8" alt="Live demo"></a>
+  <a href="https://crosscheck.fahimfaiyaz.dev"><img src="https://img.shields.io/badge/live_demo-crosscheck.fahimfaiyaz.dev-1D4ED8" alt="Live demo"></a>
 </p>
 
 <p align="center">
-  <a href="https://crosscheck-gamma.vercel.app">Live demo</a> ·
+  <a href="https://crosscheck.fahimfaiyaz.dev">Live demo</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#measured-results">Measured results</a> ·
   <a href="#run-it-locally">Run it locally</a>
@@ -24,7 +24,7 @@
 
 ![Demo: a receipt line that does not add up is flagged, the suggested fix is applied in one click and every check passes, on a US grocery receipt and a handwritten Bangla memo.](assets/fix.gif)
 
-> **Try it:** sign up on the [live demo](https://crosscheck-gamma.vercel.app) and use the sample receipts. The free
+> **Try it:** sign up on the [live demo](https://crosscheck.fahimfaiyaz.dev) and use the sample receipts. The free
 > server sleeps when idle, so the first request can take about a minute.
 
 ## Highlights
@@ -294,7 +294,7 @@ Each Python test prints `ok`. GitHub Actions runs them on every push, with a thr
 
 ## Privacy
 
-What is stored, where, and who sees it: https://crosscheck-gamma.vercel.app/privacy
+What is stored, where, and who sees it: https://crosscheck.fahimfaiyaz.dev/privacy
 
 ## Licence
 
