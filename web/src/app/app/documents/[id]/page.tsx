@@ -332,7 +332,7 @@ export default function ReviewPage() {
         </div>
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(280px,1fr)_minmax(380px,1.2fr)_260px] lg:grid-cols-[1fr_1.25fr]">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(280px,1fr)_minmax(380px,1.2fr)_260px] lg:grid-cols-[1fr_1.25fr]">
         <Viewer id={id} mime={detail.mime} fileName={detail.file_name} onReadAgain={canReadAgain ? () => (dirty ? setConfirm("read") : readAgain()) : undefined} onDelete={() => setConfirm("delete")} />
 
         {detail.status === "processing" && <Panel className="p-6 text-muted-foreground">Reading the document…</Panel>}
