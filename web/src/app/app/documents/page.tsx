@@ -153,11 +153,11 @@ export default function DocumentsPage() {
       )}
       {rows && rows.length > 0 && (
         <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-          {/* narrow screens drop File, then Date, so Status stays in view */}
+          {/* below lg (where the nav takes 232px) File and Date are hidden, so Status stays in view */}
           <table className="w-full text-sm lg:min-w-[640px]">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="w-10 py-2.5 pl-4">
+                <th className="w-10 py-2.5 pl-3 sm:pl-4">
                   <input
                     type="checkbox"
                     aria-label="Select all"
@@ -167,17 +167,17 @@ export default function DocumentsPage() {
                     onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
                   />
                 </th>
-                <th className="px-4 py-2.5 font-medium">Vendor</th>
-                <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Date</th>
-                <th className="px-4 py-2.5 text-right font-medium">Total</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="hidden px-4 py-2.5 font-medium lg:table-cell">File</th>
+                <th className="px-2 py-2.5 sm:px-4 font-medium">Vendor</th>
+                <th className="hidden px-2 py-2.5 sm:px-4 font-medium lg:table-cell">Date</th>
+                <th className="px-2 py-2.5 sm:px-4 text-right font-medium">Total</th>
+                <th className="px-2 py-2.5 sm:px-4 font-medium">Status</th>
+                <th className="hidden px-2 py-2.5 sm:px-4 font-medium lg:table-cell">File</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {rows.map((r) => (
                 <tr key={r.id} className="hover:bg-secondary/60">
-                  <td className="w-10 py-2.5 pl-4">
+                  <td className="w-10 py-2.5 pl-3 sm:pl-4">
                     <input
                       type="checkbox"
                       aria-label={`Select ${r.vendor ?? r.file_name}`}
@@ -187,15 +187,15 @@ export default function DocumentsPage() {
                       onChange={() => toggle(r.id)}
                     />
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-2 py-2.5 sm:px-4">
                     <Link href={`/app/documents/${r.id}`} className="font-medium text-primary hover:underline">
                       {r.vendor ?? (r.status === "processing" ? "Being read" : "Unknown vendor")}
                     </Link>
                   </td>
-                  <td className="hidden px-4 py-2.5 whitespace-nowrap tabular-nums sm:table-cell">{r.issue_date ?? "–"}</td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap tabular-nums">{money(r.total, r.currency)}</td>
-                  <td className="px-4 py-2.5"><StatusBadge status={r.status} /></td>
-                  <td className="hidden max-w-48 truncate px-4 py-2.5 text-muted-foreground lg:table-cell" title={r.file_name}>{r.file_name}</td>
+                  <td className="hidden px-2 py-2.5 sm:px-4 whitespace-nowrap tabular-nums lg:table-cell">{r.issue_date ?? "–"}</td>
+                  <td className="px-2 py-2.5 text-right tabular-nums sm:px-4">{money(r.total, r.currency)}</td>
+                  <td className="px-2 py-2.5 sm:px-4"><StatusBadge status={r.status} /></td>
+                  <td className="hidden max-w-48 truncate px-2 py-2.5 sm:px-4 text-muted-foreground lg:table-cell" title={r.file_name}>{r.file_name}</td>
                 </tr>
               ))}
             </tbody>
