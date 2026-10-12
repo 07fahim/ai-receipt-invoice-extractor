@@ -28,6 +28,7 @@ from PIL import Image, ImageOps
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
@@ -430,11 +431,23 @@ def resume_stuck():
     return ids
 
 
+SMALL_BODY = 1024 * 1024  # every route but the upload takes a small JSON body
+
+
 @app.middleware('http')
-async def limit_upload_size(request, call_next):
-    # Relies on Content-Length: chunked uploads skip this check and spool to disk.
-    if int(request.headers.get('content-length') or 0) > MAX_FILES * MAX_BYTES + 1024 * 1024:
+async def limit_body_size(request, call_next):
+    # Runs before FastAPI reads and parses the body, which it does before the sign-in check
+    upload = request.method == 'POST' and request.url.path == '/documents'
+    length = request.headers.get('content-length')
+    if request.method in ('POST', 'PUT', 'PATCH') and not (length or '').isdigit():
+        return Response('length required', status_code=411)  # a chunked body would skip the size check
+    if int(length or 0) > (MAX_FILES * MAX_BYTES + SMALL_BODY if upload else SMALL_BODY):
         return Response('request too large', status_code=413)
+    if upload:  # up to 200 MB: only signed-in users may send it
+        try:
+            await run_in_threadpool(current_user, request.headers.get('authorization'))
+        except HTTPException as e:
+            return Response(e.detail, status_code=e.status_code)
     return await call_next(request)
 
 
