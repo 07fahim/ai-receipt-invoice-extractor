@@ -75,7 +75,7 @@ export default function AccountPage() {
           </DialogHeader>
           <input
             aria-label="Type DELETE to confirm"
-            className="h-9 rounded-md border border-input px-2.5 text-sm"
+            className="h-9 rounded-md border border-input px-2.5 text-sm pointer-coarse:h-11"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             autoFocus
