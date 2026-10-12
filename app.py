@@ -87,8 +87,13 @@ def current_user(authorization: str | None = Header(None)) -> str:
     try:
         claims = jwt.decode(token, signing_key(token), algorithms=['ES256', 'RS256'], audience='authenticated', options={'require': ['exp', 'sub']}, leeway=30,  # the PC's clock may run a little behind Supabase's
                             issuer=f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1')
+    except jwt.PyJWKClientConnectionError as e:  # Supabase unreachable: not a reason to sign the user out
+        print(f'JWKS fetch failed: {e!r}')
+        raise HTTPException(503, 'Sign-in could not be checked. Try again in a minute.')
     except jwt.PyJWTError:
         raise HTTPException(401, 'Please sign in again.')
+    if claims.get('is_anonymous'):
+        raise HTTPException(401, 'Please sign in with email or Google.')
     return claims['sub']
 
 
