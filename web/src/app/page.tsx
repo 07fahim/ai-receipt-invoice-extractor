@@ -269,7 +269,10 @@ export default function Home() {
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Try it with a sample receipt or invoice</h2>
               <p className="mt-1.5 text-white/75">Sign up free. Sample receipts and invoices are ready to try.</p>
             </div>
-            <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px]" asChild><Link href="/signup">Try the demo</Link></Button>
+            {/* dark: the card is near the secondary grey, so use the primary blue there */}
+            <Button size="lg" variant="secondary" className="h-11 px-5 text-[15px] dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90" asChild>
+              <Link href="/signup">Try the demo</Link>
+            </Button>
           </div>
         </section>
       </main>
