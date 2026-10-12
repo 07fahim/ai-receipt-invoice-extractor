@@ -161,7 +161,7 @@ export default function DocumentsPage() {
                   <input
                     type="checkbox"
                     aria-label="Select all"
-                    className="size-4 align-middle"
+                    className="size-4 pointer-coarse:size-6 align-middle"
                     checked={allSelected}
                     disabled={deleting}
                     onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
@@ -181,7 +181,7 @@ export default function DocumentsPage() {
                     <input
                       type="checkbox"
                       aria-label={`Select ${r.vendor ?? r.file_name}`}
-                      className="size-4 align-middle"
+                      className="size-4 pointer-coarse:size-6 align-middle"
                       checked={selected.has(r.id)}
                       disabled={deleting}
                       onChange={() => toggle(r.id)}

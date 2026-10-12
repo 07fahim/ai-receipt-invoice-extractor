@@ -14,7 +14,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       aria-label="Switch between light and dark theme"
       title="Light or dark theme"
-      className={cn("rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground", className)}
+      className={cn("rounded-md p-1.5 pointer-coarse:p-3 text-muted-foreground hover:bg-secondary hover:text-foreground", className)}
     >
       <Moon className="size-4 dark:hidden" />
       <Sun className="hidden size-4 dark:block" />

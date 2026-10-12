@@ -202,7 +202,7 @@ export function AssistantPanel() {
       </button>
     );
 
-  const icon = "grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50";
+  const icon = "grid size-8 pointer-coarse:size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50";
   const label = "text-[11px] font-semibold tracking-wide text-muted-foreground uppercase";
   const chip = (s: { q: string; icon: typeof Wallet }) => (
     <button key={s.q} disabled={busy} onClick={() => ask(s.q)}

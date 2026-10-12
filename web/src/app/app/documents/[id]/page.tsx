@@ -441,7 +441,7 @@ export default function ReviewPage() {
                               aria-label={`Line ${n + 1} ${k.replace("_", " ")}`}
                               aria-invalid={flagged.has(`items[${n}]`) || undefined}
                               inputMode={k === "description" ? undefined : "decimal"}
-                              className={cn(inputClass, "h-8", k === "description" ? "px-2" : "px-1 text-right tabular-nums")}
+                              className={cn(inputClass, "h-8 pointer-coarse:h-11", k === "description" ? "px-2" : "px-1 text-right tabular-nums")}
                               value={it[k] ?? ""}
                               onChange={(e) => editItem(n, { [k]: blank(e.target.value) })}
                             />
@@ -452,7 +452,7 @@ export default function ReviewPage() {
                           <button
                             type="button"
                             aria-label={`Remove line ${n + 1}`}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"
+                            className="rounded-md p-1.5 pointer-coarse:p-3 text-muted-foreground hover:bg-secondary"
                             onClick={() => { setDoc((d) => d && { ...d, items: d.items.filter((_, i) => i !== n) }); setDirty(true); }}
                           >
                             <X className="size-4" />
@@ -644,7 +644,7 @@ export default function ReviewPage() {
 }
 
 const inputClass =
-  "h-9 w-full rounded-md border border-input bg-card px-2.5 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-secondary disabled:text-muted-foreground placeholder:text-muted-foreground";
+  "h-9 pointer-coarse:h-11 w-full rounded-md border border-input bg-card px-2.5 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-secondary disabled:text-muted-foreground placeholder:text-muted-foreground";
 const PHONE_LABEL = { description: "", quantity: "Qty", unit_price: "Unit price", amount: "Amount" };
 const flagClass = "border-warn-line ring-1 ring-warn-line";
 
@@ -744,7 +744,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
   }, [id, page]);
 
   const label = useMemo(() => (pages > 1 ? `${fileName} · page ${page + 1} of ${pages}` : fileName), [fileName, page, pages]);
-  const tool = "grid size-8 place-items-center rounded-md border border-input bg-card hover:bg-secondary disabled:opacity-40";
+  const tool = "grid size-8 pointer-coarse:size-11 place-items-center rounded-md border border-input bg-card hover:bg-secondary disabled:opacity-40";
 
   return (
     <section aria-label="Original document" className="overflow-hidden rounded-xl border bg-card shadow-xs xl:sticky xl:top-5">
@@ -760,7 +760,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
           <button className={tool} aria-label="Zoom out" disabled={zoom <= 1} onClick={() => setZoom(zoom - 0.5)}><ZoomOut className="size-4" /></button>
           <button className={tool} aria-label="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(zoom + 0.5)}><ZoomIn className="size-4" /></button>
           <button className={tool} aria-label="Rotate" onClick={() => setTurn((turn + 90) % 360)}><RotateCw className="size-4" /></button>
-          {onReadAgain && <button className="h-8 rounded-md border border-input px-2.5 font-medium text-foreground hover:bg-secondary" onClick={onReadAgain}>Read again</button>}
+          {onReadAgain && <button className="h-8 pointer-coarse:h-11 rounded-md border border-input px-2.5 font-medium text-foreground hover:bg-secondary" onClick={onReadAgain}>Read again</button>}
           <button className={tool} aria-label="Delete document" onClick={onDelete}><Trash2 className="size-4" /></button>
         </span>
       </div>
