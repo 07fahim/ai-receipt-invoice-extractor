@@ -112,14 +112,15 @@ COLUMNS = 'id, user_id, file_name, mime, status, document, checks, error, vendor
           'prompt_version, tokens_in, tokens_out, created_at, updated_at, second_reading'
 
 
-def row_by_id(con, doc_id, with_file=False):
+def row_by_id(con, doc_id, with_file=False, lock=False):
     # no owner check: background jobs only; endpoints use get_row
-    return con.execute(f'SELECT {COLUMNS}{", file" if with_file else ""} FROM documents WHERE id = %s', (doc_id,)).fetchone()
+    return con.execute(f'SELECT {COLUMNS}{", file" if with_file else ""} FROM documents WHERE id = %s{" FOR UPDATE" if lock else ""}',
+                       (doc_id,)).fetchone()
 
 
-def get_row(con, doc_id, uid, with_file=False):
+def get_row(con, doc_id, uid, with_file=False, lock=False):
     # 404 (not 403) for other users' documents, so their ids reveal nothing
-    r = row_by_id(con, doc_id, with_file)
+    r = row_by_id(con, doc_id, with_file, lock)
     if r is None or str(r['user_id']) != uid:
         raise HTTPException(404, 'Document not found.')
     return r
@@ -160,8 +161,8 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
     if only_if_processing:  # the AI's reading: also kept apart, as the user first sees it, to measure corrections (corrections.py)
         fields['extracted'] = fields['document']
     only = " AND status = 'processing'" if only_if_processing else ''
-    con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
-                (*fields.values(), doc_id))
+    return con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
+                (*fields.values(), doc_id)).rowcount
 
 
 def webhook_users():  # comma-separated, so more than one of your own accounts can send events
@@ -271,11 +272,25 @@ SENDERS = ThreadPoolExecutor(8)  # a slow address holds one sender, never the ot
 SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a batch upload's first readings never wait on them
 
 
+STUCK_MINUTES = 30  # far longer than a slow reading with all its retries (about 7 minutes)
+
+
+def resume_stale():
+    # claimed first, so only one sweep starts each; a reading that was still running meanwhile can't overwrite it (only_if_processing)
+    with store.conn() as con:
+        ids = [r['id'] for r in con.execute("UPDATE documents SET updated_at = now() WHERE status = 'processing' "
+                                            "AND updated_at < now() - make_interval(mins => %s) RETURNING id", (STUCK_MINUTES,))]
+    for doc_id in ids:
+        print(f'document {doc_id} was stuck in processing: reading it again')
+        threading.Thread(target=process, args=(doc_id,), daemon=True).start()
+
+
 def deliver_events():
     # Assumes one API process. With several, claim rows with FOR UPDATE SKIP LOCKED.
     while True:
         WAKE.clear()
         try:
+            resume_stale()
             wait = dispatch()
         except Exception as e:
             print(f'webhook dispatch failed: {e!r}')
@@ -365,8 +380,8 @@ def process(doc_id):
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
                  'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
-            save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
-            queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted meanwhile)
+            if save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True):
+                queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted or already read meanwhile)
     except Exception as e:
         with store.conn() as con:
             failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
@@ -675,7 +690,7 @@ def update_document(doc_id: int, doc: Document, date_order: DateOrderValue | Non
                     if_unchanged_since: datetime | None = None, uid: str = Depends(current_user)):
     # if_unchanged_since: a change made meanwhile in another tab is not overwritten
     with store.conn() as con:
-        row = get_row(con, doc_id, uid)
+        row = get_row(con, doc_id, uid, lock=True)  # locked: a save in another tab waits, then sees this one's time and gets 409
         if row['status'] == 'processing':
             raise HTTPException(409, 'Still being read. Save again when it is done.')
         if if_unchanged_since and row['updated_at'] != if_unchanged_since:
@@ -775,7 +790,7 @@ def set_vendor_date_order(vendor: str, body: DateOrder, uid: str = Depends(curre
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
         rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
-                                       "AND status = 'needs_review'", (uid,)).fetchall()
+                                       "AND status = 'needs_review' FOR UPDATE", (uid,)).fetchall()  # a save meanwhile waits, never lost
                 if store.vendor_key(r['vendor']) == store.vendor_key(vendor)]
         for r in rows:
             save(con, r['id'], Document.model_validate(r['document']), None, uid)
