@@ -418,9 +418,10 @@ export default function ReviewPage() {
 
             <Group title="Line items">
               <div className="overflow-x-auto">
-                {/* money boxes fit values like 1250000.00; the description takes the rest */}
-                <table className="w-full min-w-[380px] table-fixed text-sm">
-                  <thead>
+                {/* money boxes fit values like 1250000.00; the description takes the rest.
+                    Phones: each line is a small card, description on top and the three numbers under it. */}
+                <table className="w-full table-fixed text-sm max-sm:block sm:min-w-[380px]">
+                  <thead className="max-sm:hidden">
                     <tr className="text-left text-xs text-muted-foreground">
                       <th className="px-1 pb-1.5 font-medium">Description</th>
                       <th className="w-14 px-1 pb-1.5 text-right font-medium">Qty</th>
@@ -429,11 +430,13 @@ export default function ReviewPage() {
                       <th className="w-10" />
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="max-sm:block max-sm:divide-y">
                     {doc.items.map((it, n) => (
-                      <tr key={n} className={cn(flagged.has(`items[${n}]`) && "bg-warn-soft")}>
-                        {(["description", "quantity", "unit_price", "amount"] as const).map((k) => (
-                          <td key={k} className="p-0.5">
+                      <tr key={n} className={cn("max-sm:grid max-sm:grid-cols-[4rem_1fr_1fr_auto] max-sm:py-1.5", flagged.has(`items[${n}]`) && "bg-warn-soft")}>
+                        {(["description", "quantity", "unit_price", "amount"] as const).map((k, c) => (
+                          <td key={k} data-label={PHONE_LABEL[k]} className={cn("p-0.5",
+                            c === 0 ? "max-sm:col-span-3" : "max-sm:row-start-2 max-sm:before:block max-sm:before:px-1 max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]",
+                            c === 1 && "max-sm:col-start-1", c === 2 && "max-sm:col-start-2", c === 3 && "max-sm:col-start-3")}>
                             <input
                               aria-label={`Line ${n + 1} ${k.replace("_", " ")}`}
                               aria-invalid={flagged.has(`items[${n}]`) || undefined}
@@ -444,7 +447,7 @@ export default function ReviewPage() {
                             />
                           </td>
                         ))}
-                        <td className="p-0.5 text-center whitespace-nowrap">
+                        <td className="p-0.5 text-center whitespace-nowrap max-sm:col-start-4 max-sm:row-start-1">
                           {flagged.has(`items[${n}]`) && <b className="text-warn" aria-hidden>!</b>}
                           <button
                             type="button"
@@ -642,6 +645,7 @@ export default function ReviewPage() {
 
 const inputClass =
   "h-9 w-full rounded-md border border-input bg-card px-2.5 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-secondary disabled:text-muted-foreground placeholder:text-muted-foreground";
+const PHONE_LABEL = { description: "", quantity: "Qty", unit_price: "Unit price", amount: "Amount" };
 const flagClass = "border-warn-line ring-1 ring-warn-line";
 
 const ITEM_FIELD = /^items\[(\d+)\]\.(\w+)$/;
