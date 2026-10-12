@@ -153,7 +153,8 @@ export default function DocumentsPage() {
       )}
       {rows && rows.length > 0 && (
         <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-          <table className="w-full min-w-[640px] text-sm">
+          {/* narrow screens drop File, then Date, so Status stays in view */}
+          <table className="w-full text-sm lg:min-w-[640px]">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
                 <th className="w-10 py-2.5 pl-4">
@@ -167,10 +168,10 @@ export default function DocumentsPage() {
                   />
                 </th>
                 <th className="px-4 py-2.5 font-medium">Vendor</th>
-                <th className="px-4 py-2.5 font-medium">Date</th>
+                <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Date</th>
                 <th className="px-4 py-2.5 text-right font-medium">Total</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium">File</th>
+                <th className="hidden px-4 py-2.5 font-medium lg:table-cell">File</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -191,10 +192,10 @@ export default function DocumentsPage() {
                       {r.vendor ?? (r.status === "processing" ? "Being read" : "Unknown vendor")}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5 tabular-nums">{r.issue_date ?? "–"}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">{money(r.total, r.currency)}</td>
+                  <td className="hidden px-4 py-2.5 whitespace-nowrap tabular-nums sm:table-cell">{r.issue_date ?? "–"}</td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap tabular-nums">{money(r.total, r.currency)}</td>
                   <td className="px-4 py-2.5"><StatusBadge status={r.status} /></td>
-                  <td className="max-w-48 truncate px-4 py-2.5 text-muted-foreground" title={r.file_name}>{r.file_name}</td>
+                  <td className="hidden max-w-48 truncate px-4 py-2.5 text-muted-foreground lg:table-cell" title={r.file_name}>{r.file_name}</td>
                 </tr>
               ))}
             </tbody>
