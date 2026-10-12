@@ -558,7 +558,7 @@ try:
     assert app.public_error(RuntimeError('HTTP 400: image rejected')).startswith('The AI could not read this file')
     assert app.public_error(RuntimeError('HTTP 429: slow down')).startswith('The AI service is busy')
     assert app.public_error(RuntimeError('HTTP 400: API key not valid')) == 'Reading failed. Try again.'
-    assert app.public_error(RuntimeError('HTTP 403: forbidden')) == 'Reading failed. Try again.'
+    assert app.public_error(RuntimeError('HTTP 403: forbidden')).startswith('The AI service is not available')
     assert str(app.cell('total', app.Decimal('1E+1'))) == '10'
     assert str(app.cell('total', 12.5)) == '12.5' and str(app.cell('total', app.Decimal('12.50'))) == '12.50'
     assert app.cell('vendor', '- Discount', xlsx=True) == '- Discount' and app.cell('vendor', '- Discount') == "'- Discount"

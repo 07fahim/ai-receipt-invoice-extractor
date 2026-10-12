@@ -24,6 +24,7 @@ import jwt
 import pillow_heif
 import pypdfium2
 from cryptography.fernet import Fernet, InvalidToken
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from PIL import Image, ImageOps
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -366,6 +367,8 @@ def public_error(e):
         return 'The AI reply could not be read. Try again.'
     if re.search(r'HTTP (400|413|415)', text) and 'API key' not in text:  # the file itself; key errors stay generic
         return 'The AI could not read this file. Try a clearer photo or another file.'
+    if re.search(r'HTTP (401|403)', text):  # key refused or the project blocked: a retry would only use up a read
+        return 'The AI service is not available right now. Try again later.'
     return 'Reading failed. Try again.'
 
 
@@ -1021,6 +1024,8 @@ def cell(column, v, xlsx=False):
         return None
     if column in NUMERIC:
         return Decimal(format(v if isinstance(v, Decimal) else Decimal(str(v)), 'f'))  # 10, not 1E+1
+    if isinstance(v, str) and xlsx:
+        v = ILLEGAL_CHARACTERS_RE.sub('', v)
     if isinstance(v, str) and v[:1] in (('=',) if xlsx else ('=', '+', '-', '@', '\t', '\r')):
         return "'" + v
     return v
