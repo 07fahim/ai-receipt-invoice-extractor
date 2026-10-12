@@ -105,6 +105,9 @@ export function AssistantPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
+  const launcher = useRef<HTMLButtonElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const userMoved = useRef(false); // focus moves only after the user opens or closes, never on page load
   const docId = path.match(/^\/app\/documents\/(\d+)/)?.[1];
 
   useLayoutEffect(() => {
@@ -123,6 +126,12 @@ export function AssistantPanel() {
     if (mode !== "closed") localStorage.setItem(SIZE, mode);
     return () => { delete document.documentElement.dataset.assistant; };
   }, [mode]);
+  // opening puts the cursor in the question box; closing returns focus to the button that opened it
+  useEffect(() => {
+    if (!userMoved.current) return;
+    if (mode === "closed") launcher.current?.focus();
+    else input.current?.focus();
+  }, [mode]);
   // braces: newer browsers return a Promise from scrollIntoView, and an effect may only return a cleanup
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs, busy]);
 
@@ -132,7 +141,8 @@ export function AssistantPanel() {
     else localStorage.removeItem(CHAT);
   }
 
-  const open = () => setMode((localStorage.getItem(SIZE) as Mode | null) ?? "small");
+  const open = () => { userMoved.current = true; setMode((localStorage.getItem(SIZE) as Mode | null) ?? "small"); };
+  const close = () => { userMoved.current = true; setMode("closed"); };
 
   function newChat() {
     keep(null);
@@ -181,6 +191,7 @@ export function AssistantPanel() {
   if (mode === "closed")
     return (
       <button
+        ref={launcher}
         onClick={open}
         aria-label="Open the assistant"
         className="fixed right-4 bottom-20 z-30 grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg md:right-6 md:bottom-6"
@@ -203,6 +214,7 @@ export function AssistantPanel() {
   return (
     <aside
       aria-label="Assistant"
+      onKeyDown={(e) => { if (e.key === "Escape") close(); }}
       className={`fixed z-40 flex flex-col bg-card max-md:inset-0 ${
         mode === "small"
           ? "md:right-6 md:bottom-6 md:h-[560px] md:w-[380px] md:overflow-hidden md:rounded-2xl md:border md:shadow-2xl"
@@ -226,7 +238,7 @@ export function AssistantPanel() {
           onClick={() => setMode(mode === "small" ? "docked" : "small")}>
           {mode === "small" ? <PanelRight className="size-4" /> : <Minimize2 className="size-4" />}
         </button>
-        <button className={icon} aria-label="Close" onClick={() => setMode("closed")}><X className="size-4" /></button>
+        <button className={icon} aria-label="Close" onClick={close}><X className="size-4" /></button>
       </header>
 
       {chats ? (
@@ -285,7 +297,7 @@ export function AssistantPanel() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 space-y-4 overflow-y-auto p-3 text-sm">
+        <div className="flex-1 space-y-4 overflow-y-auto p-3 text-sm" aria-live="polite">
           {msgs.map((m, i) =>
             m.role === "user" ? (
               <p key={i} className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 whitespace-pre-wrap text-primary-foreground">{m.content}</p>
@@ -326,6 +338,7 @@ export function AssistantPanel() {
         {error && <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
         <form onSubmit={send} className="flex items-end gap-2 rounded-xl border bg-background p-1.5 pl-3 focus-within:ring-2 focus-within:ring-ring">
           <textarea
+            ref={input}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) send(e); }}
