@@ -47,6 +47,7 @@ MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 10))   # model reads (uploads + retries) per day: protects the quota
+READS_DAILY_LIMIT = int(os.environ.get('READS_DAILY_LIMIT', 450))   # whole app, any 24 hours: Flash-Lite's free 500 requests a day are shared
 SECOND_MODEL = os.environ.get('SECOND_MODEL', 'gemini-3.5-flash')
 SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   # whole app, any 24 hours: the free quota is shared
 SECOND_READ_PER_USER = int(os.environ.get('SECOND_READ_PER_USER', 5))   # per user, any 24 hours, on top of the app-wide cap
@@ -58,6 +59,16 @@ REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate', 'tax_id_invalid'}   # a se
 
 def reads_today(con, uid):
     return con.execute("SELECT count(*) AS n FROM reads WHERE user_id = %s AND at > now() - interval '1 day'", (uid,)).fetchone()['n']
+
+
+def read_refused(con, uid):
+    # call inside the transaction that records the read: the lock makes a user's parallel requests take turns
+    con.execute('SELECT pg_advisory_xact_lock(hashtext(%s))', (uid,))
+    if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
+        return f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again later."
+    if con.execute("SELECT count(*) AS n FROM reads WHERE at > now() - interval '1 day'").fetchone()['n'] >= READS_DAILY_LIMIT:
+        return "The demo's reading limit for today is used up. Try again later."
+    return None
 
 @contextlib.asynccontextmanager
 async def lifespan(_):
@@ -485,16 +496,11 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'Send 1 to {MAX_FILES} files.')
     with store.conn() as con:
-        used = reads_today(con, uid)
-    # Counted once per request, so two parallel uploads can go slightly over the limit.
-    left = DAILY_UPLOAD_LIMIT - used
-    if left <= 0:
-        raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
+        refused = read_refused(con, uid)
+    if refused:
+        raise HTTPException(429, refused)
     created = []
     for f in files:
-        if left <= 0:
-            created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again tomorrow.'})
-            continue
         data = f.file.read(MAX_BYTES + 1)
         if len(data) > MAX_BYTES:
             created.append({'file_name': f.filename, 'error': 'Larger than 10 MB.'})
@@ -513,11 +519,15 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
                 created.append({'file_name': f.filename, 'error': f'PDF must be readable with 1 to {MAX_PDF_PAGES} pages'})
                 continue
         with store.conn() as con:
-            doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
-                                 "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
-                                 (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
-            con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
-        left -= 1
+            refused = read_refused(con, uid)
+            if not refused:
+                doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                                     "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
+                                     (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
+                con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
+        if refused:
+            created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again later.'})
+            continue
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
     return created
@@ -681,8 +691,9 @@ def update_document(doc_id: int, doc: Document, date_order: DateOrderValue | Non
 def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     # reviewed documents keep their corrections; processing ones are not read twice
     with store.conn() as con:  # one statement, so two quick clicks can't both start a read
-        if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
-            raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
+        refused = read_refused(con, uid)
+        if refused:
+            raise HTTPException(429, refused)
         claimed = con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() "
                               "WHERE id = %s AND user_id = %s AND status IN ('failed', 'needs_review') RETURNING id",
                               (doc_id, uid)).fetchone()
@@ -904,20 +915,24 @@ def send_message(body: AssistantIn, uid: str = Depends(current_user)):
     with store.conn() as con:
         history = own_chat(con, body.chat_id, uid)['messages'] if body.chat_id else []
         day = "at > now() - interval '1 day'"
+        # counted before the model call, under a lock, so parallel messages can't all pass; given back below if no model answers
+        con.execute("SELECT pg_advisory_xact_lock(hashtext('assistant:' || %s))", (uid,))
         if con.execute(f'SELECT count(*) AS n FROM assistant_messages WHERE user_id = %s AND {day}', (uid,)).fetchone()['n'] >= ASSISTANT_PER_USER:
             raise HTTPException(429, f"You've used today's {ASSISTANT_PER_USER} messages.")
         if con.execute(f'SELECT count(*) AS n FROM assistant_messages WHERE {day}').fetchone()['n'] >= ASSISTANT_DAILY_LIMIT:
-            raise HTTPException(429, "The assistant has reached today's limit. Try again tomorrow.")
+            raise HTTPException(429, "The assistant has reached today's limit. Try again later.")
+        counted = con.execute('INSERT INTO assistant_messages (user_id) VALUES (%s) RETURNING at', (uid,)).fetchone()['at']
     try:
         out = assistant.answer(uid, [{'role': m['role'], 'content': m['content']} for m in history],
                                body.text, body.page, body.document_id)
     except RuntimeError as e:
         print(f'assistant failed: {e}')
+        with store.conn() as con:
+            con.execute('DELETE FROM assistant_messages WHERE user_id = %s AND at = %s', (uid, counted))
         raise HTTPException(503, 'The assistant is busy. Try again in a minute.')
     print(f'assistant: {out["tokens"]} tokens, {len(out["steps"])} lookups')  # sizes the daily cap
     new = Jsonb([{'role': 'user', 'content': body.text}, {'role': 'assistant', 'content': out['reply'], 'steps': out['steps']}])
     with store.conn() as con:
-        con.execute('INSERT INTO assistant_messages (user_id) VALUES (%s)', (uid,))
         if body.chat_id:
             con.execute('UPDATE assistant_chats SET messages = messages || %s, updated_at = now() WHERE id = %s AND user_id = %s',
                         (new, body.chat_id, uid))
