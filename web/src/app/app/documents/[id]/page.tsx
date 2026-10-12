@@ -452,7 +452,7 @@ export default function ReviewPage() {
                           <button
                             type="button"
                             aria-label={`Remove line ${n + 1}`}
-                            className="rounded-md p-1.5 pointer-coarse:p-3 text-muted-foreground hover:bg-secondary"
+                            className="rounded-md p-1.5 pointer-coarse:p-3.5 text-muted-foreground hover:bg-secondary"
                             onClick={() => { setDoc((d) => d && { ...d, items: d.items.filter((_, i) => i !== n) }); setDirty(true); }}
                           >
                             <X className="size-4" />
