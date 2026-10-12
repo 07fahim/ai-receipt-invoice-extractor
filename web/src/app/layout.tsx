@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Anybody, Inter, Martian_Mono } from "next/font/google";
+import { Anybody, Inter, Martian_Mono, Noto_Sans_Bengali } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -7,6 +7,8 @@ const inter = Inter({ variable: "--font-sans", subsets: ["latin"] });
 // wide display face for the app name and landing headlines (width axis for the stretched look)
 const anybody = Anybody({ variable: "--font-display", subsets: ["latin"], axes: ["wdth"] });
 const martian = Martian_Mono({ variable: "--font-mono", subsets: ["latin"] }); // receipt figures on the landing page
+// Bangla glyphs fall through to this in every stack; the browser only downloads it for pages with Bangla text
+const bangla = Noto_Sans_Bengali({ variable: "--font-bangla", subsets: ["bengali"], preload: false });
 
 const title = "Crosscheck: receipt and invoice data extraction";
 const description = "Upload receipts and invoices. Crosscheck reads them and checks the numbers. Only unsure ones go to review.";
@@ -25,7 +27,7 @@ const THEME = `try{var t=localStorage.getItem("theme");document.documentElement.
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${anybody.variable} ${martian.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${anybody.variable} ${martian.variable} ${bangla.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME }} />
       </head>
