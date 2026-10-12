@@ -80,7 +80,7 @@ export default function DashboardPage() {
 
   if (stats.documents === 0) {
     return (
-      <div className="mx-auto mt-16 max-w-md text-center">
+      <div className="mx-auto max-w-6xl rounded-xl border bg-card px-6 py-14 text-center shadow-xs">
         <h1 className="text-xl font-semibold">Your dashboard is empty</h1>
         <p className="mt-1.5 text-muted-foreground">Upload receipts or invoices to see spend by month and by vendor.</p>
         <Button asChild className="mt-5"><Link href="/app/upload">Upload documents</Link></Button>

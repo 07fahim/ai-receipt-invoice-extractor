@@ -28,7 +28,7 @@ export default function ReviewQueue() {
   if (error) return <p className="text-bad">{error}</p>;
   if (!empty) return <p className="text-muted-foreground">Opening the review queue…</p>;
   return (
-    <div className="mx-auto mt-16 max-w-md text-center">
+    <div className="mx-auto max-w-6xl rounded-xl border bg-card px-6 py-14 text-center shadow-xs">
       <h1 className="text-xl font-semibold">Nothing to review</h1>
       <p className="mt-1.5 text-muted-foreground">
         {empty === "none" ? "Upload a receipt or invoice. Any that need a look will wait here." : "Every document passed its checks or has been reviewed."}

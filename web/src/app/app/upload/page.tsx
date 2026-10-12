@@ -148,7 +148,7 @@ export default function UploadPage() {
   const limitReached = left === 0;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       <h1 className="text-2xl font-semibold tracking-tight">Upload</h1>
       <p className="mt-0.5 text-sm text-muted-foreground">
         Up to 20 files at a time. Google&apos;s Gemini AI reads them. Please use sample documents.{" "}

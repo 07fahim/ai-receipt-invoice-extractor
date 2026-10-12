@@ -43,7 +43,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-6xl [&>*]:max-w-2xl">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <ThemeToggle className="md:hidden" />
