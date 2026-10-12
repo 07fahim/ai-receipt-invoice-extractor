@@ -77,16 +77,17 @@ export default function Home() {
   return (
     <div className="bg-card">
       <header className="sticky top-0 z-10 border-b bg-card/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Logo />
-          <nav className="flex items-center gap-7 text-sm font-medium text-foreground/80">
+          {/* phones: logo, Log in and the button only (the theme follows the system setting) */}
+          <nav className="flex items-center gap-4 text-sm font-medium text-foreground/80 sm:gap-7">
             <a href="#who" className="hidden whitespace-nowrap hover:text-foreground lg:block">Who it&apos;s for</a>
             <a href="#assistant" className="hidden whitespace-nowrap hover:text-foreground lg:block">Assistant</a>
             <a href="#features" className="hidden whitespace-nowrap hover:text-foreground lg:block">Features</a>
             <a href="#checks" className="hidden whitespace-nowrap hover:text-foreground lg:block">Checks</a>
             <a href="#privacy" className="hidden whitespace-nowrap hover:text-foreground lg:block">Privacy</a>
-            <ThemeToggle />
-            <Link href="/login" className="whitespace-nowrap hover:text-foreground">Log in</Link>
+            <ThemeToggle className="hidden sm:block" />
+            <Link href="/login" className="whitespace-nowrap py-3 hover:text-foreground">Log in</Link>
             <Button asChild><Link href="/signup">Try it free</Link></Button>
           </nav>
         </div>
