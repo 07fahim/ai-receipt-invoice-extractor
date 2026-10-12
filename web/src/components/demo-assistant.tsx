@@ -39,7 +39,7 @@ function Avatar({ className }: { className?: string }) {
 }
 
 export function DemoAssistant({ className }: { className?: string }) {
-  const { ref, step, shown } = useSteps(DURATIONS, 4); // reduced motion: question and answer
+  const { ref, step, shown, pause } = useSteps(DURATIONS, 4); // reduced motion: question and answer
   const c = CHATS[Math.floor(step / PHASES.length)];
   const p = step % PHASES.length;
   const [typed, setTyped] = useState(0);
@@ -50,7 +50,7 @@ export function DemoAssistant({ className }: { className?: string }) {
   }, [p, c]);
   const question = c.question.slice(0, typed);
   return (
-    <DemoFrame frameRef={ref} shown={shown} className={className}
+    <DemoFrame frameRef={ref} shown={shown} pause={pause} className={className}
       label="Demo: the assistant is asked why a receipt is flagged, in English on a US receipt and in Bangla on a handwritten memo, and answers with the numbers the checks found.">
       <div className="absolute inset-0 text-[9px] leading-snug @md:text-[11px] @xl:text-[13.5px]">
         <div className={cn("h-full w-[40%] border-r bg-card transition-opacity duration-700 @md:w-[50%] @md:bg-background @md:p-4 @xl:w-[58%] @xl:p-5",
