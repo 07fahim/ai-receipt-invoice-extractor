@@ -12,7 +12,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const features = [
-  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once. Most are ready in about five seconds." },
+  { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once." },
   { icon: Languages, title: "English and Bangla", text: "Works with receipts, invoices and handwritten memos in either language." },
   { icon: ClipboardCheck, title: "Review only what needs it", text: "Receipts that pass every check go straight to your export. You only open the ones that need a look." },
   { icon: Search, title: "Find any document", text: "Search by supplier and filter by status. The dashboard shows what you spent, the tax you paid and your top suppliers." },
@@ -102,7 +102,7 @@ export default function Home() {
               Every receipt read <span className="text-primary">and checked</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-foreground/80">
-              Upload a stack of receipts or invoices in English or Bangla. Crosscheck turns them into clean spreadsheet rows and
+              Upload a stack of receipts or invoices in English or Bangla. Crosscheck turns them into clean spreadsheet rows and{" "}
               <span className="mark">checks every total</span>. You only fix the few that need it.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -190,7 +190,7 @@ export default function Home() {
               <h2 className="display text-[clamp(30px,3.6vw,44px)]">Ask about your documents</h2>
               <p className="mt-4 text-lg text-foreground/75">
                 Ask in English or Bangla, the way you would ask your bookkeeper. The assistant finds the answer in your documents
-                and explains every flag. It can read your data but never changes it.
+                and explains every flag. It only reads your data.
               </p>
               <ul className="mt-8 flex flex-col items-start gap-2.5" aria-label="Example questions">
                 {questions.map((q) => (

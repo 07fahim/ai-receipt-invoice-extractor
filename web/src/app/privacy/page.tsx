@@ -31,13 +31,13 @@ const sections: [string, React.ReactNode][] = [
       </li>
       <li>
         <b>Google Gemini</b>, <b>Groq</b> or <b>OpenRouter</b> answers assistant questions. They get your question and the data read from your
-        documents, never the files. This demo uses their free plans.
+        documents. Files are never sent. This demo uses their free plans.
       </li>
       <li><b>Gmail</b> sends the sign-up and reset emails.</li>
       <li><b>Supabase</b> stores the data and handles sign-in.</li>
       <li><b>Render</b> runs the server that receives your files, in Singapore. It does not keep them.</li>
       <li><b>Vercel</b> hosts this website. Your files do not pass through it.</li>
-      <li><b>Your webhook</b>, if you add one, gets the data read from each file. Not the file itself.</li>
+      <li><b>Your webhook</b>, if you add one, gets the data read from each file. The file stays here.</li>
     </ul>
     <p>Nothing is sold or shared with anyone else.</p>
   </>],

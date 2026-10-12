@@ -531,7 +531,7 @@ export default function ReviewPage() {
             {second.length > 0 && (
               <div className="mb-3 rounded-md border p-3 text-sm">
                 <p className="font-medium">Second reading</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">A second AI read this receipt. Compare with the photo first.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Another reading found different values. Compare with the photo first.</p>
                 <ul className="mt-1.5 space-y-1 text-xs">
                   {second.map((c) => (
                     <li key={c.field} className="flex items-center justify-between gap-2">
