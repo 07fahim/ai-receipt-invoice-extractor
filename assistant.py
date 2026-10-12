@@ -219,7 +219,7 @@ def run_tool(con, uid, name, args, in_bangla=False):
         result = FUNCTIONS[name](con, uid, **args)
     except HTTPException as e:
         result = {'error': e.detail}
-    except (TypeError, ValueError, LookupError, psycopg.DataError) as e:
+    except (TypeError, ValueError, LookupError, ArithmeticError, psycopg.DataError) as e:  # e.g. int(1e999)
         # a failed query aborts the transaction; roll back so the next tool call works
         con.rollback()
         result = {'error': str(e)}
@@ -233,6 +233,7 @@ def plain_value(v):
 
 
 MAX_ROUNDS = 4    # tool rounds per answer; then the model must reply
+MAX_CALLS = 5  # tool calls run per model reply
 HISTORY = 20      # earlier messages sent with each question
 
 SYSTEM = """You are the assistant inside Crosscheck, an app that reads receipts and invoices with AI and checks every
@@ -300,7 +301,7 @@ def answer(uid, history, text, page=None, document_id=None):
     for n in range(MAX_ROUNDS + 1):
         msg, usage = providers.chat(messages, TOOLS, 'auto' if n < MAX_ROUNDS else 'none')
         tokens += usage.get('total_tokens') or 0
-        calls = msg.get('tool_calls') or []
+        calls = (msg.get('tool_calls') or [])[:MAX_CALLS]  # each call is a query; a reply asking for dozens gets the first few
         if not calls or n == MAX_ROUNDS:
             reply = re.sub(r'<think>.*?</think>', '', msg.get('content') or '', flags=re.S).strip()
             return {'reply': reply or 'I could not find an answer. Try asking another way.', 'steps': steps, 'tokens': tokens}

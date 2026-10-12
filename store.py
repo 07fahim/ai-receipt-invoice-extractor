@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS reads (   -- one row per model read (upload or retry)
     at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS reads_user ON reads (user_id, at);
+CREATE INDEX IF NOT EXISTS reads_at ON reads (at);  -- the app-wide cap counts every user's reads
 CREATE TABLE IF NOT EXISTS second_reads (   -- one row per second reading asked for: both caps count these, so
     user_id UUID,                            -- deleting documents does not give quota back (NULL once the account is deleted)
     at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -70,7 +71,7 @@ CREATE TABLE IF NOT EXISTS assistant_chats (   -- kept until the user deletes th
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS assistant_chats_user ON assistant_chats (user_id, updated_at);
-CREATE TABLE IF NOT EXISTS assistant_messages (   -- one row per answered message: the caps count these, so deleting
+CREATE TABLE IF NOT EXISTS assistant_messages (   -- one row per message, written before the answer and removed if none came: the caps count these, so deleting
     user_id UUID,                                  -- a chat does not give quota back (NULL once the account is deleted)
     at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

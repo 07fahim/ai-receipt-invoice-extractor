@@ -309,7 +309,7 @@ def endpoints():
         assert c.post('/assistant/messages', json={'text': 'x'}, headers=bob).status_code == 200  # Bob's 1st
         app.ASSISTANT_PER_USER, app.ASSISTANT_DAILY_LIMIT = 30, 3
         r = c.post('/assistant/messages', json={'text': 'x'}, headers=bob)
-        assert r.status_code == 429 and r.json()['detail'] == 'The assistant has reached today\'s limit. Try again tomorrow.'
+        assert r.status_code == 429 and r.json()['detail'] == 'The assistant has reached today\'s limit. Try again later.'
         app.ASSISTANT_DAILY_LIMIT = 60
 
         # delete one, delete all

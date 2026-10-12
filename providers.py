@@ -1,4 +1,5 @@
 import base64
+import http.client
 import json
 import os
 import re
@@ -136,8 +137,8 @@ def chat(messages, tools, tool_choice='auto'):
             r, _ = post(f'{base}/chat/completions', {'Authorization': f'Bearer {os.environ[key_var]}'}, body,
                         retries=0, timeout=20)
             return r['choices'][0]['message'], r.get('usage') or {}
-        except (RuntimeError, KeyError, IndexError, TypeError) as e:
-            errors.append(f'{model}: {e}')
+        except (RuntimeError, KeyError, IndexError, TypeError, ValueError, OSError, http.client.HTTPException) as e:
+            errors.append(f'{model}: {e!r}')  # a broken or cut-off reply moves on to the next model too
     raise RuntimeError('; '.join(errors) or 'no chat model key is set')
 
 
@@ -146,7 +147,7 @@ def call(name, image, prompt=PROMPT):
     key = os.environ[key_var]
     b64 = base64.b64encode(image).decode()
     if style == 'gemini':
-        config = {'temperature': 0}
+        config = {'temperature': 0, 'maxOutputTokens': 16384}  # room for a 200-line invoice; a runaway repeating reply stops here, not at the timeout
         if model.startswith('gemini'):
             config['responseMimeType'] = 'application/json'
         if model in THINKING:

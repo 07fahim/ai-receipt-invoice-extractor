@@ -24,10 +24,12 @@ import jwt
 import pillow_heif
 import pypdfium2
 from cryptography.fernet import Fernet, InvalidToken
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from PIL import Image, ImageOps
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
@@ -46,6 +48,7 @@ MAX_PDF_PAGES = 20   # also caps model cost: the whole PDF goes to the model
 PDF_LOCK = threading.Lock()   # PDFium is not thread-safe; endpoints run in a thread pool
 DateOrderValue = Literal['MDY', 'DMY']
 DAILY_UPLOAD_LIMIT = int(os.environ.get('DAILY_UPLOAD_LIMIT', 10))   # model reads (uploads + retries) per day: protects the quota
+READS_DAILY_LIMIT = int(os.environ.get('READS_DAILY_LIMIT', 450))   # whole app, any 24 hours: Flash-Lite's free 500 requests a day are shared
 SECOND_MODEL = os.environ.get('SECOND_MODEL', 'gemini-3.5-flash')
 SECOND_READ_DAILY_LIMIT = int(os.environ.get('SECOND_READ_DAILY_LIMIT', 15))   # whole app, any 24 hours: the free quota is shared
 SECOND_READ_PER_USER = int(os.environ.get('SECOND_READ_PER_USER', 5))   # per user, any 24 hours, on top of the app-wide cap
@@ -58,17 +61,25 @@ REAL_CHECK_EXCLUDED = {'date_ambiguous', 'duplicate', 'tax_id_invalid'}   # a se
 def reads_today(con, uid):
     return con.execute("SELECT count(*) AS n FROM reads WHERE user_id = %s AND at > now() - interval '1 day'", (uid,)).fetchone()['n']
 
+
+def read_refused(con, uid):
+    # call inside the transaction that records the read: the lock makes a user's parallel requests take turns
+    con.execute('SELECT pg_advisory_xact_lock(hashtext(%s))', (uid,))
+    if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
+        return f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again later."
+    if con.execute("SELECT count(*) AS n FROM reads WHERE at > now() - interval '1 day'").fetchone()['n'] >= READS_DAILY_LIMIT:
+        return "The demo's reading limit for today is used up. Try again later."
+    return None
+
 @contextlib.asynccontextmanager
 async def lifespan(_):
-    threading.Thread(target=resume_stuck, daemon=True).start()
+    ids = claim_stuck()  # before the sweep loop starts, so the two never pick the same document
+    RECOVERY.submit(lambda: [process(i) for i in ids])
     threading.Thread(target=deliver_events, daemon=True).start()  # also sends events left over from before a restart
     yield
 
 
 app = FastAPI(title='Crosscheck API', lifespan=lifespan)
-# the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
-app.add_middleware(CORSMiddleware, allow_origins=[o.strip().rstrip('/') for o in os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(',')],
-                   allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped', 'Content-Disposition'])  # export file names
 _jwks = None
 
 
@@ -86,8 +97,13 @@ def current_user(authorization: str | None = Header(None)) -> str:
     try:
         claims = jwt.decode(token, signing_key(token), algorithms=['ES256', 'RS256'], audience='authenticated', options={'require': ['exp', 'sub']}, leeway=30,  # the PC's clock may run a little behind Supabase's
                             issuer=f'{os.environ["SUPABASE_URL"].rstrip("/")}/auth/v1')
+    except jwt.PyJWKClientConnectionError as e:  # Supabase unreachable: not a reason to sign the user out
+        print(f'JWKS fetch failed: {e!r}')
+        raise HTTPException(503, 'Sign-in could not be checked. Try again in a minute.')
     except jwt.PyJWTError:
         raise HTTPException(401, 'Please sign in again.')
+    if claims.get('is_anonymous'):
+        raise HTTPException(401, 'Please sign in with email or Google.')
     return claims['sub']
 
 
@@ -95,14 +111,15 @@ COLUMNS = 'id, user_id, file_name, mime, status, document, checks, error, vendor
           'prompt_version, tokens_in, tokens_out, created_at, updated_at, second_reading'
 
 
-def row_by_id(con, doc_id, with_file=False):
+def row_by_id(con, doc_id, with_file=False, lock=False):
     # no owner check: background jobs only; endpoints use get_row
-    return con.execute(f'SELECT {COLUMNS}{", file" if with_file else ""} FROM documents WHERE id = %s', (doc_id,)).fetchone()
+    return con.execute(f'SELECT {COLUMNS}{", file" if with_file else ""} FROM documents WHERE id = %s{" FOR UPDATE" if lock else ""}',
+                       (doc_id,)).fetchone()
 
 
-def get_row(con, doc_id, uid, with_file=False):
+def get_row(con, doc_id, uid, with_file=False, lock=False):
     # 404 (not 403) for other users' documents, so their ids reveal nothing
-    r = row_by_id(con, doc_id, with_file)
+    r = row_by_id(con, doc_id, with_file, lock)
     if r is None or str(r['user_id']) != uid:
         raise HTTPException(404, 'Document not found.')
     return r
@@ -143,8 +160,8 @@ def save(con, doc_id, doc: Document, status, uid, extra=None, date_order=None, o
     if only_if_processing:  # the AI's reading: also kept apart, as the user first sees it, to measure corrections (corrections.py)
         fields['extracted'] = fields['document']
     only = " AND status = 'processing'" if only_if_processing else ''
-    con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
-                (*fields.values(), doc_id))
+    return con.execute(f'UPDATE documents SET {", ".join(k + " = %s" for k in fields)}, updated_at = now() WHERE id = %s{only}',
+                (*fields.values(), doc_id)).rowcount
 
 
 def webhook_users():  # comma-separated, so more than one of your own accounts can send events
@@ -254,11 +271,26 @@ SENDERS = ThreadPoolExecutor(8)  # a slow address holds one sender, never the ot
 SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a batch upload's first readings never wait on them
 
 
+STUCK_MINUTES = 30  # far longer than a slow reading with all its retries (about 7 minutes); counted from the start of the reading
+RECOVERY = ThreadPoolExecutor(1)  # recovery readings run one at a time: each holds its file in memory several times over
+
+
+def resume_stale():
+    # claimed first, so only one sweep starts each; a reading that was still running meanwhile can't overwrite it (only_if_processing)
+    with store.conn() as con:
+        ids = [r['id'] for r in con.execute("UPDATE documents SET updated_at = now() WHERE status = 'processing' "
+                                            "AND updated_at < now() - make_interval(mins => %s) RETURNING id", (STUCK_MINUTES,))]
+    for doc_id in ids:
+        print(f'document {doc_id} was stuck in processing: reading it again')
+        RECOVERY.submit(process, doc_id)
+
+
 def deliver_events():
     # Assumes one API process. With several, claim rows with FOR UPDATE SKIP LOCKED.
     while True:
         WAKE.clear()
         try:
+            resume_stale()
             wait = dispatch()
         except Exception as e:
             print(f'webhook dispatch failed: {e!r}')
@@ -334,12 +366,15 @@ def public_error(e):
         return 'The AI reply could not be read. Try again.'
     if re.search(r'HTTP (400|413|415)', text) and 'API key' not in text:  # the file itself; key errors stay generic
         return 'The AI could not read this file. Try a clearer photo or another file.'
+    if re.search(r'HTTP (401|403)', text):  # key refused or the project blocked: a retry would only use up a read
+        return 'The AI service is not available right now. Try again later.'
     return 'Reading failed. Try again.'
 
 
 def process(doc_id):
     try:
         with store.conn() as con:
+            con.execute("UPDATE documents SET updated_at = now() WHERE id = %s AND status = 'processing'", (doc_id,))
             row = row_by_id(con, doc_id, with_file=True)
         if row is None:
             return  # deleted before extraction started
@@ -348,8 +383,8 @@ def process(doc_id):
         extra = {'model': MODEL, 'prompt_version': hashlib.sha256(providers.PROMPT.encode()).hexdigest()[:8],
                  'tokens_in': tin, 'tokens_out': tout}
         with store.conn() as con:
-            save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True)
-            queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted meanwhile)
+            if save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True):
+                queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted or already read meanwhile)
     except Exception as e:
         with store.conn() as con:
             failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
@@ -416,26 +451,49 @@ def second_read(doc_id):
         print(f'second reading of document {doc_id} failed: {e!r}')
 
 
-def resume_stuck():
-    # documents still 'processing' at startup lost their job when the server stopped
-    # Assumes one API process. With several, claim rows first (UPDATE ... RETURNING).
+def claim_stuck():
+    # documents still 'processing' at startup lost their job when the server stopped; claimed (updated_at = now())
+    # so the stale sweep leaves them alone
     try:
         with store.conn() as con:
-            ids = [r['id'] for r in con.execute("SELECT id FROM documents WHERE status = 'processing' ORDER BY id")]
+            return sorted(r['id'] for r in con.execute("UPDATE documents SET updated_at = now() "
+                                                        "WHERE status = 'processing' RETURNING id"))
     except Exception as e:
         print(f'resuming stuck documents failed: {e!r}')
         return []
+
+
+def resume_stuck():
+    ids = claim_stuck()
     for doc_id in ids:
         process(doc_id)   # never raises; failures are stored on the document
     return ids
 
 
+SMALL_BODY = 1024 * 1024  # every route but the upload takes a small JSON body
+
+
 @app.middleware('http')
-async def limit_upload_size(request, call_next):
-    # Relies on Content-Length: chunked uploads skip this check and spool to disk.
-    if int(request.headers.get('content-length') or 0) > MAX_FILES * MAX_BYTES + 1024 * 1024:
-        return Response('request too large', status_code=413)
+async def limit_body_size(request, call_next):
+    # Runs before FastAPI reads and parses the body, which it does before the sign-in check
+    upload = request.method == 'POST' and request.url.path == '/documents'
+    length = request.headers.get('content-length')
+    if request.method in ('POST', 'PUT', 'PATCH') and not (length or '').isdigit():
+        return JSONResponse({'detail': 'Request size missing.'}, status_code=411)  # a chunked body would skip the size check
+    if int(length or 0) > (MAX_FILES * MAX_BYTES + SMALL_BODY if upload else SMALL_BODY):
+        return JSONResponse({'detail': 'Request too large.'}, status_code=413)
+    if upload:  # up to 200 MB: only signed-in users may send it
+        try:
+            await run_in_threadpool(current_user, request.headers.get('authorization'))
+        except HTTPException as e:
+            return JSONResponse({'detail': e.detail}, status_code=e.status_code)
     return await call_next(request)
+
+
+# added last, so it wraps the size check too: the browser can read a 401 or 413 from it
+# the web app calls the API from the browser; only its own origin(s) may (comma-separated FRONTEND_ORIGIN)
+app.add_middleware(CORSMiddleware, allow_origins=[o.strip().rstrip('/') for o in os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000').split(',')],
+                   allow_methods=['*'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Skipped', 'Content-Disposition'])  # export file names
 
 
 HEIF_BRANDS = (b'heic', b'heix', b'hevc', b'hevx', b'heim', b'heis', b'mif1', b'msf1')
@@ -467,16 +525,11 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
     if not files or len(files) > MAX_FILES:
         raise HTTPException(400, f'Send 1 to {MAX_FILES} files.')
     with store.conn() as con:
-        used = reads_today(con, uid)
-    # Counted once per request, so two parallel uploads can go slightly over the limit.
-    left = DAILY_UPLOAD_LIMIT - used
-    if left <= 0:
-        raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
+        refused = read_refused(con, uid)
+    if refused:
+        raise HTTPException(429, refused)
     created = []
     for f in files:
-        if left <= 0:
-            created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again tomorrow.'})
-            continue
         data = f.file.read(MAX_BYTES + 1)
         if len(data) > MAX_BYTES:
             created.append({'file_name': f.filename, 'error': 'Larger than 10 MB.'})
@@ -495,11 +548,15 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
                 created.append({'file_name': f.filename, 'error': f'PDF must be readable with 1 to {MAX_PDF_PAGES} pages'})
                 continue
         with store.conn() as con:
-            doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
-                                 "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
-                                 (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
-            con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
-        left -= 1
+            refused = read_refused(con, uid)
+            if not refused:
+                doc_id = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                                     "VALUES (%s, %s, %s, %s, 'processing') RETURNING id",
+                                     (uid, os.path.basename(f.filename or 'upload'), kind, data)).fetchone()['id']
+                con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
+        if refused:
+            created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again later.'})
+            continue
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
     return created
@@ -647,7 +704,7 @@ def update_document(doc_id: int, doc: Document, date_order: DateOrderValue | Non
                     if_unchanged_since: datetime | None = None, uid: str = Depends(current_user)):
     # if_unchanged_since: a change made meanwhile in another tab is not overwritten
     with store.conn() as con:
-        row = get_row(con, doc_id, uid)
+        row = get_row(con, doc_id, uid, lock=True)  # locked: a save in another tab waits, then sees this one's time and gets 409
         if row['status'] == 'processing':
             raise HTTPException(409, 'Still being read. Save again when it is done.')
         if if_unchanged_since and row['updated_at'] != if_unchanged_since:
@@ -663,8 +720,9 @@ def update_document(doc_id: int, doc: Document, date_order: DateOrderValue | Non
 def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user)):
     # reviewed documents keep their corrections; processing ones are not read twice
     with store.conn() as con:  # one statement, so two quick clicks can't both start a read
-        if reads_today(con, uid) >= DAILY_UPLOAD_LIMIT:
-            raise HTTPException(429, f"You have used today's {DAILY_UPLOAD_LIMIT} reads. Try again tomorrow.")
+        refused = read_refused(con, uid)
+        if refused:
+            raise HTTPException(429, refused)
         claimed = con.execute("UPDATE documents SET status = 'processing', error = NULL, updated_at = now() "
                               "WHERE id = %s AND user_id = %s AND status IN ('failed', 'needs_review') RETURNING id",
                               (doc_id, uid)).fetchone()
@@ -746,7 +804,7 @@ def set_vendor_date_order(vendor: str, body: DateOrder, uid: str = Depends(curre
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
         rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
-                                       "AND status = 'needs_review'", (uid,)).fetchall()
+                                       "AND status = 'needs_review' ORDER BY id FOR UPDATE", (uid,)).fetchall()  # a save meanwhile waits, never lost
                 if store.vendor_key(r['vendor']) == store.vendor_key(vendor)]
         for r in rows:
             save(con, r['id'], Document.model_validate(r['document']), None, uid)
@@ -886,20 +944,24 @@ def send_message(body: AssistantIn, uid: str = Depends(current_user)):
     with store.conn() as con:
         history = own_chat(con, body.chat_id, uid)['messages'] if body.chat_id else []
         day = "at > now() - interval '1 day'"
+        # counted before the model call, under a lock, so parallel messages can't all pass; given back below if no model answers
+        con.execute("SELECT pg_advisory_xact_lock(hashtext('assistant:' || %s))", (uid,))
         if con.execute(f'SELECT count(*) AS n FROM assistant_messages WHERE user_id = %s AND {day}', (uid,)).fetchone()['n'] >= ASSISTANT_PER_USER:
             raise HTTPException(429, f"You've used today's {ASSISTANT_PER_USER} messages.")
         if con.execute(f'SELECT count(*) AS n FROM assistant_messages WHERE {day}').fetchone()['n'] >= ASSISTANT_DAILY_LIMIT:
-            raise HTTPException(429, "The assistant has reached today's limit. Try again tomorrow.")
+            raise HTTPException(429, "The assistant has reached today's limit. Try again later.")
+        counted = con.execute('INSERT INTO assistant_messages (user_id) VALUES (%s) RETURNING at', (uid,)).fetchone()['at']
     try:
         out = assistant.answer(uid, [{'role': m['role'], 'content': m['content']} for m in history],
                                body.text, body.page, body.document_id)
-    except RuntimeError as e:
-        print(f'assistant failed: {e}')
+    except (RuntimeError, LookupError, TypeError, ValueError) as e:  # no model answered, or a reply the app could not use
+        print(f'assistant failed: {e!r}')
+        with store.conn() as con:
+            con.execute('DELETE FROM assistant_messages WHERE user_id = %s AND at = %s', (uid, counted))
         raise HTTPException(503, 'The assistant is busy. Try again in a minute.')
     print(f'assistant: {out["tokens"]} tokens, {len(out["steps"])} lookups')  # sizes the daily cap
     new = Jsonb([{'role': 'user', 'content': body.text}, {'role': 'assistant', 'content': out['reply'], 'steps': out['steps']}])
     with store.conn() as con:
-        con.execute('INSERT INTO assistant_messages (user_id) VALUES (%s)', (uid,))
         if body.chat_id:
             con.execute('UPDATE assistant_chats SET messages = messages || %s, updated_at = now() WHERE id = %s AND user_id = %s',
                         (new, body.chat_id, uid))
@@ -973,6 +1035,8 @@ def cell(column, v, xlsx=False):
         return None
     if column in NUMERIC:
         return Decimal(format(v if isinstance(v, Decimal) else Decimal(str(v)), 'f'))  # 10, not 1E+1
+    if isinstance(v, str) and xlsx:
+        v = ILLEGAL_CHARACTERS_RE.sub('', v)
     if isinstance(v, str) and v[:1] in (('=',) if xlsx else ('=', '+', '-', '@', '\t', '\r')):
         return "'" + v
     return v
