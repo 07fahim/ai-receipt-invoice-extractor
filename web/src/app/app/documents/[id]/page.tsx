@@ -345,7 +345,7 @@ export default function ReviewPage() {
         )}
 
         {doc && (
-          <form className="rounded-xl border bg-card px-5 shadow-xs" onSubmit={(e) => e.preventDefault()} aria-label="Document fields">
+          <form className="rounded-xl border bg-card px-5 shadow-xs max-lg:order-2" onSubmit={(e) => e.preventDefault()} aria-label="Document fields">
             <Group title="Details">
               <div className="grid gap-x-4 gap-y-3.5 sm:grid-cols-2">
                 <FieldBox label="Type" id="doc_type">
@@ -482,7 +482,7 @@ export default function ReviewPage() {
         )}
 
         {doc && (
-          <Panel className="p-4 lg:col-span-2 xl:col-span-1 xl:sticky xl:top-5">
+          <Panel className="p-4 max-lg:order-1 lg:col-span-2 xl:col-span-1 xl:sticky xl:top-5">
             <h2 className="mb-2.5 flex items-center justify-between text-sm font-semibold">
               Checks
               {issues.length > 0 && !checkError && (
