@@ -892,4 +892,6 @@ finally:
                 con.execute(f'DROP SCHEMA {store.schema_name()} CASCADE')
             break
         except psycopg.errors.DeadlockDetected:
+            if attempt == 4:
+                raise  # never leave a test schema behind silently
             time.sleep(1)
