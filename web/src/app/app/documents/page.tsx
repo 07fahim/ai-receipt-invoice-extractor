@@ -97,7 +97,7 @@ export default function DocumentsPage() {
   const allSelected = !!rows?.length && rows.every((r) => selected.has(r.id));
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
