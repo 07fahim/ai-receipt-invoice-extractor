@@ -73,7 +73,8 @@ def read_refused(con, uid):
 
 @contextlib.asynccontextmanager
 async def lifespan(_):
-    threading.Thread(target=resume_stuck, daemon=True).start()
+    ids = claim_stuck()  # before the sweep loop starts, so the two never pick the same document
+    RECOVERY.submit(lambda: [process(i) for i in ids])
     threading.Thread(target=deliver_events, daemon=True).start()  # also sends events left over from before a restart
     yield
 
@@ -270,7 +271,8 @@ SENDERS = ThreadPoolExecutor(8)  # a slow address holds one sender, never the ot
 SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a batch upload's first readings never wait on them
 
 
-STUCK_MINUTES = 30  # far longer than a slow reading with all its retries (about 7 minutes)
+STUCK_MINUTES = 30  # far longer than a slow reading with all its retries (about 7 minutes); counted from the start of the reading
+RECOVERY = ThreadPoolExecutor(1)  # recovery readings run one at a time: each holds its file in memory several times over
 
 
 def resume_stale():
@@ -280,7 +282,7 @@ def resume_stale():
                                             "AND updated_at < now() - make_interval(mins => %s) RETURNING id", (STUCK_MINUTES,))]
     for doc_id in ids:
         print(f'document {doc_id} was stuck in processing: reading it again')
-        threading.Thread(target=process, args=(doc_id,), daemon=True).start()
+        RECOVERY.submit(process, doc_id)
 
 
 def deliver_events():
@@ -372,6 +374,7 @@ def public_error(e):
 def process(doc_id):
     try:
         with store.conn() as con:
+            con.execute("UPDATE documents SET updated_at = now() WHERE id = %s AND status = 'processing'", (doc_id,))
             row = row_by_id(con, doc_id, with_file=True)
         if row is None:
             return  # deleted before extraction started
@@ -448,15 +451,20 @@ def second_read(doc_id):
         print(f'second reading of document {doc_id} failed: {e!r}')
 
 
-def resume_stuck():
-    # documents still 'processing' at startup lost their job when the server stopped
-    # Assumes one API process. With several, claim rows first (UPDATE ... RETURNING).
+def claim_stuck():
+    # documents still 'processing' at startup lost their job when the server stopped; claimed (updated_at = now())
+    # so the stale sweep leaves them alone
     try:
         with store.conn() as con:
-            ids = [r['id'] for r in con.execute("SELECT id FROM documents WHERE status = 'processing' ORDER BY id")]
+            return sorted(r['id'] for r in con.execute("UPDATE documents SET updated_at = now() "
+                                                        "WHERE status = 'processing' RETURNING id"))
     except Exception as e:
         print(f'resuming stuck documents failed: {e!r}')
         return []
+
+
+def resume_stuck():
+    ids = claim_stuck()
     for doc_id in ids:
         process(doc_id)   # never raises; failures are stored on the document
     return ids
