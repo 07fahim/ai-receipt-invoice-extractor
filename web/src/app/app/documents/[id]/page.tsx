@@ -371,6 +371,7 @@ export default function ReviewPage() {
                       className={cn(inputClass, (dateUnclear || flagged.has("issue_date")) && flagClass)}
                       value={dateUnclear ? "" : doc.issue_date ?? ""}
                       disabled={dateUnclear}
+                      aria-invalid={dateUnclear || flagged.has("issue_date") || undefined}
                       aria-describedby={dateUnclear ? "date-why" : undefined}
                       onChange={(e) => edit({ issue_date: e.target.value || null })}
                     />
@@ -403,7 +404,7 @@ export default function ReviewPage() {
                 </div>
                 {doc.doc_type === "invoice" && (
                   <FieldBox label="Due date" id="due_date" flagged={flagged.has("due_date")}>
-                    <input id="due_date" type="date" className={cn(inputClass, flagged.has("due_date") && flagClass)} value={doc.due_date ?? ""} onChange={(e) => edit({ due_date: e.target.value || null })} />
+                    <input id="due_date" type="date" aria-invalid={flagged.has("due_date") || undefined} className={cn(inputClass, flagged.has("due_date") && flagClass)} value={doc.due_date ?? ""} onChange={(e) => edit({ due_date: e.target.value || null })} />
                   </FieldBox>
                 )}
                 <Text label="Currency" id="currency" doc={doc} edit={edit} flagged={flagged} list="currencies" />

@@ -104,6 +104,7 @@ export function AssistantPanel() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [heard, setHeard] = useState(""); // the newest reply, read out once by screen readers
   const end = useRef<HTMLDivElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -174,6 +175,7 @@ export function AssistantPanel() {
       });
       keep(r.chat_id);
       setMsgs((m) => [...m, { role: "assistant", content: r.reply, steps: r.steps }]);
+      setHeard(r.reply);
     } catch (err) {
       setMsgs((m) => m.slice(0, -1));
       setText((t) => (t.trim() ? t : q)); // the question stays in the box to send again
@@ -214,7 +216,7 @@ export function AssistantPanel() {
   return (
     <aside
       aria-label="Assistant"
-      onKeyDown={(e) => { if (e.key === "Escape") close(); }}
+      onKeyDown={(e) => { if (e.key === "Escape" && !e.nativeEvent.isComposing) close(); }}
       className={`fixed z-40 flex flex-col bg-card max-md:inset-0 ${
         mode === "small"
           ? "md:right-6 md:bottom-6 md:h-[560px] md:w-[380px] md:overflow-hidden md:rounded-2xl md:border md:shadow-2xl"
@@ -297,7 +299,7 @@ export function AssistantPanel() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 space-y-4 overflow-y-auto p-3 text-sm" aria-live="polite">
+        <div className="flex-1 space-y-4 overflow-y-auto p-3 text-sm">
           {msgs.map((m, i) =>
             m.role === "user" ? (
               <p key={i} className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 whitespace-pre-wrap text-primary-foreground">{m.content}</p>
@@ -335,7 +337,8 @@ export function AssistantPanel() {
       )}
 
       <div className="border-t p-3">
-        {error && <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+        <p className="sr-only" aria-live="polite">{heard}</p>
+        {error && <p role="alert" className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
         <form onSubmit={send} className="flex items-end gap-2 rounded-xl border bg-background p-1.5 pl-3 focus-within:ring-2 focus-within:ring-ring">
           <textarea
             ref={input}
