@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://crosscheck.fahimfaiyaz.dev"),
   title,
   description,
-  openGraph: { title, description, url: "/", siteName: "Crosscheck", type: "website" },
+  openGraph: { title, description, siteName: "Crosscheck", type: "website" },
   twitter: { card: "summary_large_image", title, description },
 };
 

@@ -189,7 +189,7 @@ export default function DocumentsPage() {
                   </td>
                   <td className="px-2 py-2.5 sm:px-4">
                     <Link href={`/app/documents/${r.id}`} className="font-medium text-primary hover:underline">
-                      {r.vendor ?? (r.status === "processing" ? "Being read" : "Unknown vendor")}
+                      {r.vendor ?? (r.status === "processing" ? "Being read" : r.file_name)}
                     </Link>
                   </td>
                   <td className="hidden px-2 py-2.5 sm:px-4 whitespace-nowrap tabular-nums lg:table-cell">{r.issue_date ?? "–"}</td>
