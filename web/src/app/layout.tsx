@@ -8,10 +8,16 @@ const inter = Inter({ variable: "--font-sans", subsets: ["latin"] });
 const anybody = Anybody({ variable: "--font-display", subsets: ["latin"], axes: ["wdth"] });
 const martian = Martian_Mono({ variable: "--font-mono", subsets: ["latin"] }); // receipt figures on the landing page
 
+const title = "Crosscheck: receipt and invoice data extraction";
+const description = "Upload receipts and invoices. Crosscheck reads them and checks the numbers. Only unsure ones go to review.";
+
+// opengraph-image.jpg in this folder is the link preview image
 export const metadata: Metadata = {
-  title: "Crosscheck: receipt and invoice data extraction",
-  description:
-    "Upload receipts and invoices. Crosscheck reads them and checks the numbers. Only unsure ones go to review.",
+  metadataBase: new URL("https://crosscheck.fahimfaiyaz.dev"),
+  title,
+  description,
+  openGraph: { title, description, url: "/", siteName: "Crosscheck", type: "website" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 // Runs before the page paints: the saved choice, or the system setting, so there is no light flash.
