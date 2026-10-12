@@ -51,7 +51,7 @@ export function DemoFrame({ frameRef, shown, label, pause, className, children }
         <span className="size-2.5 rounded-full bg-border" aria-hidden />
         {pause && (
           <button type="button" onClick={pause.toggle} aria-label={pause.paused ? "Play the demo" : "Pause the demo"}
-            className="-mr-2 ml-auto grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
+            className="-mr-2 ml-auto grid size-8 pointer-coarse:size-11 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
             {pause.paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
           </button>
         )}
