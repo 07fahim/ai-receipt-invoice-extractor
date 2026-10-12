@@ -28,7 +28,7 @@ from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from PIL import Image, ImageOps
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
@@ -479,14 +479,14 @@ async def limit_body_size(request, call_next):
     upload = request.method == 'POST' and request.url.path == '/documents'
     length = request.headers.get('content-length')
     if request.method in ('POST', 'PUT', 'PATCH') and not (length or '').isdigit():
-        return Response('length required', status_code=411)  # a chunked body would skip the size check
+        return JSONResponse({'detail': 'Request size missing.'}, status_code=411)  # a chunked body would skip the size check
     if int(length or 0) > (MAX_FILES * MAX_BYTES + SMALL_BODY if upload else SMALL_BODY):
-        return Response('request too large', status_code=413)
+        return JSONResponse({'detail': 'Request too large.'}, status_code=413)
     if upload:  # up to 200 MB: only signed-in users may send it
         try:
             await run_in_threadpool(current_user, request.headers.get('authorization'))
         except HTTPException as e:
-            return Response(e.detail, status_code=e.status_code)
+            return JSONResponse({'detail': e.detail}, status_code=e.status_code)
     return await call_next(request)
 
 
@@ -804,7 +804,7 @@ def set_vendor_date_order(vendor: str, body: DateOrder, uid: str = Depends(curre
     with store.conn() as con:
         store.set_date_order(con, uid, vendor, body.date_order)
         rows = [r for r in con.execute("SELECT id, vendor, document FROM documents WHERE user_id = %s "
-                                       "AND status = 'needs_review' FOR UPDATE", (uid,)).fetchall()  # a save meanwhile waits, never lost
+                                       "AND status = 'needs_review' ORDER BY id FOR UPDATE", (uid,)).fetchall()  # a save meanwhile waits, never lost
                 if store.vendor_key(r['vendor']) == store.vendor_key(vendor)]
         for r in rows:
             save(con, r['id'], Document.model_validate(r['document']), None, uid)
@@ -954,8 +954,8 @@ def send_message(body: AssistantIn, uid: str = Depends(current_user)):
     try:
         out = assistant.answer(uid, [{'role': m['role'], 'content': m['content']} for m in history],
                                body.text, body.page, body.document_id)
-    except RuntimeError as e:
-        print(f'assistant failed: {e}')
+    except (RuntimeError, LookupError, TypeError, ValueError) as e:  # no model answered, or a reply the app could not use
+        print(f'assistant failed: {e!r}')
         with store.conn() as con:
             con.execute('DELETE FROM assistant_messages WHERE user_id = %s AND at = %s', (uid, counted))
         raise HTTPException(503, 'The assistant is busy. Try again in a minute.')
