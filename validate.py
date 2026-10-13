@@ -314,6 +314,14 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     return issues
 
 
+def one_digit_changes(value):
+    text = format(value, 'f')
+    for pos, old in enumerate(text):
+        for new in '0123456789' if old.isdigit() else ():
+            if new != old:
+                yield Decimal(text[:pos] + new + text[pos + 1:])
+
+
 SUM_CHECKS = {'total_format', 'items_sum', 'total_math', 'items_total', 'line_math'}
 DOC_AMOUNTS = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
 ITEM_AMOUNTS = ('unit_price', 'amount', 'discount')
@@ -350,7 +358,9 @@ def suggest(doc: Document) -> dict | None:
     # decimals (up to 3) that gives the amount to the cent, if only one does. The line check's own room would let
     # almost any 3-decimal quantity fit. A quantity already read with decimals is left alone: on WildReceipt the
     # wrong number was the unit price (1.76 lb @ 0.99/3 lb) or a digit of it (6.281 gal for 6.201).
-    # Checked first; if the digit search also finds a fix, neither is shown.
+    # Checked first; if the digit search also finds a fix, neither is shown. Nor when one digit of the price would
+    # make the line add up too (4 x 125 for 4 x 185 is no weighed item): on planted price misreads that was 3,133
+    # wrong quantities, 0 right.
     found = []
     lines = [i['fields'][0] for i in issues if i['check'] == 'line_math']
     n = int(lines[0][6:-1]) if len(lines) == 1 else None
@@ -363,23 +373,19 @@ def suggest(doc: Document) -> dict | None:
             if fits:
                 break
         field = f'items[{n}].quantity'
-        if len(fits) == 1 and fits[0] != item.quantity and not sums_fail(changed({field: fits[0]})):
+        price_fits = any(abs(item.quantity * p - item.amount) <= Decimal('0.005') for p in one_digit_changes(item.unit_price))
+        if len(fits) == 1 and fits[0] != item.quantity and not price_fits and not sums_fail(changed({field: fits[0]})):
             q = Decimal(format(fits[0].normalize(), 'f'))
             found.append((field, item.quantity, q, f'{item.description or f"Line {n + 1}"}: is the quantity {num(q)}? Then the line adds up.'))
 
     # The search grows with amounts squared: 33 amounts took 0.45 s, 99 took 2.9 s (laptop, 2026-10-02),
     # and it runs on every open and every edit pause, so long documents get no digit suggestion.
     for field, value in amounts if len(failing) >= 2 and len(amounts) <= 40 else ():
-        text = format(value, 'f')
-        for pos, old in enumerate(text):
-            for new in '0123456789' if old.isdigit() else ():
-                if new == old:
-                    continue
-                candidate = Decimal(text[:pos] + new + text[pos + 1:])
-                if not sums_fail(changed({field: candidate})):
-                    found.append((field, value, candidate, f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.'))
-                    if len(found) > 1:
-                        return None  # two different fixes both fit: the numbers can't tell which is right
+        for candidate in one_digit_changes(value):
+            if not sums_fail(changed({field: candidate})):
+                found.append((field, value, candidate, f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.'))
+                if len(found) > 1:
+                    return None  # two different fixes both fit: the numbers can't tell which is right
     # Only "subtotal + tax + service - discount = total" fails: the tax or the total was misread. Each candidate
     # must make every sum pass. A printed rate keeps the one whose tax matches it; otherwise both are offered.
     net = line_net(doc)

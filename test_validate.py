@@ -157,8 +157,11 @@ s = suggest(Document(**ribs))
 assert s == {'message': 'Beef Ribs: is the quantity 1.89? Then the line adds up.',
              'changes': [{'field': 'items[0].quantity', 'from': '1', 'to': '1.89'}]}, s
 assert checks(**{**ribs, 'items': [ribs['items'][0].model_copy(update={'quantity': D('1.89')}), ribs['items'][1]]}) == []
-s = suggest(Document(total=D('7.50'), items=[Item(quantity=1, unit_price=D('2.50'), amount=D('7.50'))]))
-assert s['changes'] == [{'field': 'items[0].quantity', 'from': '1', 'to': '3'}] and s['message'].startswith('Line 1:'), s
+s = suggest(Document(total=D('9.00'), items=[Item(quantity=1, unit_price=D('2.25'), amount=D('9.00'))]))
+assert s['changes'] == [{'field': 'items[0].quantity', 'from': '1', 'to': '4'}] and s['message'].startswith('Line 1:'), s
+# one digit of the price fits too (2.50 for 7.50; 4 x 125 for 4 x 185): no guess
+assert suggest(Document(total=D('7.50'), items=[Item(quantity=1, unit_price=D('2.50'), amount=D('7.50'))])) is None
+assert suggest(Document(total=D('740'), items=[Item(quantity=4, unit_price=D('125'), amount=D('740'))])) is None
 assert suggest(Document(total=D('10'), items=[Item(quantity=1, unit_price=D('7'), amount=D('10'))])) is None  # 1.428 and 1.429 both fit
 two = [Item(quantity=1, unit_price=D('2.50'), amount=D('7.50')), Item(quantity=1, unit_price=D('2'), amount=D('4'))]
 assert suggest(Document(total=D('11.50'), items=two)) is None  # two lines fail
