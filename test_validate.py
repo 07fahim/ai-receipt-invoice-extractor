@@ -94,9 +94,18 @@ incl = dict(subtotal=D('1150'), tax=D('150'), total=D('1150'), items=[Item(amoun
 assert checks(**incl, tax_included=True) == [] and checks(**incl) == [] and checks(**incl, tax_included=False) == []  # 150 is exactly the 15% inside 1150
 odd = {**incl, 'tax': D('140')}  # 140 inside 1150 is 13.9%, no VAT rate: the model's word is not enough
 assert checks(**odd, tax_included=True) == ['total_math'] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
-# 10% added on top, the subtotal read as the total and marked included: 10 of 100 is no rate's share (9.09 would be 10%)
-on_top = dict(subtotal=D('100'), tax=D('10'), total=D('100'), currency='GBP', items=[Item(amount=D('100'))])
+# tax added on top, the subtotal read as the total and marked included: 10 of 100 is no rate's share (9.09 would be 10%)
+on_top = dict(subtotal=D('100'), tax=D('10'), total=D('100'), currency='USD', items=[Item(amount=D('100'))])
 assert checks(**on_top, tax_included=True) == ['total_math'] and checks(**{**on_top, 'tax': D('16.67')}, tax_included=True) == []
+# where receipts mix rates, any share up to the top rate passes; standard rate on top lands above it
+mixed = lambda cur, tax, total, tax_id=None: checks(subtotal=D(total), tax=D(tax), total=D(total), currency=cur, tax_included=True,
+                                                    seller_tax_id=tax_id, items=[Item(amount=D(total))])
+assert mixed('EUR', '4.15', '29.15') == [] and mixed('EUR', '2.66', '22.66') == [] and mixed('JPY', '188', '2188') == []  # 7+19%, 5.5+20%, 8+10%
+assert mixed('CHF', '4.05', '54.05') == [] and mixed('SEK', '25', '125') == [] and mixed('GBP', '10', '100') == []  # 8.1%, 25%, 0+20%
+assert mixed('GBP', '20', '100') == ['total_math'] and mixed('EUR', '19', '100', 'DE123456789') == ['total_math']  # 20%, 19% on top
+assert mixed('EUR', '20.32', '100', 'FI12345678') == [] and mixed('EUR', '20.32', '100') == []  # Finland 25.5%
+assert mixed('EUR', '10', '100') == ['total_math'] and mixed('JPY', '80', '1000') == ['total_math']  # 10%, 8% on top
+assert mixed('EUR', '25', '100', 'FR12345678901') == ['total_math']  # 20% on top looks like 25% included: not a French rate
 # the share of the subtotal also counts: a tip without VAT added after it (WildReceipt test 270, ZAR 14%)
 assert checks(subtotal=D('318'), tax=D('39.05'), service_charge=D('32'), total=D('350'), tax_included=True, items=[Item(amount=D('318'))]) == []
 no_sub = {**incl, 'subtotal': None}

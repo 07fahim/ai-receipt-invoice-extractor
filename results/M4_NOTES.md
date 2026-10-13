@@ -251,8 +251,13 @@ Tried and dropped: requiring a VAT rate's share when no subtotal is printed adde
 XPF receipts) to catch 2. Not changed: the supplementary duty case: none of the 93 BDT readings has one, and the BDT
 tax_rate flags seen (Singer, Arax) are the shop's own arithmetic. Keys (eval_validation, 4 sets): 0 flagged before and
 after; katanaml validation total digit misread 93.8% -> 95.8%. eval_rates unchanged (0 of 472 keys flagged).
-Not covered by the measured sets, so not proven safe: a "VAT included" receipt with two rates and no rate read (Germany
-7% and 19%, Japan 8% and 10%) or 25% (Nordic) now goes to review (total_math), where it passed before. A reviewer's
-made-up examples, none seen in real readings yet. Small amounts keep a hole: 15% added on top read as included passes
+Mixed rates (added after review): a "VAT included" receipt with two rates and no rate read (Germany 7% and 19%, Japan
+8% and 10%, UK 0% and 20%) or at 25% (Nordic) passes when its tax is at most the country's top rate's share and is
+not exactly one of the country's rates of the total (the mark of tax added on top). Euro countries by the VAT number's
+prefix. Simulated mixed receipts (20,000 each, 2-12 lines): flagged 0.1% DE, 0.3% FR, 0.1% JP, 0.1% UK, 0.2% SE; 2.4%
+for euro receipts without a VAT number read (all euro rates). Before this they were flagged nearly always. Planted
+subtotal-read-as-total, marked included, caught: USD 90%, EUR 89% (n=9; the miss is a 14.5% share), every other
+currency 100%. Still a hole: a reduced rate added on top in a country whose top rate is higher, when the tax is
+not exactly that rate (rounding). Small amounts keep a hole: 15% added on top read as included passes
 on a 5.00 total (17.5% of it is within a cent). Euro totals keep the 5-cent room although most euro countries don't
 round cash.

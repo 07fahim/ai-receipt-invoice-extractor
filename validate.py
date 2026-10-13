@@ -43,6 +43,17 @@ INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
 # (Nordic) goes to review. None in the measured sets (results/M4_NOTES.md).
 VAT_RATES = tuple(map(Decimal, '2.6 3.8 5 6 7 7.5 8 8.1 9 10 11 12 13 14 15 16 17 17.5 18 19 20 21 22 23 24'.split()))
 
+# Where "VAT included" receipts are the norm and one receipt mixes rates (7% and 19% in Germany, 8% and 10% in Japan,
+# 0% food and 20% in the UK), any share up to the top rate may be a mix, unless the tax is exactly one of the
+# country's rates of the total: that is tax added on top with the subtotal read as the total (10.00 on 100.00), which
+# a mix almost never gives (4.15 on 29.15). Euro countries by the VAT number's prefix, else all euro rates.
+VAT_BY = {k: tuple(map(Decimal, v.split())) for k, v in {
+    'GBP': '5 20', 'CHF': '2.6 3.8 8.1', 'JPY': '8 10', 'SEK': '6 12 25', 'NOK': '12 15 25', 'DKK': '25', 'ISK': '11 24',
+    'AT': '10 13 20', 'BE': '6 12 21', 'CY': '5 9 19', 'DE': '7 19', 'EE': '9 13 24', 'EL': '6 13 24', 'ES': '4 10 21',
+    'FI': '10 14 25.5', 'FR': '5.5 10 20', 'HR': '5 13 25', 'IE': '9 13.5 23', 'IT': '4 5 10 22', 'LT': '5 9 21',
+    'LU': '3 8 14 17', 'LV': '5 12 21', 'MT': '5 7 18', 'NL': '9 21', 'PT': '6 13 23', 'SI': '5 9.5 22', 'SK': '5 19 23'}.items()}
+VAT_BY['EUR'] = tuple(sorted({r for k, rates in VAT_BY.items() if len(k) == 2 for r in rates}))
+
 # countries where a seller VAT/GST number is expected: BIN (BDT), GSTIN (INR), UK VAT (GBP), EU VAT (EUR)
 VAT_ID_EXPECTED = {'BDT', 'INR', 'GBP', 'EUR'}
 
@@ -57,8 +68,15 @@ def included_share(tax, total, lines, allow=frozenset()):
             and any(abs(tax - total * r / (100 + r)) <= Decimal('0.01') for r in INCLUDED_VAT_RATES))
 
 
-def vat_share(tax, *bases):
-    return any(abs(tax - b * r / (100 + r)) <= Decimal('0.01') for b in bases for r in VAT_RATES)
+def vat_share(tax, bases, currency=None, tax_id=None):
+    if any(abs(tax - b * r / (100 + r)) <= CENT for b in bases for r in VAT_RATES):
+        return True
+    c = (currency or '').upper()
+    prefix = re.sub(r'[^A-Z]', '', (tax_id or '').upper())[:2]
+    rates = VAT_BY.get(prefix if c == 'EUR' and prefix in VAT_BY else c)
+    if not rates or tax <= 0 or any(abs(tax - b * r / 100) <= CENT for b in bases for r in rates):
+        return False
+    return any(tax <= b * max(rates) / (100 + max(rates)) + CENT for b in bases)
 
 
 def cash_rounding(currency, total_text):
@@ -261,7 +279,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # (VAT/GST only: a US sales tax subtotal misread as the total would pass the same arithmetic by chance)
         printed = doc.tax_kind in ('vat', 'gst') and doc.tax_rate and abs(
             tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
-        included = tax and near(expected - tax) and (printed or (doc.tax_included and vat_share(tax, doc.total, doc.subtotal)) or included_share(tax, doc.total, net, allow))
+        included = tax and near(expected - tax) and (printed or (doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id)) or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
