@@ -296,3 +296,13 @@ Ready for a future prompt: row arithmetic (whole units without cents), rows vs t
 cess sit in the tax), rows decide "VAT included" only when complete and consistent (a tip or discount outside the table
 allowed), rows dropped on a user save, suggestions never contradict the rows. Known for that prompt: WildReceipt 233
 read the gross 21.95 as the 6% row's net (flag on a right document); 6cff05f4 and 2c832ca4 runs used 504 + 345 calls.
+
+## Bangladeshi supplementary duty (2026-10-13)
+
+The prompt puts VAT and supplementary duty together into the tax; the VAT rate check compared it with VAT alone. One
+call on data/synthetic_bd/02 (25% duty, 15% VAT on price + duty; prompt fef31308) read every amount right (103,600 /
+45,325 / 148,925) and got a false tax_rate flag. Fix: for BDT VAT, the tax may also be price x duty + VAT on (price +
+duty) at a listed duty rate (5% to 500%, list not checked against the latest NBR schedule). 4,000 planted one-digit
+BDT tax misreads that only the rate check can catch: missed 93 before, 93 after. Saved readings, planted misreads,
+eval_rates and keys unchanged. Evidence is one synthetic invoice: how often clients send these is unknown. Not
+handled: duty inside "VAT included" prices; multi-line invoices whose per-line rounding drifts over 1 taka.
