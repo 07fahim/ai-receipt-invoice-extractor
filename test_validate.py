@@ -137,6 +137,11 @@ assert checks(**base) == []  # a genuine mixed receipt: the total is the rows' g
 assert checks(**{**base, 'vat_lines': [row('7', '100.00', '8.00', '108.00'), two[1]], 'tax': D('17.50'),
                  'subtotal': D('167.50'), 'total': D('167.50'), 'items': [Item(amount=D('108.00')), Item(amount=D('59.50'))]}) == ['vat_row']
 assert checks(**{**base, 'tax': D('16.00')}) == ['vat_rows_tax']  # total still equals the rows' gross
+# a VAT table's totals row (no rate) read into vat_lines must not double the tax sum
+no_rate = [row('7', '100.00', '7.00', '107.00'), row('19', '50.00', '9.50', '59.50'),
+           VatLine(rate=None, net=D('150.00'), tax=D('16.50'), gross=D('166.50'))]
+assert checks(currency='EUR', subtotal=D('150.00'), tax=D('16.50'), total=D('166.50'), tax_included=None,
+              items=[Item(amount=D('100')), Item(amount=D('50'))], vat_lines=no_rate) == []
 # tax on top, subtotal read as the total, marked included: the rows' gross is 166.50, the total read 150.00
 assert checks(**{**base, 'subtotal': D('150.00'), 'total': D('150.00'), 'items': [Item(amount=D('100')), Item(amount=D('50'))]}) == ['total_math']
 # a small total: 0.75 is 15% of 5.00 added on top; the row's gross is 5.75, not the 5.00 read as the total
