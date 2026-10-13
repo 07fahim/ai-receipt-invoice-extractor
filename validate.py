@@ -288,7 +288,8 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
                      r.gross is not None and abs(r.net + r.tax - r.gross) > CENT) for r in complete_rows]
     # every row with a rate and tax set, even a partly read one; a totals row with no rate is not a VAT row
     tax_rows = [r for r in doc.vat_lines if r.rate is not None and r.tax is not None]
-    rows_tax_off = doc.tax is not None and abs(sum(r.tax for r in tax_rows) - doc.tax)
+    rows_tax_sum = sum(r.tax for r in tax_rows)
+    rows_tax_off = doc.tax is not None and abs(rows_tax_sum - doc.tax)
     rows_consistent = (bool(doc.vat_lines) and len(complete_rows) == len(doc.vat_lines)
                        and not any(bad or gross_bad for _, bad, gross_bad in row_problems)
                        and doc.tax is not None and rows_tax_off <= CENT * len(tax_rows))
@@ -341,8 +342,10 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
                  f'{num((r.net * r.rate / 100).quantize(CENT, ROUND_HALF_UP))}. It says {num(r.tax)}.')
         elif gross_bad:
             fail('vat_row', ['tax'], f'The {pct(r.rate)}% VAT row: {num(r.net)} + {num(r.tax)} is {num(r.net + r.tax)}. It says {num(r.gross)}.')
-    if tax_rows and doc.tax is not None and rows_tax_off > CENT * len(tax_rows):
-        fail('vat_rows_tax', ['tax'], f'The VAT rows add up to {num(sum(r.tax for r in tax_rows))}. The tax is {num(doc.tax)}.')
+    # the prompt puts VAT plus supplementary duty/cess into doc.tax; rows hold VAT only, so only a rows sum
+    # ABOVE doc.tax is a misread (a sum below it is the duty/cess the rows don't cover)
+    if tax_rows and doc.tax is not None and rows_tax_sum - doc.tax > CENT * len(tax_rows):
+        fail('vat_rows_tax', ['tax'], f'The VAT rows add up to {num(rows_tax_sum)}. The tax is {num(doc.tax)}.')
 
     if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
         most = doc.subtotal * doc.discount_rate / 100

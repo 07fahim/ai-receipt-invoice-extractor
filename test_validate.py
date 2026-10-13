@@ -137,6 +137,10 @@ assert checks(**base) == []  # a genuine mixed receipt: the total is the rows' g
 assert checks(**{**base, 'vat_lines': [row('7', '100.00', '8.00', '108.00'), two[1]], 'tax': D('17.50'),
                  'subtotal': D('167.50'), 'total': D('167.50'), 'items': [Item(amount=D('108.00')), Item(amount=D('59.50'))]}) == ['vat_row']
 assert checks(**{**base, 'tax': D('16.00')}) == ['vat_rows_tax']  # total still equals the rows' gross
+# the prompt puts supplementary duty/cess into tax beside VAT; rows hold VAT only, so a rows-sum below tax is fine
+bdt = dict(currency='BDT', subtotal=D('1000'), tax=D('250'), total=D('1250'), items=[Item(amount=D('1000'))],
+           vat_lines=[row('15', '1000', '150', '1150')])
+assert checks(**bdt) == []
 # a VAT table's totals row (no rate) read into vat_lines must not double the tax sum
 no_rate = [row('7', '100.00', '7.00', '107.00'), row('19', '50.00', '9.50', '59.50'),
            VatLine(rate=None, net=D('150.00'), tax=D('16.50'), gross=D('166.50'))]
