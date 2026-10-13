@@ -88,8 +88,13 @@ assert tr('TOTAL 22.000', D('22')) == '22.000' and tr('22.000', D('22000')) is N
 # "VAT included" (Bangladeshi supershops): subtotal = total and the VAT is inside the prices
 incl = dict(subtotal=D('1150'), tax=D('150'), total=D('1150'), items=[Item(amount=D('1000')), Item(amount=D('150'))])
 assert checks(**incl, tax_included=True) == [] and checks(**incl) == [] and checks(**incl, tax_included=False) == []  # 150 is exactly the 15% inside 1150
-odd = {**incl, 'tax': D('140')}  # not the share of any known rate: only the model's word counts
-assert checks(**odd, tax_included=True) == [] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
+odd = {**incl, 'tax': D('140')}  # 140 inside 1150 is 13.9%, no VAT rate: the model's word is not enough
+assert checks(**odd, tax_included=True) == ['total_math'] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
+# 10% added on top, the subtotal read as the total and marked included: 10 of 100 is no rate's share (9.09 would be 10%)
+on_top = dict(subtotal=D('100'), tax=D('10'), total=D('100'), currency='GBP', items=[Item(amount=D('100'))])
+assert checks(**on_top, tax_included=True) == ['total_math'] and checks(**{**on_top, 'tax': D('16.67')}, tax_included=True) == []
+# the share of the subtotal also counts: a tip without VAT added after it (WildReceipt test 270, ZAR 14%)
+assert checks(subtotal=D('318'), tax=D('39.05'), service_charge=D('32'), total=D('350'), tax_included=True, items=[Item(amount=D('318'))]) == []
 no_sub = {**incl, 'subtotal': None}
 assert checks(**no_sub, tax_included=True) == [] and checks(**no_sub) == []  # unknown: either reading is accepted
 assert checks(**no_sub, tax_included=False) == []  # said to be on top, but 150 is exactly the 15% inside 1150

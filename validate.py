@@ -34,6 +34,11 @@ CENTS_PRINTED = re.compile(r'[.,]\d{2}\s*$')
 # Bangladeshi rates only: 20% added on top misread as 25% included would pass, so check before adding rates.
 INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
 
+# Rates a "VAT included" tax may be the share of, when the document prints none. A share at no rate (6.00 of 40.50,
+# 17%) is a misread. 25% is left out: 20% added on top with the subtotal read as the total looks like 25% included.
+# The share may be of the total or of the subtotal (a tip or service charge without VAT added after it).
+VAT_RATES = tuple(map(Decimal, '5 6 7 7.5 8 9 10 11 12 13 14 15 16 17 17.5 18 19 20 21 22 23 24'.split()))
+
 # countries where a seller VAT/GST number is expected: BIN (BDT), GSTIN (INR), UK VAT (GBP), EU VAT (EUR)
 VAT_ID_EXPECTED = {'BDT', 'INR', 'GBP', 'EUR'}
 
@@ -46,6 +51,10 @@ def included_share(tax, total, lines, allow=frozenset()):
     # 830 at 5% holds 39.52; without the lines, 10% on top with the subtotal read as the total looks the same
     return (lines is not None and total_close(lines, total, allow)
             and any(abs(tax - total * r / (100 + r)) <= Decimal('0.01') for r in INCLUDED_VAT_RATES))
+
+
+def vat_share(tax, *bases):
+    return any(abs(tax - b * r / (100 + r)) <= Decimal('0.01') for b in bases for r in VAT_RATES)
 
 
 def cash_rounding(currency, total_text):
@@ -242,7 +251,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # (VAT/GST only: a US sales tax subtotal misread as the total would pass the same arithmetic by chance)
         printed = doc.tax_kind in ('vat', 'gst') and doc.tax_rate and abs(
             tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
-        included = tax and near(expected - tax) and (doc.tax_included or printed or included_share(tax, doc.total, net, allow))
+        included = tax and near(expected - tax) and (printed or (doc.tax_included and vat_share(tax, doc.total, doc.subtotal)) or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
