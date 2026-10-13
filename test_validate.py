@@ -147,6 +147,17 @@ zero = dict(currency='EUR', subtotal=D('50.00'), tax=D('5.00'), total=D('55.00')
             items=[Item(amount=D('55.00'))],
             vat_lines=[row('5.5', '0.00', '0.00', '0.00'), row('20', '0.00', '0.00', '0.00'), row('10', '50.00', '5.00', '55.00')])
 assert checks(**zero) == []
+# currencies with no cents: a whole-unit row gap gets the same room as doc.tax, not a flat cent-per-item room
+jpy = dict(currency='JPY', subtotal=D('1234'), tax=D('98'), total=D('1332'), tax_included=True,
+           items=[Item(amount=D('1332'))], vat_lines=[row('8', '1234', '98', '1332')])
+assert checks(**jpy) == []  # 8% of 1234 is 98.72, printed whole as 98
+# unknown currency: a whole-number row tax still gets the room; a known cash currency always does
+idr1 = dict(currency=None, subtotal=D('25000'), tax=D('2500'), total=D('27500'), tax_included=False,
+            items=[Item(amount=D('27500'))], vat_lines=[row('10', '25000', '2500')])
+assert checks(**idr1) == []
+idr2 = dict(currency='IDR', subtotal=D('25000'), tax=D('2502'), total=D('27502'), tax_included=False,
+            items=[Item(amount=D('27502'))], vat_lines=[row('10', '25000', '2502')])
+assert checks(**idr2) == ['vat_row']  # 2 units off, still outside the 1-unit room
 
 # not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
 assert [i['check'] for i in validate(Document(is_document=False))] == ['is_document']

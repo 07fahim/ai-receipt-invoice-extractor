@@ -320,10 +320,12 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
                 fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(base)} is at most '
                      f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
     # VAT summary rows: each row's own tax must match its rate and net, and the rows must add up to doc.tax.
-    # A flat cent of room per item (not the "whole-unit currency" leniency used for doc.tax above): rows are new,
-    # no measured data yet on how a cash-rounded currency prints them.
+    # Whole-unit room (like doc.tax above) for currencies with no cents, or an unknown currency whose row tax
+    # is itself a whole number (e.g. a JPY/IDR row printed or rounded to whole units); otherwise a flat cent
+    # of room per item.
     for r in rows:
-        room = CENT * max(1, len(doc.items))
+        whole = (doc.currency or '').upper() in WHOLE_UNIT_CASH or (not doc.currency and r.tax == r.tax.to_integral_value())
+        room = Decimal('1') if whole else CENT * max(1, len(doc.items))
         if abs(r.tax - r.net * r.rate / 100) > room or (r.gross is not None and abs(r.net + r.tax - r.gross) > CENT):
             fail('vat_row', ['tax'], f'The {pct(r.rate)}% VAT row: {pct(r.rate)}% of {num(r.net)} is '
                  f'{num((r.net * r.rate / 100).quantize(CENT, ROUND_HALF_UP))}. It says {num(r.tax)}.')
