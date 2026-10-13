@@ -50,6 +50,7 @@ tax (all taxes and duties together, e.g. VAT plus supplementary duty; never the 
 tax_included (true if the printed prices already include the tax, e.g. "VAT included"; false if it is added on top),
 tax_rate (copy the percentage only when printed next to the tax line or in the tax label, never calculated from the amounts; e.g. 15 for "VAT 15%"; CGST and SGST halves count as their sum, e.g. 5 for "CGST 2.5% + SGST 2.5%"; 0 if "0%" or "0.00%" is printed; null if several different rates are printed or none),
 tax_kind ("vat", "gst" or "sales_tax"; null if no tax is printed),
+vat_lines (the VAT summary table exactly as printed, one row per rate: {rate, net, tax, gross}, e.g. "VAT 7% 100.00 7.00 107.00"; CGST and SGST of one rate are one row with their sum; [] if no such table is printed),
 discount_rate (the percentage printed on a discount line for the whole document, e.g. 10 for "Discount (10%)"; null otherwise),
 seller_tax_id (the seller's VAT number, BIN or GSTIN exactly as printed; null if not printed),
 service_charge, total,
@@ -174,6 +175,7 @@ def call(name, image, prompt=PROMPT):
 MONEY = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
 QUANTITY = re.compile(r'\s*(\d+(?:\.\d+)?)\s*\D*')  # a number, then an optional unit; money stays strict
 ITEM_NUMBERS = ('quantity', 'unit_price', 'amount', 'discount')
+VAT_NUMBERS = ('rate', 'net', 'tax', 'gross')
 VAT_FORM = re.compile(r'mushak|মূসক', re.I)  # Bangladeshi VAT form names (Mushak-6.3) printed near the branch
 
 
@@ -190,14 +192,19 @@ def parse(text):
         data['items'] = []  # "null when not printed" also applies to the list
     if not all(isinstance(i, dict) for i in data['items']):
         raise ValueError('items must be objects')
+    if data.get('vat_lines') is None:
+        data['vat_lines'] = []
+    if not all(isinstance(v, dict) for v in data['vat_lines']):
+        raise ValueError('vat_lines must be objects')
     for i in data['items']:  # "২ কেজি", "1 dozen": the quantity is the number before the unit (any script's digits)
         if isinstance(i.get('quantity'), str):
             m = QUANTITY.fullmatch(i['quantity'])
             i['quantity'] = Decimal(m[1]) if m else None
-    numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
+    numbers = ([data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
+               + [v.get(k) for v in data['vat_lines'] for k in VAT_NUMBERS])
     if any(isinstance(v, str) for v in numbers):
         raise ValueError('amount given as text, not a number')
-    for d, keys in [(data, MONEY)] + [(i, ITEM_NUMBERS) for i in data['items']]:
+    for d, keys in [(data, MONEY)] + [(i, ITEM_NUMBERS) for i in data['items']] + [(v, VAT_NUMBERS) for v in data['vat_lines']]:
         for k in keys:
             if isinstance(d.get(k), float):
                 d[k] = round(d[k], 6)  # a unit price like 0.3333333 must not fail the whole document

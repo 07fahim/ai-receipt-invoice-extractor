@@ -121,4 +121,16 @@ assert d.seller_tax_id is None, d  # bool is an int subclass: must not pass thro
 d = parse_rates('{"total": 10, "seller_tax_id": "Applied"}')
 assert d.seller_tax_id is None, d  # "BIN: Applied" on Arax: a word, not a number
 
+# the VAT summary: null list -> [], rows as objects, numbers never text
+d = parse('{"total": 110, "vat_lines": null}')
+assert d.vat_lines == []
+d = parse('{"total": 110, "vat_lines": [{"rate": 10, "net": 100, "tax": 10, "gross": 110}]}')
+assert d.vat_lines[0].tax == D(10) and d.vat_lines[0].gross == D(110)
+for bad in ('{"vat_lines": ["x"]}', '{"vat_lines": [{"tax": "10,00"}]}'):
+    try:
+        parse(bad)
+        raise AssertionError(bad)
+    except ValueError:
+        pass
+
 print('ok')
