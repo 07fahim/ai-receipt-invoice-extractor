@@ -113,6 +113,12 @@ assert inv('32', '200', 'IT1') == ['total_math'] and inv('32', '200', 'IT1', 're
 assert inv('5.21', '100') == [] and inv('5.21', '100', 'FR1') == []  # one rate, 5.5% included (France)
 assert inv('20', '100', 'FR1') == ['total_math'] and inv('20.32', '100', 'FI1') == []  # 20% on top; Finland 25.5% included
 assert mixed('EUR', '4.15', '29.15', 'DE1') == []  # a German receipt mixing 7% and 19%, unchanged
+assert inv('20.32', '100') == [] and inv('5.21', '100', 'SIRET 123') == []  # 25.5% without a prefix; a label is no country
+assert inv('11.89', '100', 'IE1') == [] and checks(doc_type='invoice', subtotal=D('125'), tax=D('25'), total=D('125'), currency='SEK',
+                                                   tax_included=True, items=[Item(amount=D('125'))]) == []  # IE 13.5%, SE 25%
+on_top2 = lambda cur, tax, tax_id=None: checks(doc_type='invoice', subtotal=D('200'), tax=D(tax), total=D('200'), currency=cur,
+                                               tax_included=True, seller_tax_id=tax_id, items=[Item(amount=D('200'))])
+assert on_top2('EUR', '26', 'DE1') == on_top2('JPY', '18') == on_top2('GBP', '20') == ['total_math']  # 7+19, 8+10, 0+20 on top
 # the share of the subtotal also counts: a tip without VAT added after it (WildReceipt test 270, ZAR 14%)
 assert checks(subtotal=D('318'), tax=D('39.05'), service_charge=D('32'), total=D('350'), tax_included=True, items=[Item(amount=D('318'))]) == []
 no_sub = {**incl, 'subtotal': None}

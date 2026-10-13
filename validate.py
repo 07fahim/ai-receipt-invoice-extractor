@@ -39,8 +39,6 @@ INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
 # Rates a "VAT included" tax may be the share of, when the document prints none. A share at no rate (6.00 of 40.50,
 # 17%) is a misread. 25% is left out: 20% added on top with the subtotal read as the total looks like 25% included.
 # The share may be of the total or of the subtotal (a tip or service charge without VAT added after it).
-# Known false alarm: a receipt with two rates and no rate read (7% and 19% in Germany, 8% and 10% in Japan) or 25%
-# (Nordic) goes to review. None in the measured sets (results/M4_NOTES.md).
 VAT_RATES = tuple(map(Decimal, '2.6 3.8 5 6 7 7.5 8 8.1 9 10 11 12 13 14 15 16 17 17.5 18 19 20 21 22 23 24'.split()))
 
 # Where "VAT included" receipts are the norm and one receipt mixes rates (7% and 19% in Germany, 8% and 10% in Japan,
@@ -49,7 +47,7 @@ VAT_RATES = tuple(map(Decimal, '2.6 3.8 5 6 7 7.5 8 8.1 9 10 11 12 13 14 15 16 1
 # a mix almost never gives (4.15 on 29.15). Euro countries by the VAT number's prefix, else all euro rates.
 # Invoices don't get this: they add the tax on top (736 of 737 saved invoice readings), and two rates on top look
 # exactly like a mix. A known country's own rates also count as exact, and euro rates on euro documents (25% only
-# for a known country: 20% on top looks like 25%).
+# for a known country: 20% on top looks exactly like 25%).
 VAT_BY = {k: tuple(map(Decimal, v.split())) for k, v in {
     'GBP': '5 20', 'CHF': '2.6 3.8 8.1', 'JPY': '8 10', 'SEK': '6 12 25', 'NOK': '12 15 25', 'DKK': '25', 'ISK': '11 24',
     'AT': '10 13 20', 'BE': '6 12 21', 'CY': '5 9 19', 'DE': '7 19', 'EE': '9 13 24', 'EL': '6 13 24', 'ES': '4 10 21',
@@ -73,9 +71,10 @@ def included_share(tax, total, lines, allow=frozenset()):
 
 def vat_share(tax, bases, currency=None, tax_id=None, doc_type=None):
     c = (currency or '').upper()
-    prefix = re.sub(r'[^A-Z]', '', (tax_id or '').upper())[:2]
+    m = re.search(r'([A-Z]{2})[A-Z]?\d', re.sub(r'[\s.-]', '', (tax_id or '').upper()))  # the letters before the digits: ATU123 -> AT
+    prefix = m[1] if m else ''
     country = prefix if c == 'EUR' and prefix in VAT_BY else c
-    own = tuple(r for r in VAT_BY['EUR'] if r < 25) if country == 'EUR' else VAT_BY.get(country, ())
+    own = tuple(r for r in VAT_BY['EUR'] if r != 25) if country == 'EUR' else VAT_BY.get(country, ())
     if any(abs(tax - b * r / (100 + r)) <= CENT for b in bases for r in VAT_RATES + own):
         return True
     rates = VAT_BY.get(country)
