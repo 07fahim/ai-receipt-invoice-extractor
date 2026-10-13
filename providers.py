@@ -200,6 +200,10 @@ def parse(text):
         if isinstance(i.get('quantity'), str):
             m = QUANTITY.fullmatch(i['quantity'])
             i['quantity'] = Decimal(m[1]) if m else None
+    for v in data['vat_lines']:  # a row's rate sent as "7%" must not fail the whole document
+        if isinstance(v.get('rate'), str):
+            m = re.fullmatch(r'\s*(\d+(?:\.\d+)?)\s*%?\s*', v['rate'])
+            v['rate'] = Decimal(m[1]) if m else None
     numbers = ([data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
                + [v.get(k) for v in data['vat_lines'] for k in VAT_NUMBERS])
     if any(isinstance(v, str) for v in numbers):

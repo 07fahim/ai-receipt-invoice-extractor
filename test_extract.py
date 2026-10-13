@@ -132,5 +132,17 @@ for bad in ('{"vat_lines": ["x"]}', '{"vat_lines": [{"tax": "10,00"}]}'):
         raise AssertionError(bad)
     except ValueError:
         pass
+# a row's rate sent as text ("7%" or "7") must not fail the whole document; net/tax/gross as text still must
+d = parse('{"total": 110, "vat_lines": [{"rate": "7%", "net": 100, "tax": 7, "gross": 107}]}')
+assert d.vat_lines[0].rate == D(7), d
+d = parse('{"total": 110, "vat_lines": [{"rate": "7", "net": 100, "tax": 7, "gross": 107}]}')
+assert d.vat_lines[0].rate == D(7), d
+d = parse('{"total": 110, "vat_lines": [{"rate": "none", "net": 100, "tax": 7, "gross": 107}]}')
+assert d.vat_lines[0].rate is None, d
+try:
+    parse('{"vat_lines": [{"rate": "7%", "net": "100"}]}')
+    raise AssertionError('net as text must still be rejected')
+except ValueError:
+    pass
 
 print('ok')
