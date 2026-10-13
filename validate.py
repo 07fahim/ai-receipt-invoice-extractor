@@ -276,6 +276,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so
     # or the numbers prove it (included_share): the arithmetic decides, so a wrong tax_included=True on an invoice
     # whose tax is added on top does no harm.
+    # VAT summary rows, read before the included decision so both it and the row checks below use them
+    rows = [r for r in doc.vat_lines if None not in (r.rate, r.net, r.tax)]
+
     if doc.subtotal is not None and doc.total is not None:
         discount = 0 if discount_in_subtotal else abs(doc.discount or 0)
         expected = doc.subtotal + tax + (doc.service_charge or 0) - discount
@@ -283,7 +286,10 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # (VAT/GST only: a US sales tax subtotal misread as the total would pass the same arithmetic by chance)
         printed = doc.tax_kind in ('vat', 'gst') and doc.tax_rate and abs(
             tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
-        included = tax and near(expected - tax) and (printed or (doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id, doc.doc_type)) or included_share(tax, doc.total, net, allow))
+        # with rows printed, the total being the rows' gross is proof on its own; without rows, fall back as before
+        row_share = near(sum(r.net + r.tax for r in rows)) if rows else (
+            doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id, doc.doc_type))
+        included = tax and near(expected - tax) and (printed or row_share or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
@@ -313,6 +319,17 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             if (rate == 0 and doc.tax > 0) or doc.tax > top + room:
                 fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(base)} is at most '
                      f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
+    # VAT summary rows: each row's own tax must match its rate and net, and the rows must add up to doc.tax.
+    # A flat cent of room per item (not the "whole-unit currency" leniency used for doc.tax above): rows are new,
+    # no measured data yet on how a cash-rounded currency prints them.
+    for r in rows:
+        room = CENT * max(1, len(doc.items))
+        if abs(r.tax - r.net * r.rate / 100) > room or (r.gross is not None and abs(r.net + r.tax - r.gross) > CENT):
+            fail('vat_row', ['tax'], f'The {pct(r.rate)}% VAT row: {pct(r.rate)}% of {num(r.net)} is '
+                 f'{num((r.net * r.rate / 100).quantize(CENT, ROUND_HALF_UP))}. It says {num(r.tax)}.')
+    if rows and doc.tax is not None and abs(sum(r.tax for r in rows) - doc.tax) > CENT * len(rows):
+        fail('vat_rows_tax', ['tax'], f'The VAT rows add up to {num(sum(r.tax for r in rows))}. The tax is {num(doc.tax)}.')
+
     if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
         most = doc.subtotal * doc.discount_rate / 100
         if abs(doc.discount) > most + CENT:

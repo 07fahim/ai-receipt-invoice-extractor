@@ -132,6 +132,8 @@ def tools():
                 'আম: is the quantity 1.89? Then the line adds up.',
                 'Did you mean 8.50 instead of 85.0? Then every sum adds up.',
                 'VAT 15% of 851.20 is 127.68. The document says 120.',
+                'The 7% VAT row: 7% of 100 is 7. It says 8.',
+                'The VAT rows add up to 16.50. The tax is 16.',
                 'GST 5% of 1,000 is 50. The document says 60.',
                 'Tax 8.5% of 80.44 is at most 6.84. The document says 8.55.',
                 '10% of 26.85 is 2.69. The discount is 3.49.',
@@ -147,9 +149,9 @@ def tools():
                 'Tax 3.30', 'Other charge 5', 'Total 41.30']
     assert len(examples) == len(assistant.BANGLA)
     # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
-    # 18 checks, 5 suggestions (2 found.append, 2 f-string returns, 1 plain return), 1 note dict in validate.py
+    # 20 checks, 5 suggestions (2 found.append, 2 f-string returns, 1 plain return), 1 note dict in validate.py
     src, app_src = open('validate.py', encoding='utf-8').read(), open('app.py', encoding='utf-8').read()
-    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (18, 2, 3, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
+    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (20, 2, 3, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
     for m in examples:
         assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '').replace('07AAHCA1234F1Z6', '')), m
     assert assistant.bangla('Is the tax 3.30? Then the total adds up.') == 'কর কি 3.30? তাহলে মোট মিলে যায়।'

@@ -127,6 +127,27 @@ assert checks(**no_sub, tax_included=False) == []  # said to be on top, but 150 
 assert checks(**{**no_sub, 'tax': D('100')}, tax_included=False) == ['items_total']  # on top, lines already reach the total
 assert checks(**good, tax_included=True) == []  # tax added on top but marked included (Mushak 'incl.' column): numbers still agree
 
+# the VAT summary rows: with rows, the included decision and the row checks use them
+from schema import VatLine
+row = lambda rate, net, tax, gross=None: VatLine(rate=D(rate), net=D(net), tax=D(tax), gross=None if gross is None else D(gross))
+two = [row('7', '100.00', '7.00', '107.00'), row('19', '50.00', '9.50', '59.50')]
+base = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True, vat_lines=two,
+            items=[Item(amount=D('107.00')), Item(amount=D('59.50'))])
+assert checks(**base) == []  # a genuine mixed receipt: the total is the rows' gross
+assert checks(**{**base, 'vat_lines': [row('7', '100.00', '8.00', '108.00'), two[1]], 'tax': D('17.50'),
+                 'subtotal': D('167.50'), 'total': D('167.50'), 'items': [Item(amount=D('108.00')), Item(amount=D('59.50'))]}) == ['vat_row']
+assert checks(**{**base, 'tax': D('16.00')}) == ['vat_rows_tax']  # total still equals the rows' gross
+# tax on top, subtotal read as the total, marked included: the rows' gross is 166.50, the total read 150.00
+assert checks(**{**base, 'subtotal': D('150.00'), 'total': D('150.00'), 'items': [Item(amount=D('100')), Item(amount=D('50'))]}) == ['total_math']
+# a small total: 0.75 is 15% of 5.00 added on top; the row's gross is 5.75, not the 5.00 read as the total
+assert checks(currency='GBP', subtotal=D('5.00'), tax=D('0.75'), total=D('5.00'), tax_included=True, items=[Item(amount=D('5.00'))],
+              vat_lines=[row('15', '5.00', '0.75', '5.75')]) == ['total_math']
+# real receipts print zero rows beside a real one (a French receipt: 5.5% and 20% at 0.00 beside a real 10% row)
+zero = dict(currency='EUR', subtotal=D('50.00'), tax=D('5.00'), total=D('55.00'), tax_included=False,
+            items=[Item(amount=D('55.00'))],
+            vat_lines=[row('5.5', '0.00', '0.00', '0.00'), row('20', '0.00', '0.00', '0.00'), row('10', '50.00', '5.00', '55.00')])
+assert checks(**zero) == []
+
 # not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
 assert [i['check'] for i in validate(Document(is_document=False))] == ['is_document']
 assert checks(**good, is_document=True) == [] and checks(**good, is_document=None) == []
