@@ -4,7 +4,7 @@
   "docs": 48,
   "flagged_ground_truth": 0,
   "catch_rate_overall": {
-   "rate": 0.9583,
+   "rate": 0.9613,
    "n": 336
   },
   "catch_rate": {
@@ -29,7 +29,7 @@
     "n": 48
    },
    "total_digit_misread": {
-    "rate": 0.9375,
+    "rate": 0.9583,
     "n": 48
    },
    "total_off_by_1000x": {
@@ -40,11 +40,6 @@
  },
  "flagged_ground_truth": {},
  "missed_examples": {
-  "total_digit_misread": [
-   3,
-   41,
-   48
-  ],
   "line_item_dropped": [
    6,
    11,
@@ -59,6 +54,10 @@
    14,
    34,
    39
+  ],
+  "total_digit_misread": [
+   41,
+   48
   ]
  }
 }

@@ -41,6 +41,19 @@ assert checks(subtotal=D('91000'), total=D('91000'), items=[Item(amount=D('91070
 assert checks(**{**good, 'total': D('977.55')}) == ['total_math'] and checks(**{**good, 'total': D('977.51')}) == []
 # 5-cent cash rounding (CHF, AUD, CAD): 12.37 printed as 12.35 is fine, 12.30 is not
 assert checks(subtotal=D('12.37'), total=D('12.35')) == [] and checks(subtotal=D('12.37'), total=D('12.30')) == ['total_math']
+assert checks(subtotal=D('12.37'), total=D('12.35'), currency='CHF') == []
+assert checks(**{**good, 'total': D('977.55')}) == ['total_math']  # dollars are not cash-rounded: 977.50 for 977.52 is caught
+assert checks(**{**good, 'tax': D('127.52')}) == ['total_math']
+# taka and rupees are cut or rounded to whole units, never by hundreds (977,500 read as 977,900 was let through by 0.05%)
+taka = dict(subtotal=D('977500'), total=D('977500'), currency='BDT', items=[Item(amount=D('977500'))])
+assert checks(**{**taka, 'total': D('977900')}) == ['total_math'] and checks(**{**taka, 'subtotal': D('977500.70'), 'items': [Item(amount=D('977500.70'))]}) == []
+assert checks(**{**taka, 'currency': 'IDR', 'total': D('977900')}) == []  # rupiah: rounded to hundreds
+small_taka = lambda sub, total: checks(subtotal=D(sub), total=D(total), currency='bdt', items=[Item(amount=D(sub))])
+assert small_taka('403.60', '404') == [] and small_taka('404.90', '404') == []  # rounded up, or cut
+assert small_taka('403.01', '404') == ['total_math'] and small_taka('405.00', '404') == ['total_math']
+assert checks(subtotal=D('12.37'), total=D('12.35'), currency='chf') == []
+# no total_text: a dollar total gets no whole-unit room
+assert checks(subtotal=D('978.40'), total=D('978'), currency='USD') == ['total_math']
 # missing inputs skip checks instead of failing them
 assert [i['check'] for i in validate(Document(total=D('10')))] == ['items_missing']
 assert [i['check'] for i in validate(Document())] == ['total_present']
@@ -79,8 +92,22 @@ assert tr('TOTAL 22.000', D('22')) == '22.000' and tr('22.000', D('22000')) is N
 # "VAT included" (Bangladeshi supershops): subtotal = total and the VAT is inside the prices
 incl = dict(subtotal=D('1150'), tax=D('150'), total=D('1150'), items=[Item(amount=D('1000')), Item(amount=D('150'))])
 assert checks(**incl, tax_included=True) == [] and checks(**incl) == [] and checks(**incl, tax_included=False) == []  # 150 is exactly the 15% inside 1150
-odd = {**incl, 'tax': D('140')}  # not the share of any known rate: only the model's word counts
-assert checks(**odd, tax_included=True) == [] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
+odd = {**incl, 'tax': D('140')}  # 140 inside 1150 is 13.9%, no VAT rate: the model's word is not enough
+assert checks(**odd, tax_included=True) == ['total_math'] and checks(**odd) == ['total_math'] and checks(**odd, tax_included=False) == ['total_math']
+# tax added on top, the subtotal read as the total and marked included: 10 of 100 is no rate's share (9.09 would be 10%)
+on_top = dict(subtotal=D('100'), tax=D('10'), total=D('100'), currency='USD', items=[Item(amount=D('100'))])
+assert checks(**on_top, tax_included=True) == ['total_math'] and checks(**{**on_top, 'tax': D('16.67')}, tax_included=True) == []
+# where receipts mix rates, any share up to the top rate passes; standard rate on top lands above it
+mixed = lambda cur, tax, total, tax_id=None: checks(subtotal=D(total), tax=D(tax), total=D(total), currency=cur, tax_included=True,
+                                                    seller_tax_id=tax_id, items=[Item(amount=D(total))])
+assert mixed('EUR', '4.15', '29.15') == [] and mixed('EUR', '2.66', '22.66') == [] and mixed('JPY', '188', '2188') == []  # 7+19%, 5.5+20%, 8+10%
+assert mixed('CHF', '4.05', '54.05') == [] and mixed('SEK', '25', '125') == [] and mixed('GBP', '10', '100') == []  # 8.1%, 25%, 0+20%
+assert mixed('GBP', '20', '100') == ['total_math'] and mixed('EUR', '19', '100', 'DE123456789') == ['total_math']  # 20%, 19% on top
+assert mixed('EUR', '20.32', '100', 'FI12345678') == [] and mixed('EUR', '20.32', '100') == []  # Finland 25.5%
+assert mixed('EUR', '10', '100') == ['total_math'] and mixed('JPY', '80', '1000') == ['total_math']  # 10%, 8% on top
+assert mixed('EUR', '25', '100', 'FR12345678901') == ['total_math']  # 20% on top looks like 25% included: not a French rate
+# the share of the subtotal also counts: a tip without VAT added after it (WildReceipt test 270, ZAR 14%)
+assert checks(subtotal=D('318'), tax=D('39.05'), service_charge=D('32'), total=D('350'), tax_included=True, items=[Item(amount=D('318'))]) == []
 no_sub = {**incl, 'subtotal': None}
 assert checks(**no_sub, tax_included=True) == [] and checks(**no_sub) == []  # unknown: either reading is accepted
 assert checks(**no_sub, tax_included=False) == []  # said to be on top, but 150 is exactly the 15% inside 1150
@@ -143,8 +170,11 @@ s = suggest(Document(**ribs))
 assert s == {'message': 'Beef Ribs: is the quantity 1.89? Then the line adds up.',
              'changes': [{'field': 'items[0].quantity', 'from': '1', 'to': '1.89'}]}, s
 assert checks(**{**ribs, 'items': [ribs['items'][0].model_copy(update={'quantity': D('1.89')}), ribs['items'][1]]}) == []
-s = suggest(Document(total=D('7.50'), items=[Item(quantity=1, unit_price=D('2.50'), amount=D('7.50'))]))
-assert s['changes'] == [{'field': 'items[0].quantity', 'from': '1', 'to': '3'}] and s['message'].startswith('Line 1:'), s
+s = suggest(Document(total=D('9.00'), items=[Item(quantity=1, unit_price=D('2.25'), amount=D('9.00'))]))
+assert s['changes'] == [{'field': 'items[0].quantity', 'from': '1', 'to': '4'}] and s['message'].startswith('Line 1:'), s
+# one digit of the price fits too (2.50 for 7.50; 4 x 125 for 4 x 185): no guess
+assert suggest(Document(total=D('7.50'), items=[Item(quantity=1, unit_price=D('2.50'), amount=D('7.50'))])) is None
+assert suggest(Document(total=D('740'), items=[Item(quantity=4, unit_price=D('125'), amount=D('740'))])) is None
 assert suggest(Document(total=D('10'), items=[Item(quantity=1, unit_price=D('7'), amount=D('10'))])) is None  # 1.428 and 1.429 both fit
 two = [Item(quantity=1, unit_price=D('2.50'), amount=D('7.50')), Item(quantity=1, unit_price=D('2'), amount=D('4'))]
 assert suggest(Document(total=D('11.50'), items=two)) is None  # two lines fail
@@ -165,9 +195,21 @@ assert [o['label'] for o in labels['options']] == ['Tax 180.50', 'Total 2,080.50
 # a printed rate decides: 10% of 33 is 3.30, so the tax is the misread
 one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', tax_rate=D(10), tax_kind='vat', items=lines))
 assert one == {'message': 'Is the tax 3.30? Then the total adds up.', 'changes': [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]}, one
-# the tax matches its rate, so the total is the misread
-one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('86.30'), total_text='86.30', tax_rate=D(10), tax_kind='vat', items=lines))
-assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '86.30', 'to': '36.30'}]}, one
+# the tax matches its rate, so the total is the misread, or a 50.00 charge (delivery, a tip) was not read
+two = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('86.30'), total_text='86.30', tax_rate=D(10), tax_kind='vat', items=lines))
+assert two['message'] == 'The total was misread, or a charge was not read. Pick the one the photo shows.' and [o['changes'] for o in two['options']] == [
+    [{'field': 'total', 'from': '86.30', 'to': '36.30'}], [{'field': 'service_charge', 'from': None, 'to': '50.00'}]], two
+# a total below its parts can't hold a missed charge: one answer
+one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('26.30'), total_text='26.30', tax_rate=D(10), tax_kind='vat', items=lines))
+assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '26.30', 'to': '36.30'}]}, one
+three = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('41.30'), total_text='41.30', items=lines))
+assert [o['label'] for o in three['options']] == ['Tax 8.30', 'Total 36.30', 'Other charge 5'], three
+# a service charge already read: the label gives the missed amount, the change the new service charge
+svc = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), service_charge=D('2.00'), total=D('43.30'), total_text='43.30', items=lines))
+assert svc['options'][-1] == {'label': 'Other charge 5', 'changes': [{'field': 'service_charge', 'from': '2.00', 'to': '7.00'}]}, svc
+# a refund: no option flips the sign of the tax or the total
+refund = suggest(Document(currency='USD', subtotal=D('-33.00'), tax=D('-3.30'), total=D('-26.30'), total_text='-26.30', items=[Item(amount=D('-33.00'))]))
+assert refund is None or all(D(c['to']) < 0 for o in refund.get('options') or [refund] for c in o['changes']), refund
 # no guess when the tax is inside the prices (subtotal = total) or the total is printed in whole units (rounded)
 assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.00'), total=D('33.00'), total_text='33.00', items=lines)) is None
 assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36', items=lines)) is None
@@ -244,6 +286,10 @@ from validate import gstin_valid, uk_vat_valid
 assert gstin_valid('07AAHCA1234F1Z5') and not gstin_valid('07AAHCA1234F1Z6') and not gstin_valid('99AAHCA1234F1Z5')
 # 1234567: weights 8..2 give 112; 112 + 82 = 194 = 2 x 97 (old scheme); 112 + 27 + 55 = 194 (new scheme)
 assert uk_vat_valid('123456782') and uk_vat_valid('123456727') and not uk_vat_valid('123456789')
+from validate import tax_id_problem
+# without GB on a pound receipt (WildReceipt 349 and 10 print '191 2478 96' and '142 440 545'); other currencies unchecked
+assert tax_id_problem('191 2478 96', 'GBP') is None and tax_id_problem('142 440 545', 'GBP') is None
+assert tax_id_problem('123 4567 89', 'GBP') and tax_id_problem('123 4567 89', 'USD') is None
 assert found(**{**greenleaf, 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_id': 'GB123 4567 89'}) == \
     {'tax_id_invalid': 'GB123 4567 89 is not a valid UK VAT number. Check it on the document.'}
 assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \
