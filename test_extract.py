@@ -146,5 +146,13 @@ try:
     raise AssertionError('net as text must still be rejected')
 except ValueError:
     pass
+# an out-of-range or boolean row rate is dropped, like tax_rate; the document still parses
+for bad_rate in (-5, 150, True):
+    d = parse('{"total": 1, "vat_lines": [{"rate": %s, "net": 100, "tax": 7, "gross": 107}]}' % json.dumps(bad_rate))
+    assert d.vat_lines[0].rate is None, d
+# more than 10 rows is dropped, not truncated
+many_rows = ', '.join('{"rate": 10, "net": 1, "tax": 0.1}' for _ in range(11))
+d = parse('{"total": 1, "vat_lines": [%s]}' % many_rows)
+assert d.vat_lines == [], d
 
 print('ok')

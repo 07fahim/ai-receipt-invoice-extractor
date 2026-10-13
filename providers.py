@@ -196,6 +196,8 @@ def parse(text):
         data['vat_lines'] = []
     if not all(isinstance(v, dict) for v in data['vat_lines']):
         raise ValueError('vat_lines must be objects')
+    if len(data['vat_lines']) > 10:  # a mis-split VAT table must not flood the document; drop it, don't truncate
+        data['vat_lines'] = []
     for i in data['items']:  # "২ কেজি", "1 dozen": the quantity is the number before the unit (any script's digits)
         if isinstance(i.get('quantity'), str):
             m = QUANTITY.fullmatch(i['quantity'])
@@ -204,6 +206,9 @@ def parse(text):
         if isinstance(v.get('rate'), str):
             m = re.fullmatch(r'\s*(\d+(?:[.,]\d+)?)\s*%?\s*', v['rate'])
             v['rate'] = Decimal(m[1].replace(',', '.')) if m else None
+        r = v.get('rate')  # out of range or a bool: dropped, like tax_rate
+        if isinstance(r, bool) or (isinstance(r, (int, float, Decimal)) and not (0 <= r <= 100)):
+            v['rate'] = None
     numbers = ([data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
                + [v.get(k) for v in data['vat_lines'] for k in VAT_NUMBERS])
     if any(isinstance(v, str) for v in numbers):
