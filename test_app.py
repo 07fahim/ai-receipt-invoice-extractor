@@ -271,6 +271,11 @@ try:
     padded = {**kept['extracted'], 'subtotal': '51.90', 'vendor': ' Green Field '}  # how the review screen shows it: not a correction
     assert corrections.report([(kept['extracted'], padded)])[0] == '1 reviewed documents, 0 corrected (0%)'
 
+    # a save drops the VAT summary rows (they can't be edited)
+    doc = c.get(f'/documents/{good_id}').json()['document']
+    doc['vat_lines'] = [{'rate': '10', 'net': '50.00', 'tax': '5.00', 'gross': '55.00'}]
+    assert c.put(f'/documents/{good_id}', json=doc).json()['document']['vat_lines'] == []
+
     # webhook: every reading (passed, needs_review, failed) and every review, signed with the secret
     assert not events  # no sender yet: the events wait in the table
     flush()
@@ -278,7 +283,7 @@ try:
     # Dave's reviewed document and the resumed one belong to other users: not sent
     assert kinds == [('document.passed', good_id), ('document.passed', novat_id), ('document.needs_review', amb_id),
                      ('document.passed', amb_id), ('document.failed', bad_id), ('document.failed', bad_id),
-                     ('document.reviewed', good_id)], kinds
+                     ('document.reviewed', good_id), ('document.reviewed', good_id)], kinds
     failed_event = next(e for e, _, _ in events if e['event'] == 'document.failed')
     assert 'busy' in failed_event['error'] and 'HTTP' not in failed_event['error']  # the short public message only
     e, sig, raw = events[-1]

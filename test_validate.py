@@ -127,6 +127,77 @@ assert checks(**no_sub, tax_included=False) == []  # said to be on top, but 150 
 assert checks(**{**no_sub, 'tax': D('100')}, tax_included=False) == ['items_total']  # on top, lines already reach the total
 assert checks(**good, tax_included=True) == []  # tax added on top but marked included (Mushak 'incl.' column): numbers still agree
 
+# the VAT summary rows: with rows, the included decision and the row checks use them
+from schema import VatLine
+row = lambda rate, net, tax, gross=None: VatLine(rate=D(rate), net=D(net), tax=D(tax), gross=None if gross is None else D(gross))
+two = [row('7', '100.00', '7.00', '107.00'), row('19', '50.00', '9.50', '59.50')]
+base = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True, vat_lines=two,
+            items=[Item(amount=D('107.00')), Item(amount=D('59.50'))])
+assert checks(**base) == []  # a genuine mixed receipt: the total is the rows' gross
+assert checks(**{**base, 'vat_lines': [row('7', '100.00', '8.00', '108.00'), two[1]], 'tax': D('17.50'),
+                 'subtotal': D('167.50'), 'total': D('167.50'), 'items': [Item(amount=D('108.00')), Item(amount=D('59.50'))]}) == ['vat_row']
+assert checks(**{**base, 'tax': D('16.00')}) == ['vat_rows_tax']  # total still equals the rows' gross
+# the prompt puts supplementary duty/cess into tax beside VAT; rows hold VAT only, so a rows-sum below tax is fine
+bdt = dict(currency='BDT', subtotal=D('1000'), tax=D('250'), total=D('1250'), items=[Item(amount=D('1000'))],
+           vat_lines=[row('15', '1000', '150', '1150')])
+assert checks(**bdt) == []
+# a VAT table's totals row (no rate) read into vat_lines must not double the tax sum
+no_rate = [row('7', '100.00', '7.00', '107.00'), row('19', '50.00', '9.50', '59.50'),
+           VatLine(rate=None, net=D('150.00'), tax=D('16.50'), gross=D('166.50'))]
+assert checks(currency='EUR', subtotal=D('150.00'), tax=D('16.50'), total=D('166.50'), tax_included=None,
+              items=[Item(amount=D('100')), Item(amount=D('50'))], vat_lines=no_rate) == []
+# tax on top, subtotal read as the total, marked included: the rows' gross is 166.50, the total read 150.00
+assert checks(**{**base, 'subtotal': D('150.00'), 'total': D('150.00'), 'items': [Item(amount=D('100')), Item(amount=D('50'))]}) == ['total_math']
+# a small total: 0.75 is 15% of 5.00 added on top; the row's gross is 5.75, not the 5.00 read as the total
+assert checks(currency='GBP', subtotal=D('5.00'), tax=D('0.75'), total=D('5.00'), tax_included=True, items=[Item(amount=D('5.00'))],
+              vat_lines=[row('15', '5.00', '0.75', '5.75')]) == ['total_math']
+# real receipts print zero rows beside a real one (a French receipt: 5.5% and 20% at 0.00 beside a real 10% row)
+zero = dict(currency='EUR', subtotal=D('50.00'), tax=D('5.00'), total=D('55.00'), tax_included=False,
+            items=[Item(amount=D('55.00'))],
+            vat_lines=[row('5.5', '0.00', '0.00', '0.00'), row('20', '0.00', '0.00', '0.00'), row('10', '50.00', '5.00', '55.00')])
+assert checks(**zero) == []
+# currencies with no cents: a whole-unit row gap gets the same room as doc.tax, not a flat cent-per-item room
+jpy = dict(currency='JPY', subtotal=D('1234'), tax=D('98'), total=D('1332'), tax_included=True,
+           items=[Item(amount=D('1332'))], vat_lines=[row('8', '1234', '98', '1332')])
+assert checks(**jpy) == []  # 8% of 1234 is 98.72, printed whole as 98
+# unknown currency: a whole-number row tax still gets the room; a known cash currency always does
+idr1 = dict(currency=None, subtotal=D('25000'), tax=D('2500'), total=D('27500'), tax_included=False,
+            items=[Item(amount=D('27500'))], vat_lines=[row('10', '25000', '2500')])
+assert checks(**idr1) == []
+idr2 = dict(currency='IDR', subtotal=D('25000'), tax=D('2502'), total=D('27502'), tax_included=False,
+            items=[Item(amount=D('27502'))], vat_lines=[row('10', '25000', '2502')])
+assert checks(**idr2) == ['vat_row']  # 2 units off, still outside the 1-unit room
+
+# a tip/service charge or a document discount outside the VAT table must not flag "included"
+tip = dict(currency='EUR', subtotal=D('107.00'), tax=D('7.00'), service_charge=D('5.00'), total=D('112.00'),
+           tax_included=True, items=[Item(amount=D('107.00'))], vat_lines=[row('7', '100.00', '7.00', '107.00')])
+assert checks(**tip) == []
+disc = dict(currency='EUR', subtotal=D('107.00'), tax=D('7.00'), discount=D('10.00'), total=D('97.00'),
+            tax_included=True, items=[Item(amount=D('107.00'))], vat_lines=[row('7', '100.00', '7.00', '107.00')])
+assert checks(**disc) == []
+
+# a partly read row (net missing) must not cause false flags: the sum check counts every row with tax set,
+# and "VAT included" falls back to the old term since not every row is complete
+f1 = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True,
+          items=[Item(amount=D('107.00')), Item(amount=D('59.50'))],
+          vat_lines=[row('7', '100.00', '7.00', '107.00'), VatLine(rate=D('19'), net=None, tax=D('9.50'), gross=D('59.50'))])
+assert checks(**f1) == []
+
+# a misread row (gross read into net) must not also fire total_math: the rows don't decide "included" unless
+# every row is complete and passes its own arithmetic, so the old term is used instead
+f2 = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True,
+          items=[Item(amount=D('107.00')), Item(amount=D('59.50'))],
+          vat_lines=[row('7', '107.00', '7.00'), row('19', '59.50', '9.50')])
+assert checks(**f2) == ['vat_row', 'vat_row']
+
+# a row whose gross doesn't match net + tax (but whose own rate arithmetic is fine) gets its own message
+f3 = dict(currency='EUR', subtotal=D('100.00'), tax=D('7.00'), total=D('107.00'),
+          items=[Item(amount=D('107.00'))], vat_lines=[row('7', '100.00', '7.00', '108.00')])
+f3_issues = [i for i in validate(Document(**f3), today=TODAY) if i['check'] != 'items_missing']
+assert [i['check'] for i in f3_issues] == ['vat_row'], f3_issues
+assert f3_issues[0]['message'] == 'The 7% VAT row: 100 + 7 is 107. It says 108.', f3_issues
+assert f3_issues[0]['fields'] == ['tax'], f3_issues
+
 # not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
 assert [i['check'] for i in validate(Document(is_document=False))] == ['is_document']
 assert checks(**good, is_document=True) == [] and checks(**good, is_document=None) == []
@@ -245,6 +316,12 @@ msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D
 assert msg == 'The total is printed as 22.000. Is it 22,000?', msg
 from validate import num
 assert [num(D(x)) for x in ('1270.0', '0.6', '0.63', '1.005', '9983196.70')] == ['1,270', '0.60', '0.63', '1.005', '9,983,196.70']
+
+# a candidate that breaks the VAT rows is dropped, like a candidate that breaks tax_rate
+rows_block = suggest(Document(currency='USD', subtotal=D('100.00'), tax=D('10.00'), total=D('101.00'), total_text='101.00',
+                              items=[Item(amount=D('100.00'))], vat_lines=[row('10', '100', '10', '110')]))
+assert not (rows_block and any(c['field'] == 'tax' and D(c['to']) == 1 for o in rows_block.get('options', [rows_block])
+                                for c in o.get('changes', []))), rows_block
 
 from validate import review
 def found(**kw):

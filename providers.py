@@ -174,6 +174,7 @@ def call(name, image, prompt=PROMPT):
 MONEY = ('subtotal', 'discount', 'tax', 'service_charge', 'total')
 QUANTITY = re.compile(r'\s*(\d+(?:\.\d+)?)\s*\D*')  # a number, then an optional unit; money stays strict
 ITEM_NUMBERS = ('quantity', 'unit_price', 'amount', 'discount')
+VAT_NUMBERS = ('rate', 'net', 'tax', 'gross')
 VAT_FORM = re.compile(r'mushak|মূসক', re.I)  # Bangladeshi VAT form names (Mushak-6.3) printed near the branch
 
 
@@ -190,14 +191,28 @@ def parse(text):
         data['items'] = []  # "null when not printed" also applies to the list
     if not all(isinstance(i, dict) for i in data['items']):
         raise ValueError('items must be objects')
+    if data.get('vat_lines') is None:
+        data['vat_lines'] = []
+    if not all(isinstance(v, dict) for v in data['vat_lines']):
+        raise ValueError('vat_lines must be objects')
+    if len(data['vat_lines']) > 10:  # a mis-split VAT table must not flood the document; drop it, don't truncate
+        data['vat_lines'] = []
     for i in data['items']:  # "২ কেজি", "1 dozen": the quantity is the number before the unit (any script's digits)
         if isinstance(i.get('quantity'), str):
             m = QUANTITY.fullmatch(i['quantity'])
             i['quantity'] = Decimal(m[1]) if m else None
-    numbers = [data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
+    for v in data['vat_lines']:  # a row's rate sent as "7%" or "7,5%" must not fail the whole document
+        if isinstance(v.get('rate'), str):
+            m = re.fullmatch(r'\s*(\d+(?:[.,]\d+)?)\s*%?\s*', v['rate'])
+            v['rate'] = Decimal(m[1].replace(',', '.')) if m else None
+        r = v.get('rate')  # out of range or a bool: dropped, like tax_rate
+        if isinstance(r, bool) or (isinstance(r, (int, float, Decimal)) and not (0 <= r <= 100)):
+            v['rate'] = None
+    numbers = ([data.get(k) for k in MONEY] + [i.get(k) for i in data['items'] for k in ITEM_NUMBERS]
+               + [v.get(k) for v in data['vat_lines'] for k in VAT_NUMBERS])
     if any(isinstance(v, str) for v in numbers):
         raise ValueError('amount given as text, not a number')
-    for d, keys in [(data, MONEY)] + [(i, ITEM_NUMBERS) for i in data['items']]:
+    for d, keys in [(data, MONEY)] + [(i, ITEM_NUMBERS) for i in data['items']] + [(v, VAT_NUMBERS) for v in data['vat_lines']]:
         for k in keys:
             if isinstance(d.get(k), float):
                 d[k] = round(d[k], 6)  # a unit price like 0.3333333 must not fail the whole document

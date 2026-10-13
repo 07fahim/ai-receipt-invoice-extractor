@@ -1,0 +1,4018 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "6cff05f4",
+  "split": "photos_us",
+  "docs": 200,
+  "failed_calls_or_invalid_json": 0,
+  "passed_all_checks": "126 / 200",
+  "checks_failed": [
+   [
+    "date_ambiguous",
+    53
+   ],
+   [
+    "discount_rate",
+    1
+   ],
+   [
+    "items_missing",
+    6
+   ],
+   [
+    "items_sum",
+    13
+   ],
+   [
+    "line_math",
+    3
+   ],
+   [
+    "tax_rate",
+    1
+   ],
+   [
+    "total_math",
+    17
+   ],
+   [
+    "total_present",
+    2
+   ]
+  ],
+  "median_seconds": 6.2,
+  "errors": []
+ },
+ "docs": [
+  {
+   "id": 0,
+   "seconds": 7.83,
+   "in": 1910,
+   "out": 428,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "GREEN FIELD",
+    "doc_number": "69923",
+    "issue_date_text": "5/26/2016",
+    "currency": "USD",
+    "subtotal": "51.9",
+    "tax": "4.68",
+    "total": "56.58"
+   },
+   "items": 3
+  },
+  {
+   "id": 1,
+   "seconds": 6.87,
+   "in": 1912,
+   "out": 514,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "GRAND LUX CAFE",
+    "doc_number": "None",
+    "issue_date_text": "04/25/15",
+    "currency": "USD",
+    "subtotal": "63.75",
+    "tax": "5.5",
+    "total": "69.25"
+   },
+   "items": 5
+  },
+  {
+   "id": 2,
+   "seconds": 8.38,
+   "in": 1910,
+   "out": 481,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Taco Bell",
+    "doc_number": "378752",
+    "issue_date_text": "9/1/2016",
+    "currency": "USD",
+    "subtotal": "6.98",
+    "tax": "0.63",
+    "total": "7.61"
+   },
+   "items": 4
+  },
+  {
+   "id": 3,
+   "seconds": 7.21,
+   "in": 1910,
+   "out": 321,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "El Gran Mar de Plata",
+    "doc_number": "8262",
+    "issue_date_text": "4/20/2017",
+    "currency": "USD",
+    "subtotal": "5.0",
+    "tax": "0.35",
+    "total": "5.35"
+   },
+   "items": 1
+  },
+  {
+   "id": 4,
+   "seconds": 8.27,
+   "in": 1910,
+   "out": 435,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "GOLDEN BOWL TERIYAKI",
+    "doc_number": "000141",
+    "issue_date_text": "05-18-2019",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "1.4",
+    "total": "15.03"
+   },
+   "items": 3
+  },
+  {
+   "id": 5,
+   "seconds": 6.72,
+   "in": 1910,
+   "out": 779,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "SASKA'S",
+    "doc_number": "10005",
+    "issue_date_text": "08/15/2017",
+    "currency": "USD",
+    "subtotal": "167.0",
+    "tax": "12.94",
+    "total": "179.94"
+   },
+   "items": 9
+  },
+  {
+   "id": 6,
+   "seconds": 9.71,
+   "in": 1935,
+   "out": 690,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Akira",
+    "doc_number": "37",
+    "issue_date_text": "2018-11-18",
+    "currency": "USD",
+    "subtotal": "86.65",
+    "tax": "6.93",
+    "total": "93.58"
+   },
+   "items": 8
+  },
+  {
+   "id": 7,
+   "seconds": 8.2,
+   "in": 1910,
+   "out": 734,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Katana Sushi",
+    "doc_number": "93",
+    "issue_date_text": "05/11/18",
+    "currency": "USD",
+    "subtotal": "131.0",
+    "tax": "12.71",
+    "total": "143.71"
+   },
+   "items": 9
+  },
+  {
+   "id": 8,
+   "seconds": 6.21,
+   "in": 1910,
+   "out": 521,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Dona Mercedes Restaurant",
+    "doc_number": "None",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "22.25",
+    "tax": "2.22",
+    "total": "24.47"
+   },
+   "items": 5
+  },
+  {
+   "id": 9,
+   "seconds": 7.53,
+   "in": 1935,
+   "out": 418,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Bella Pasta",
+    "doc_number": "4",
+    "issue_date_text": "08/09/19",
+    "currency": "USD",
+    "subtotal": "28.48",
+    "tax": "2.28",
+    "total": "30.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 10,
+   "seconds": 8.26,
+   "in": 1910,
+   "out": 580,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Friendly Red's",
+    "doc_number": "10076",
+    "issue_date_text": "07/21/2018",
+    "currency": "USD",
+    "subtotal": "71.4",
+    "tax": "6.43",
+    "total": "77.83"
+   },
+   "items": 6
+  },
+  {
+   "id": 11,
+   "seconds": 8.35,
+   "in": 1910,
+   "out": 648,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Smoke City Market",
+    "doc_number": "234673",
+    "issue_date_text": "Jun 26, 15",
+    "currency": "USD",
+    "subtotal": "59.11",
+    "tax": "5.32",
+    "total": "64.43"
+   },
+   "items": 7
+  },
+  {
+   "id": 12,
+   "seconds": 8.4,
+   "in": 1921,
+   "out": 443,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "HP Pho Ga",
+    "doc_number": "59980",
+    "issue_date_text": "Apr 01, 2019",
+    "currency": "USD",
+    "subtotal": "22.25",
+    "tax": "2.11",
+    "total": "33.26"
+   },
+   "items": 3
+  },
+  {
+   "id": 13,
+   "seconds": 7.46,
+   "in": 1910,
+   "out": 359,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "ALBETOS MEXICAN FOOD",
+    "doc_number": "01029",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "8.85",
+    "tax": "0.73",
+    "total": "9.58"
+   },
+   "items": 2
+  },
+  {
+   "id": 14,
+   "seconds": 4.92,
+   "in": 1910,
+   "out": 712,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Loaded Cafe",
+    "doc_number": "2763",
+    "issue_date_text": "Feb23'19",
+    "currency": "USD",
+    "subtotal": "44.32",
+    "tax": "4.21",
+    "total": "48.53"
+   },
+   "items": 9
+  },
+  {
+   "id": 15,
+   "seconds": 7.63,
+   "in": 1910,
+   "out": 626,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "HAMMOCKS TRADING COMPANY",
+    "doc_number": "202524",
+    "issue_date_text": "3/10/2017",
+    "currency": "USD",
+    "subtotal": "47.0",
+    "tax": "3.29",
+    "total": "50.29"
+   },
+   "items": 7
+  },
+  {
+   "id": 16,
+   "seconds": 7.43,
+   "in": 1910,
+   "out": 492,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Chef Wang",
+    "doc_number": "1022",
+    "issue_date_text": "02/02/19",
+    "currency": "USD",
+    "subtotal": "32.7",
+    "tax": "2.82",
+    "total": "35.52"
+   },
+   "items": 4
+  },
+  {
+   "id": 17,
+   "seconds": 9.03,
+   "in": 1910,
+   "out": 378,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "UMIX",
+    "doc_number": "215406",
+    "issue_date_text": "4/24/2016",
+    "currency": "USD",
+    "subtotal": "10.2",
+    "tax": "0.84",
+    "total": "11.04"
+   },
+   "items": 2
+  },
+  {
+   "id": 18,
+   "seconds": 6.97,
+   "in": 1910,
+   "out": 339,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "IN-N-OUT BURGER",
+    "doc_number": "12",
+    "issue_date_text": "2012-04-27",
+    "currency": "USD",
+    "subtotal": "2.0",
+    "tax": "0.17",
+    "total": "2.17"
+   },
+   "items": 1
+  },
+  {
+   "id": 19,
+   "seconds": 7.78,
+   "in": 1935,
+   "out": 756,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Grotto Pizzeria & Tavern",
+    "doc_number": "22037",
+    "issue_date_text": "5/12/2017",
+    "currency": "USD",
+    "subtotal": "43.0",
+    "tax": "2.58",
+    "total": "45.58"
+   },
+   "items": 9
+  },
+  {
+   "id": 20,
+   "seconds": 39.99,
+   "in": 1910,
+   "out": 549,
+   "attempts": 2,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Deccan Spice",
+    "doc_number": "80110",
+    "issue_date_text": "7/26/2019",
+    "currency": "USD",
+    "subtotal": "35.95",
+    "tax": "2.98",
+    "total": "47.02"
+   },
+   "items": 5
+  },
+  {
+   "id": 21,
+   "seconds": 7.62,
+   "in": 1910,
+   "out": 453,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "HAWWI ETHIOPIAN RESTAU",
+    "doc_number": "000016",
+    "issue_date_text": "13-Jul-2018",
+    "currency": "USD",
+    "subtotal": "62.85",
+    "tax": "6.91",
+    "total": "69.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 22,
+   "seconds": 7.49,
+   "in": 1910,
+   "out": 334,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Moonstar Restaurant",
+    "doc_number": "2406",
+    "issue_date_text": "10/29/2018",
+    "currency": "USD",
+    "subtotal": "29.88",
+    "tax": "3.01",
+    "total": "37.37"
+   },
+   "items": 1
+  },
+  {
+   "id": 23,
+   "seconds": 6.7,
+   "in": 1910,
+   "out": 449,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Thai Gusto",
+    "doc_number": "None",
+    "issue_date_text": "6/16/2017",
+    "currency": "USD",
+    "subtotal": "27.48",
+    "tax": "2.67",
+    "total": "30.15"
+   },
+   "items": 3
+  },
+  {
+   "id": 24,
+   "seconds": 7.07,
+   "in": 1946,
+   "out": 356,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "New Asia Buffet",
+    "doc_number": "None",
+    "issue_date_text": "ov-15-06-N",
+    "currency": "USD",
+    "subtotal": "31.12",
+    "tax": "2.8",
+    "total": "33.92"
+   },
+   "items": 2
+  },
+  {
+   "id": 25,
+   "seconds": 7.94,
+   "in": 1910,
+   "out": 433,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "McDonald's",
+    "doc_number": "97",
+    "issue_date_text": "02/07/2013",
+    "currency": "USD",
+    "subtotal": "6.64",
+    "tax": "0.63",
+    "total": "7.27"
+   },
+   "items": 3
+  },
+  {
+   "id": 26,
+   "seconds": 9.64,
+   "in": 1910,
+   "out": 822,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CHRIS'S HAMBURGERS",
+    "doc_number": "00154",
+    "issue_date_text": "07/22/2018",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "4.39",
+    "total": "51.82"
+   },
+   "items": 11
+  },
+  {
+   "id": 27,
+   "seconds": 7.37,
+   "in": 1910,
+   "out": 529,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Longboards",
+    "doc_number": "24016",
+    "issue_date_text": "01/11/2019",
+    "currency": "USD",
+    "subtotal": "42.75",
+    "tax": "1.86",
+    "total": "44.31"
+   },
+   "items": 5
+  },
+  {
+   "id": 28,
+   "seconds": 9.43,
+   "in": 1910,
+   "out": 764,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "DOUGLAS BURGERS",
+    "doc_number": "20018",
+    "issue_date_text": "2/09/19",
+    "currency": "USD",
+    "subtotal": "31.24",
+    "tax": "2.97",
+    "total": "34.21"
+   },
+   "items": 9
+  },
+  {
+   "id": 29,
+   "seconds": 7.21,
+   "in": 1910,
+   "out": 816,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "RINCON MEXICANO",
+    "doc_number": "45",
+    "issue_date_text": "09-May-2017",
+    "currency": "USD",
+    "subtotal": "28.95",
+    "tax": "2.03",
+    "total": "30.98"
+   },
+   "items": 10
+  },
+  {
+   "id": 30,
+   "seconds": 8.33,
+   "in": 1910,
+   "out": 611,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "VILLA D'ESTE RESTAURANT",
+    "doc_number": "None",
+    "issue_date_text": "12/8/2017",
+    "currency": "USD",
+    "subtotal": "87.25",
+    "tax": "7.53",
+    "total": "94.78"
+   },
+   "items": 6
+  },
+  {
+   "id": 31,
+   "seconds": 7.39,
+   "in": 1910,
+   "out": 556,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Laurel Tavern",
+    "doc_number": "1388",
+    "issue_date_text": "01/12/19",
+    "currency": "USD",
+    "subtotal": "40.5",
+    "tax": "3.85",
+    "total": "44.35"
+   },
+   "items": 5
+  },
+  {
+   "id": 32,
+   "seconds": 8.1,
+   "in": 1910,
+   "out": 480,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "WINGS & THINGS",
+    "doc_number": "168",
+    "issue_date_text": "04 MAR.19'17",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "0.75",
+    "total": "9.5"
+   },
+   "items": 4
+  },
+  {
+   "id": 33,
+   "seconds": 6.03,
+   "in": 1910,
+   "out": 416,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Uncle Julio's",
+    "doc_number": "None",
+    "issue_date_text": "05/18/2019",
+    "currency": "USD",
+    "subtotal": "43.47",
+    "tax": "3.26",
+    "total": "46.73"
+   },
+   "items": 3
+  },
+  {
+   "id": 34,
+   "seconds": 7.72,
+   "in": 1935,
+   "out": 485,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "la Source",
+    "doc_number": "0002",
+    "issue_date_text": "02-08-2015",
+    "currency": "EUR",
+    "subtotal": "15.45",
+    "tax": "1.55",
+    "total": "17.0"
+   },
+   "items": 3
+  },
+  {
+   "id": 35,
+   "seconds": 5.81,
+   "in": 1946,
+   "out": 699,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Argonaut Diner2000",
+    "doc_number": "None",
+    "issue_date_text": "AUGUST 13, 2017",
+    "currency": "USD",
+    "subtotal": "24.25",
+    "tax": "2.13",
+    "total": "26.38"
+   },
+   "items": 8
+  },
+  {
+   "id": 36,
+   "seconds": 9.43,
+   "in": 1910,
+   "out": 448,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Pappadeaux Seafood Kitchen",
+    "doc_number": "0035",
+    "issue_date_text": "11/18/17",
+    "currency": "USD",
+    "subtotal": "48.85",
+    "tax": "3.91",
+    "total": "52.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 37,
+   "seconds": 9.39,
+   "in": 1910,
+   "out": 401,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Panda Express",
+    "doc_number": "177437",
+    "issue_date_text": "3/16/2013",
+    "currency": "USD",
+    "subtotal": "151.0",
+    "tax": "13.89",
+    "total": "164.89"
+   },
+   "items": 2
+  },
+  {
+   "id": 38,
+   "seconds": 39.01,
+   "in": 1910,
+   "out": 252,
+   "attempts": 2,
+   "error": null,
+   "flagged": [
+    "items_missing"
+   ],
+   "extracted": {
+    "vendor": "Yogurtland",
+    "doc_number": "1082",
+    "issue_date_text": "Sep07'18",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "17.8"
+   },
+   "items": 0
+  },
+  {
+   "id": 39,
+   "seconds": 8.28,
+   "in": 1910,
+   "out": 491,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CARL'S JR",
+    "doc_number": "None",
+    "issue_date_text": "12/19/2016",
+    "currency": "USD",
+    "subtotal": "12.08",
+    "tax": "0.97",
+    "total": "13.05"
+   },
+   "items": 4
+  },
+  {
+   "id": 40,
+   "seconds": 7.54,
+   "in": 1910,
+   "out": 551,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "SUKHOTHAI",
+    "doc_number": "0003",
+    "issue_date_text": "19-Apr-2019",
+    "currency": "USD",
+    "subtotal": "22.98",
+    "tax": "1.61",
+    "total": "28.04"
+   },
+   "items": 5
+  },
+  {
+   "id": 41,
+   "seconds": 6.84,
+   "in": 1935,
+   "out": 485,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "la Source",
+    "doc_number": "0002",
+    "issue_date_text": "02-08-2015",
+    "currency": "EUR",
+    "subtotal": "15.45",
+    "tax": "1.55",
+    "total": "17.0"
+   },
+   "items": 3
+  },
+  {
+   "id": 42,
+   "seconds": 7.67,
+   "in": 1910,
+   "out": 558,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "None",
+    "doc_number": "832869",
+    "issue_date_text": "02/11/19",
+    "currency": "USD",
+    "subtotal": "69.9",
+    "tax": "3.44",
+    "total": "55.39"
+   },
+   "items": 5
+  },
+  {
+   "id": 43,
+   "seconds": 7.39,
+   "in": 1910,
+   "out": 394,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "BK SOUL FOOD & CATERING",
+    "doc_number": "1019",
+    "issue_date_text": "June 23, 2019",
+    "currency": "USD",
+    "subtotal": "24.5",
+    "tax": "2.17",
+    "total": "26.67"
+   },
+   "items": 2
+  },
+  {
+   "id": 44,
+   "seconds": 37.94,
+   "in": 1935,
+   "out": 324,
+   "attempts": 2,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CHURCH'S CHICKEN",
+    "doc_number": "None",
+    "issue_date_text": "MAY.21'19",
+    "currency": "USD",
+    "subtotal": "9.99",
+    "tax": "0.95",
+    "total": "10.94"
+   },
+   "items": 1
+  },
+  {
+   "id": 45,
+   "seconds": 7.53,
+   "in": 1910,
+   "out": 641,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "YUM'S RESTAURANT",
+    "doc_number": "347",
+    "issue_date_text": "6/24/2018",
+    "currency": "USD",
+    "subtotal": "20.78",
+    "tax": "1.25",
+    "total": "22.03"
+   },
+   "items": 7
+  },
+  {
+   "id": 46,
+   "seconds": 14.71,
+   "in": 1910,
+   "out": 451,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math",
+    "discount_rate"
+   ],
+   "extracted": {
+    "vendor": "Araxi Burger",
+    "doc_number": "33",
+    "issue_date_text": "03/17/19",
+    "currency": "USD",
+    "subtotal": "30.6",
+    "tax": "2.14",
+    "total": "38.86"
+   },
+   "items": 3
+  },
+  {
+   "id": 47,
+   "seconds": 19.63,
+   "in": 1910,
+   "out": 488,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum"
+   ],
+   "extracted": {
+    "vendor": "730 Tavern Kitchen & Patio",
+    "doc_number": "30062",
+    "issue_date_text": "09/23/2017",
+    "currency": "USD",
+    "subtotal": "79.5",
+    "tax": "5.57",
+    "total": "85.07"
+   },
+   "items": 4
+  },
+  {
+   "id": 48,
+   "seconds": 5.23,
+   "in": 1910,
+   "out": 561,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "DAILY GRILL",
+    "doc_number": "20027",
+    "issue_date_text": "11/01/2018",
+    "currency": "USD",
+    "subtotal": "82.95",
+    "tax": "8.5",
+    "total": "91.45"
+   },
+   "items": 6
+  },
+  {
+   "id": 49,
+   "seconds": 6.66,
+   "in": 1910,
+   "out": 626,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "KICKIN KAJUN",
+    "doc_number": "None",
+    "issue_date_text": "7/18/19",
+    "currency": "USD",
+    "subtotal": "74.0",
+    "tax": "3.49",
+    "total": "77.49"
+   },
+   "items": 7
+  },
+  {
+   "id": 50,
+   "seconds": 4.42,
+   "in": 1910,
+   "out": 531,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "HOLLYWOOD CAFE & SPORTS, BAR",
+    "doc_number": "332114",
+    "issue_date_text": "09/08/2017",
+    "currency": "USD",
+    "subtotal": "25.22",
+    "tax": "1.74",
+    "total": "26.96"
+   },
+   "items": 5
+  },
+  {
+   "id": 51,
+   "seconds": 3.11,
+   "in": 1910,
+   "out": 332,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "GENERAL POOR'S TAVERN",
+    "doc_number": "555149",
+    "issue_date_text": "04/10/16",
+    "currency": "USD",
+    "subtotal": "10.0",
+    "tax": "0.7",
+    "total": "10.7"
+   },
+   "items": 1
+  },
+  {
+   "id": 52,
+   "seconds": 3.95,
+   "in": 1935,
+   "out": 657,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Nancy's",
+    "doc_number": "1075",
+    "issue_date_text": "09/24/2016",
+    "currency": "USD",
+    "subtotal": "86.5",
+    "tax": "7.68",
+    "total": "94.18"
+   },
+   "items": 7
+  },
+  {
+   "id": 53,
+   "seconds": 5.0,
+   "in": 1910,
+   "out": 368,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Primo",
+    "doc_number": "137",
+    "issue_date_text": "5/3/19",
+    "currency": "USD",
+    "subtotal": "49.5",
+    "tax": "2.97",
+    "total": "52.47"
+   },
+   "items": 2
+  },
+  {
+   "id": 54,
+   "seconds": 4.07,
+   "in": 1938,
+   "out": 745,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum"
+   ],
+   "extracted": {
+    "vendor": "BIG JO'S",
+    "doc_number": "Qlxi",
+    "issue_date_text": "Jan 25, 2018",
+    "currency": "USD",
+    "subtotal": "51.25",
+    "tax": "5.25",
+    "total": "56.5"
+   },
+   "items": 9
+  },
+  {
+   "id": 55,
+   "seconds": 4.65,
+   "in": 1910,
+   "out": 532,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "WINGS & THINGS",
+    "doc_number": "195",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "2.43",
+    "total": "30.58"
+   },
+   "items": 5
+  },
+  {
+   "id": 56,
+   "seconds": 13.04,
+   "in": 1910,
+   "out": 923,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "ZOCA RESTAURANT",
+    "doc_number": "5033",
+    "issue_date_text": "7/30/19",
+    "currency": "USD",
+    "subtotal": "152.0",
+    "tax": "0.0",
+    "total": "0.0"
+   },
+   "items": 11
+  },
+  {
+   "id": 57,
+   "seconds": 2.66,
+   "in": 1910,
+   "out": 377,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CAFE PARISIEN LARCHMONT LLC",
+    "doc_number": "YWG5",
+    "issue_date_text": "Jan 24, 2019",
+    "currency": "USD",
+    "subtotal": "8.75",
+    "tax": "0.83",
+    "total": "9.58"
+   },
+   "items": 2
+  },
+  {
+   "id": 58,
+   "seconds": 3.89,
+   "in": 1910,
+   "out": 525,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Caldera BREWERY & RESTAURANT",
+    "doc_number": "20071",
+    "issue_date_text": "12/28/2017",
+    "currency": "USD",
+    "subtotal": "36.5",
+    "tax": "1.1",
+    "total": "37.6"
+   },
+   "items": 5
+  },
+  {
+   "id": 59,
+   "seconds": 2.91,
+   "in": 1910,
+   "out": 327,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "LANDFALL RESTAURANT",
+    "doc_number": "0084",
+    "issue_date_text": "06/10/17",
+    "currency": "USD",
+    "subtotal": "6.0",
+    "tax": "0.4",
+    "total": "7.55"
+   },
+   "items": 1
+  },
+  {
+   "id": 60,
+   "seconds": 6.72,
+   "in": 1910,
+   "out": 508,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "None",
+    "doc_number": "20018",
+    "issue_date_text": "12/17/2017",
+    "currency": "USD",
+    "subtotal": "74.7",
+    "tax": "6.0",
+    "total": "83.5"
+   },
+   "items": 4
+  },
+  {
+   "id": 61,
+   "seconds": 3.43,
+   "in": 1946,
+   "out": 384,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Chili's Grill & Bar",
+    "doc_number": "2060012",
+    "issue_date_text": "09/15/2018",
+    "currency": "USD",
+    "subtotal": "24.08",
+    "tax": "2.29",
+    "total": "26.37"
+   },
+   "items": 2
+  },
+  {
+   "id": 62,
+   "seconds": 6.43,
+   "in": 1910,
+   "out": 820,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MARIANACCI'S RESTAURANT",
+    "doc_number": "39",
+    "issue_date_text": "FEB 18/17",
+    "currency": "USD",
+    "subtotal": "132.25",
+    "tax": "9.76",
+    "total": "142.01"
+   },
+   "items": 11
+  },
+  {
+   "id": 63,
+   "seconds": 6.02,
+   "in": 1935,
+   "out": 375,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Primo Family Restaurant",
+    "doc_number": "137",
+    "issue_date_text": "5/3/19",
+    "currency": "USD",
+    "subtotal": "49.5",
+    "tax": "2.97",
+    "total": "52.47"
+   },
+   "items": 2
+  },
+  {
+   "id": 64,
+   "seconds": 5.46,
+   "in": 1938,
+   "out": 626,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "IN-N-OUT BURGER",
+    "doc_number": "25",
+    "issue_date_text": "2013-08-10",
+    "currency": "USD",
+    "subtotal": "18.0",
+    "tax": "1.44",
+    "total": "19.44"
+   },
+   "items": 7
+  },
+  {
+   "id": 65,
+   "seconds": 4.47,
+   "in": 1910,
+   "out": 413,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Taco Maria",
+    "doc_number": "118888",
+    "issue_date_text": "1/23/18",
+    "currency": "USD",
+    "subtotal": "42.5",
+    "tax": "3.29",
+    "total": "45.79"
+   },
+   "items": 3
+  },
+  {
+   "id": 66,
+   "seconds": 6.56,
+   "in": 1910,
+   "out": 651,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "RISTORANTE",
+    "doc_number": "None",
+    "issue_date_text": "14/07/2019",
+    "currency": "EUR",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "82.0"
+   },
+   "items": 7
+  },
+  {
+   "id": 67,
+   "seconds": 4.95,
+   "in": 1938,
+   "out": 479,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Anjappar Chettinad",
+    "doc_number": "004-864",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "36.8",
+    "tax": "3.5",
+    "total": "40.3"
+   },
+   "items": 4
+  },
+  {
+   "id": 68,
+   "seconds": 5.13,
+   "in": 1935,
+   "out": 456,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Cafe Eugene",
+    "doc_number": "None",
+    "issue_date_text": "4/10/16",
+    "currency": "USD",
+    "subtotal": "39.0",
+    "tax": "3.9",
+    "total": "42.9"
+   },
+   "items": 4
+  },
+  {
+   "id": 69,
+   "seconds": 7.89,
+   "in": 1910,
+   "out": 361,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "River Village Family Restaurant",
+    "doc_number": "7",
+    "issue_date_text": "08/12/19",
+    "currency": "USD",
+    "subtotal": "10.28",
+    "tax": "0.62",
+    "total": "10.9"
+   },
+   "items": 2
+  },
+  {
+   "id": 70,
+   "seconds": 18.38,
+   "in": 1938,
+   "out": 334,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Mr. M's Hot Wings & Things Inc",
+    "doc_number": "32",
+    "issue_date_text": "6/28/2019",
+    "currency": "USD",
+    "subtotal": "10.0",
+    "tax": "0.95",
+    "total": "10.95"
+   },
+   "items": 1
+  },
+  {
+   "id": 71,
+   "seconds": 8.66,
+   "in": 1946,
+   "out": 600,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Trinity Restaurant",
+    "doc_number": "101244",
+    "issue_date_text": "02/18/17",
+    "currency": "USD",
+    "subtotal": "69.5",
+    "tax": "6.0",
+    "total": "75.5"
+   },
+   "items": 6
+  },
+  {
+   "id": 72,
+   "seconds": 9.46,
+   "in": 1946,
+   "out": 461,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "OHANA HAWAIIAN BBQ",
+    "doc_number": "65193",
+    "issue_date_text": "6/1/2013",
+    "currency": "USD",
+    "subtotal": "19.9",
+    "tax": "1.79",
+    "total": "21.69"
+   },
+   "items": 3
+  },
+  {
+   "id": 73,
+   "seconds": 12.31,
+   "in": 1910,
+   "out": 382,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Subway",
+    "doc_number": "None",
+    "issue_date_text": "5/1/2019",
+    "currency": "USD",
+    "subtotal": "11.99",
+    "tax": "1.23",
+    "total": "13.22"
+   },
+   "items": 2
+  },
+  {
+   "id": 74,
+   "seconds": 13.85,
+   "in": 1910,
+   "out": 367,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Lin Buffet",
+    "doc_number": "0270",
+    "issue_date_text": "Feb 24, 2019",
+    "currency": "USD",
+    "subtotal": "31.16",
+    "tax": "2.57",
+    "total": "33.73"
+   },
+   "items": 2
+  },
+  {
+   "id": 75,
+   "seconds": 12.97,
+   "in": 1910,
+   "out": 380,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "SmokeBoxBBQ",
+    "doc_number": "39",
+    "issue_date_text": "5/22/2014",
+    "currency": "USD",
+    "subtotal": "13.5",
+    "tax": "0.86",
+    "total": "14.36"
+   },
+   "items": 2
+  },
+  {
+   "id": 76,
+   "seconds": 22.75,
+   "in": 1910,
+   "out": 272,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_missing"
+   ],
+   "extracted": {
+    "vendor": "Paradise Restaurant",
+    "doc_number": "0375509",
+    "issue_date_text": "7/21/2018",
+    "currency": "USD",
+    "subtotal": "20.0",
+    "tax": "2.18",
+    "total": "25.78"
+   },
+   "items": 0
+  },
+  {
+   "id": 77,
+   "seconds": 6.11,
+   "in": 1931,
+   "out": 611,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "NAANCHING",
+    "doc_number": "2019840709",
+    "issue_date_text": "24-Mar-2019",
+    "currency": "USD",
+    "subtotal": "56.0",
+    "tax": "3.71",
+    "total": "69.79"
+   },
+   "items": 6
+  },
+  {
+   "id": 78,
+   "seconds": 6.82,
+   "in": 1910,
+   "out": 337,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Tay Ho Oakland",
+    "doc_number": "142750",
+    "issue_date_text": "2/19/19",
+    "currency": "USD",
+    "subtotal": "12.95",
+    "tax": "1.23",
+    "total": "14.18"
+   },
+   "items": 1
+  },
+  {
+   "id": 79,
+   "seconds": 29.24,
+   "in": 1910,
+   "out": 670,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "items_sum"
+   ],
+   "extracted": {
+    "vendor": "FALMOUTH RAW BAR",
+    "doc_number": "5738/1",
+    "issue_date_text": "07/02/18-A",
+    "currency": "USD",
+    "subtotal": "219.81",
+    "tax": "15.38",
+    "total": "235.19"
+   },
+   "items": 7
+  },
+  {
+   "id": 80,
+   "seconds": 18.78,
+   "in": 1910,
+   "out": 569,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Newark Buffet",
+    "doc_number": "None",
+    "issue_date_text": "06/29/2019",
+    "currency": "USD",
+    "subtotal": "84.02",
+    "tax": "8.2",
+    "total": "92.22"
+   },
+   "items": 5
+  },
+  {
+   "id": 81,
+   "seconds": 17.54,
+   "in": 1946,
+   "out": 488,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "BRASAS RESTAURANT",
+    "doc_number": "T237TH0Q0T7RC",
+    "issue_date_text": "02-Mar-2019",
+    "currency": "USD",
+    "subtotal": "9.0",
+    "tax": "0.97",
+    "total": "9.97"
+   },
+   "items": 4
+  },
+  {
+   "id": 82,
+   "seconds": 33.44,
+   "in": 1910,
+   "out": 323,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "SURATI FARSAN MART",
+    "doc_number": "45",
+    "issue_date_text": "Aug08'19",
+    "currency": "USD",
+    "subtotal": "5.99",
+    "tax": "0.57",
+    "total": "6.56"
+   },
+   "items": 1
+  },
+  {
+   "id": 83,
+   "seconds": 170.19,
+   "in": 1910,
+   "out": 550,
+   "attempts": 3,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "King Taco",
+    "doc_number": "10368",
+    "issue_date_text": "3/17/17",
+    "currency": "USD",
+    "subtotal": "12.67",
+    "tax": "1.11",
+    "total": "13.78"
+   },
+   "items": 5
+  },
+  {
+   "id": 84,
+   "seconds": 12.04,
+   "in": 1910,
+   "out": 629,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Trattoria Saporito",
+    "doc_number": "27273",
+    "issue_date_text": "7/1/2018",
+    "currency": "USD",
+    "subtotal": "117.75",
+    "tax": "8.24",
+    "total": "125.99"
+   },
+   "items": 6
+  },
+  {
+   "id": 85,
+   "seconds": 7.33,
+   "in": 1938,
+   "out": 503,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Pita Pita",
+    "doc_number": "78",
+    "issue_date_text": "5/4/2017",
+    "currency": "USD",
+    "subtotal": "213.0",
+    "tax": "15.92",
+    "total": "228.92"
+   },
+   "items": 4
+  },
+  {
+   "id": 86,
+   "seconds": 7.59,
+   "in": 1953,
+   "out": 724,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Calagero's",
+    "doc_number": "137017",
+    "issue_date_text": "4/20/2018",
+    "currency": "USD",
+    "subtotal": "145.0",
+    "tax": "12.51",
+    "total": "157.51"
+   },
+   "items": 8
+  },
+  {
+   "id": 87,
+   "seconds": 4.99,
+   "in": 1935,
+   "out": 377,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Noches De Colombia",
+    "doc_number": "500592",
+    "issue_date_text": "07/09/19",
+    "currency": "USD",
+    "subtotal": "9.95",
+    "tax": "0.86",
+    "total": "10.81"
+   },
+   "items": 2
+  },
+  {
+   "id": 88,
+   "seconds": 7.29,
+   "in": 1910,
+   "out": 680,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MOOYAH Burgers Fries & Shakes",
+    "doc_number": "39416",
+    "issue_date_text": "3/22/2014",
+    "currency": "USD",
+    "subtotal": "11.97",
+    "tax": "1.06",
+    "total": "13.03"
+   },
+   "items": 8
+  },
+  {
+   "id": 89,
+   "seconds": 6.12,
+   "in": 1935,
+   "out": 729,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Firepoint Grill",
+    "doc_number": "90024",
+    "issue_date_text": "12/07/2016",
+    "currency": "USD",
+    "subtotal": "137.5",
+    "tax": "5.43",
+    "total": "142.93"
+   },
+   "items": 9
+  },
+  {
+   "id": 90,
+   "seconds": 37.4,
+   "in": 1910,
+   "out": 1152,
+   "attempts": 2,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "FIVE GUYS",
+    "doc_number": "None",
+    "issue_date_text": "5/25/2017",
+    "currency": "USD",
+    "subtotal": "30.31",
+    "tax": "2.35",
+    "total": "32.66"
+   },
+   "items": 17
+  },
+  {
+   "id": 91,
+   "seconds": 4.59,
+   "in": 1910,
+   "out": 558,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "CITY TASTE",
+    "doc_number": "90",
+    "issue_date_text": "05-11-2018",
+    "currency": "USD",
+    "subtotal": "27.15",
+    "tax": "1.63",
+    "total": "28.78"
+   },
+   "items": 5
+  },
+  {
+   "id": 92,
+   "seconds": 6.54,
+   "in": 1910,
+   "out": 464,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Kaiseki",
+    "doc_number": "None",
+    "issue_date_text": "07/28/18",
+    "currency": "USD",
+    "subtotal": "39.85",
+    "tax": "3.45",
+    "total": "43.3"
+   },
+   "items": 4
+  },
+  {
+   "id": 93,
+   "seconds": 6.12,
+   "in": 1910,
+   "out": 500,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "POPEYE'S",
+    "doc_number": "None",
+    "issue_date_text": "SUN JUN 24 2018",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "2.37",
+    "total": "38.23"
+   },
+   "items": 4
+  },
+  {
+   "id": 94,
+   "seconds": 2.65,
+   "in": 1910,
+   "out": 379,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Pokeatery",
+    "doc_number": "3zCW",
+    "issue_date_text": "December 29, 2018",
+    "currency": "USD",
+    "subtotal": "13.5",
+    "tax": "1.25",
+    "total": "16.23"
+   },
+   "items": 2
+  },
+  {
+   "id": 95,
+   "seconds": 3.54,
+   "in": 1910,
+   "out": 305,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Golden Coin",
+    "doc_number": "6879",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "9.79",
+    "tax": "0.46",
+    "total": "10.25"
+   },
+   "items": 1
+  },
+  {
+   "id": 96,
+   "seconds": 7.55,
+   "in": 1910,
+   "out": 427,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "None",
+    "doc_number": "208774",
+    "issue_date_text": "09/25/18",
+    "currency": "USD",
+    "subtotal": "42.9",
+    "tax": "4.08",
+    "total": "46.98"
+   },
+   "items": 3
+  },
+  {
+   "id": 97,
+   "seconds": 3.44,
+   "in": 1946,
+   "out": 382,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "EL POLLO LOCO",
+    "doc_number": "1924",
+    "issue_date_text": "Jun28'17",
+    "currency": "USD",
+    "subtotal": "12.06",
+    "tax": "1.06",
+    "total": "13.12"
+   },
+   "items": 2
+  },
+  {
+   "id": 98,
+   "seconds": 2.88,
+   "in": 1910,
+   "out": 533,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Nick's Tuscan Grill",
+    "doc_number": "None",
+    "issue_date_text": "Mar18'18",
+    "currency": "USD",
+    "subtotal": "62.5",
+    "tax": "5.39",
+    "total": "67.89"
+   },
+   "items": 5
+  },
+  {
+   "id": 99,
+   "seconds": 6.42,
+   "in": 1910,
+   "out": 522,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Mezcal",
+    "doc_number": "30001",
+    "issue_date_text": "12/29/2017",
+    "currency": "USD",
+    "subtotal": "50.05",
+    "tax": "5.46",
+    "total": "64.52"
+   },
+   "items": 5
+  },
+  {
+   "id": 100,
+   "seconds": 7.4,
+   "in": 1910,
+   "out": 997,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "McDonald's",
+    "doc_number": "None",
+    "issue_date_text": "03/10/2018",
+    "currency": "CAD",
+    "subtotal": "25.04",
+    "tax": "1.11",
+    "total": "26.15"
+   },
+   "items": 14
+  },
+  {
+   "id": 101,
+   "seconds": 5.41,
+   "in": 1910,
+   "out": 616,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "KAZ RAMEN",
+    "doc_number": "T4G1",
+    "issue_date_text": "04-Nov-2018",
+    "currency": "USD",
+    "subtotal": "13.05",
+    "tax": "1.01",
+    "total": "14.06"
+   },
+   "items": 7
+  },
+  {
+   "id": 102,
+   "seconds": 5.26,
+   "in": 1910,
+   "out": 443,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "OM INDIAN FOOD",
+    "doc_number": "2143",
+    "issue_date_text": "4/15/16",
+    "currency": "USD",
+    "subtotal": "29.85",
+    "tax": "1.32",
+    "total": "16.24"
+   },
+   "items": 3
+  },
+  {
+   "id": 103,
+   "seconds": 3.49,
+   "in": 1910,
+   "out": 388,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Crisfield Seafood Restaurant",
+    "doc_number": "134",
+    "issue_date_text": "12/29/2017",
+    "currency": "USD",
+    "subtotal": "38.5",
+    "tax": "2.31",
+    "total": "42.74"
+   },
+   "items": 2
+  },
+  {
+   "id": 104,
+   "seconds": 4.37,
+   "in": 1910,
+   "out": 451,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Don Juan Mexican Restaurant",
+    "doc_number": "28731",
+    "issue_date_text": "11/6/2013",
+    "currency": "USD",
+    "subtotal": "51.9",
+    "tax": "4.48",
+    "total": "56.38"
+   },
+   "items": 3
+  },
+  {
+   "id": 105,
+   "seconds": 4.37,
+   "in": 1910,
+   "out": 481,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "The Place 2 Be",
+    "doc_number": "None",
+    "issue_date_text": "17-Feb-2018",
+    "currency": "USD",
+    "subtotal": "21.5",
+    "tax": "1.37",
+    "total": "22.87"
+   },
+   "items": 4
+  },
+  {
+   "id": 106,
+   "seconds": 4.05,
+   "in": 1910,
+   "out": 624,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Lan Sheng",
+    "doc_number": "1011",
+    "issue_date_text": "06/13/17",
+    "currency": "USD",
+    "subtotal": "70.25",
+    "tax": "4.9",
+    "total": "75.15"
+   },
+   "items": 6
+  },
+  {
+   "id": 107,
+   "seconds": 4.93,
+   "in": 1910,
+   "out": 784,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MIKUNI JAPANESE",
+    "doc_number": "3905",
+    "issue_date_text": "Jul16'17",
+    "currency": "USD",
+    "subtotal": "133.9",
+    "tax": "10.38",
+    "total": "144.28"
+   },
+   "items": 9
+  },
+  {
+   "id": 108,
+   "seconds": 3.79,
+   "in": 1910,
+   "out": 388,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "line_math",
+    "line_math"
+   ],
+   "extracted": {
+    "vendor": "Go Mongo BBQ",
+    "doc_number": "mongo-042441",
+    "issue_date_text": "Jan 28, 2018",
+    "currency": "USD",
+    "subtotal": "48.54",
+    "tax": "3.52",
+    "total": "52.06"
+   },
+   "items": 2
+  },
+  {
+   "id": 109,
+   "seconds": 3.31,
+   "in": 1910,
+   "out": 520,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "BreadFish Cafe",
+    "doc_number": "10038",
+    "issue_date_text": "06/14/2017",
+    "currency": "USD",
+    "subtotal": "25.34",
+    "tax": "2.28",
+    "total": "27.62"
+   },
+   "items": 4
+  },
+  {
+   "id": 110,
+   "seconds": 4.18,
+   "in": 1910,
+   "out": 393,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Chelokababi",
+    "doc_number": "D2",
+    "issue_date_text": "Aug 18, 2018",
+    "currency": "USD",
+    "subtotal": "146.85",
+    "tax": "13.22",
+    "total": "160.07"
+   },
+   "items": 2
+  },
+  {
+   "id": 111,
+   "seconds": 5.12,
+   "in": 1910,
+   "out": 777,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "COMMANDER'S PALACE",
+    "doc_number": "0009",
+    "issue_date_text": "03/12/19",
+    "currency": "USD",
+    "subtotal": "50.5",
+    "tax": "5.45",
+    "total": "55.95"
+   },
+   "items": 9
+  },
+  {
+   "id": 112,
+   "seconds": 3.89,
+   "in": 1931,
+   "out": 454,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "COLUMBUS RESTAURANT",
+    "doc_number": "None",
+    "issue_date_text": "01-27-2018",
+    "currency": "USD",
+    "subtotal": "143.0",
+    "tax": "12.87",
+    "total": "184.47"
+   },
+   "items": 3
+  },
+  {
+   "id": 113,
+   "seconds": 5.27,
+   "in": 1910,
+   "out": 368,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Golden Panda Buffet",
+    "doc_number": "68554",
+    "issue_date_text": "6/02/2018",
+    "currency": "USD",
+    "subtotal": "27.36",
+    "tax": "2.6",
+    "total": "29.96"
+   },
+   "items": 2
+  },
+  {
+   "id": 114,
+   "seconds": 3.7,
+   "in": 1935,
+   "out": 485,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "la Source",
+    "doc_number": "0002",
+    "issue_date_text": "02-08-2015",
+    "currency": "EUR",
+    "subtotal": "15.45",
+    "tax": "1.55",
+    "total": "17.0"
+   },
+   "items": 3
+  },
+  {
+   "id": 115,
+   "seconds": 3.91,
+   "in": 1910,
+   "out": 249,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_present",
+    "items_missing"
+   ],
+   "extracted": {
+    "vendor": "Rosebud on Rush",
+    "doc_number": "1738",
+    "issue_date_text": "Jul15'17",
+    "currency": "USD",
+    "subtotal": "79.17",
+    "tax": "None",
+    "total": "None"
+   },
+   "items": 0
+  },
+  {
+   "id": 116,
+   "seconds": 5.7,
+   "in": 1910,
+   "out": 560,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Villaggio Grille",
+    "doc_number": "9862",
+    "issue_date_text": "06/08/19",
+    "currency": "USD",
+    "subtotal": "31.01",
+    "tax": "3.11",
+    "total": "34.12"
+   },
+   "items": 5
+  },
+  {
+   "id": 117,
+   "seconds": 5.18,
+   "in": 1910,
+   "out": 269,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_missing",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "KOBE JAPANESE STEAK",
+    "doc_number": "00000061",
+    "issue_date_text": "02/22/19",
+    "currency": "USD",
+    "subtotal": "158.07",
+    "tax": "None",
+    "total": "173.07"
+   },
+   "items": 0
+  },
+  {
+   "id": 118,
+   "seconds": 4.32,
+   "in": 1910,
+   "out": 417,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Wendy's Restaurant",
+    "doc_number": "3264",
+    "issue_date_text": "03/18/2017",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "0.32",
+    "total": "4.99"
+   },
+   "items": 3
+  },
+  {
+   "id": 119,
+   "seconds": 5.8,
+   "in": 1910,
+   "out": 604,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Panda Express",
+    "doc_number": "196812",
+    "issue_date_text": "12/22/2017",
+    "currency": "USD",
+    "subtotal": "25.2",
+    "tax": "2.24",
+    "total": "27.44"
+   },
+   "items": 6
+  },
+  {
+   "id": 120,
+   "seconds": 4.81,
+   "in": 1910,
+   "out": 456,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "RED & HOT II",
+    "doc_number": "18",
+    "issue_date_text": "10-20-2018",
+    "currency": "USD",
+    "subtotal": "21.55",
+    "tax": "1.91",
+    "total": "23.46"
+   },
+   "items": 3
+  },
+  {
+   "id": 121,
+   "seconds": 6.19,
+   "in": 1910,
+   "out": 424,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Heart of Portugal",
+    "doc_number": "11",
+    "issue_date_text": "09/10/17",
+    "currency": "USD",
+    "subtotal": "65.9",
+    "tax": "5.68",
+    "total": "71.58"
+   },
+   "items": 3
+  },
+  {
+   "id": 122,
+   "seconds": 6.38,
+   "in": 1935,
+   "out": 595,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "El Meson Mexican Restaurant",
+    "doc_number": "18533",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "44.2",
+    "tax": "3.5",
+    "total": "47.7"
+   },
+   "items": 6
+  },
+  {
+   "id": 123,
+   "seconds": 5.12,
+   "in": 1910,
+   "out": 434,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "El Gato Negro",
+    "doc_number": "4650",
+    "issue_date_text": "Aug23'19",
+    "currency": "USD",
+    "subtotal": "19.75",
+    "tax": "2.01",
+    "total": "21.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 124,
+   "seconds": 6.92,
+   "in": 1938,
+   "out": 806,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Firefly American Bistro",
+    "doc_number": "140",
+    "issue_date_text": "12/28/18",
+    "currency": "USD",
+    "subtotal": "77.8",
+    "tax": "5.84",
+    "total": "83.64"
+   },
+   "items": 11
+  },
+  {
+   "id": 125,
+   "seconds": 6.62,
+   "in": 1946,
+   "out": 447,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CHATPATA RESTAURANT INC",
+    "doc_number": "KQ23F4T9N8T6T",
+    "issue_date_text": "19-Mar-2019",
+    "currency": "USD",
+    "subtotal": "17.85",
+    "tax": "1.25",
+    "total": "19.1"
+   },
+   "items": 3
+  },
+  {
+   "id": 126,
+   "seconds": 6.47,
+   "in": 1910,
+   "out": 450,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "SAGE",
+    "doc_number": "None",
+    "issue_date_text": "06/02/15",
+    "currency": "USD",
+    "subtotal": "31.8",
+    "tax": "1.8",
+    "total": "39.18"
+   },
+   "items": 3
+  },
+  {
+   "id": 127,
+   "seconds": 5.89,
+   "in": 1910,
+   "out": 458,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "PIZZA HUT",
+    "doc_number": "00100",
+    "issue_date_text": "10/25/2018",
+    "currency": "USD",
+    "subtotal": "23.5",
+    "tax": "2.32",
+    "total": "26.76"
+   },
+   "items": 3
+  },
+  {
+   "id": 128,
+   "seconds": 5.07,
+   "in": 1910,
+   "out": 561,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "KALAVERAS",
+    "doc_number": "83V4QQC31PPMT",
+    "issue_date_text": "30-Aug-2019",
+    "currency": "USD",
+    "subtotal": "63.0",
+    "tax": "5.99",
+    "total": "68.99"
+   },
+   "items": 5
+  },
+  {
+   "id": 129,
+   "seconds": 6.87,
+   "in": 1910,
+   "out": 388,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "HIRO JAPANESE RESTAURANT",
+    "doc_number": "209744",
+    "issue_date_text": "2/13/2018",
+    "currency": "USD",
+    "subtotal": "15.9",
+    "tax": "1.28",
+    "total": "17.18"
+   },
+   "items": 2
+  },
+  {
+   "id": 130,
+   "seconds": 5.95,
+   "in": 1910,
+   "out": 379,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "BOA",
+    "doc_number": "None",
+    "issue_date_text": "12/20/17",
+    "currency": "USD",
+    "subtotal": "43.0",
+    "tax": "4.09",
+    "total": "47.09"
+   },
+   "items": 2
+  },
+  {
+   "id": 131,
+   "seconds": 6.08,
+   "in": 1946,
+   "out": 589,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CHRIS'S HAMBURGERS",
+    "doc_number": "0000000052",
+    "issue_date_text": "11-24-2017",
+    "currency": "USD",
+    "subtotal": "25.85",
+    "tax": "2.46",
+    "total": "28.31"
+   },
+   "items": 6
+  },
+  {
+   "id": 132,
+   "seconds": 6.33,
+   "in": 1935,
+   "out": 455,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "VIA EMILIA 9",
+    "doc_number": "QGVRTH3NM28YC",
+    "issue_date_text": "27-Apr-2017",
+    "currency": "USD",
+    "subtotal": "56.7",
+    "tax": "5.1",
+    "total": "61.8"
+   },
+   "items": 3
+  },
+  {
+   "id": 133,
+   "seconds": 9.2,
+   "in": 1935,
+   "out": 329,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MOONSTAR RESTAURANT",
+    "doc_number": "2184",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "134.46",
+    "tax": "12.11",
+    "total": "146.57"
+   },
+   "items": 1
+  },
+  {
+   "id": 134,
+   "seconds": 16.18,
+   "in": 1910,
+   "out": 516,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "KFC",
+    "doc_number": "2884",
+    "issue_date_text": "2016-07-08",
+    "currency": "USD",
+    "subtotal": "20.0",
+    "tax": "1.73",
+    "total": "21.73"
+   },
+   "items": 5
+  },
+  {
+   "id": 135,
+   "seconds": 39.75,
+   "in": 1910,
+   "out": 573,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "E. BALDI",
+    "doc_number": "278470-1",
+    "issue_date_text": "TUE JANUARY 30,2018",
+    "currency": "USD",
+    "subtotal": "134.0",
+    "tax": "12.73",
+    "total": "146.73"
+   },
+   "items": 5
+  },
+  {
+   "id": 136,
+   "seconds": 73.94,
+   "in": 1910,
+   "out": 338,
+   "attempts": 2,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "The Shawarma Factory",
+    "doc_number": "03WE",
+    "issue_date_text": "Apr 10, 2019",
+    "currency": "USD",
+    "subtotal": "11.99",
+    "tax": "1.14",
+    "total": "13.13"
+   },
+   "items": 1
+  },
+  {
+   "id": 137,
+   "seconds": 36.43,
+   "in": 1910,
+   "out": 386,
+   "attempts": 2,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Maui Teriyaki",
+    "doc_number": "168479",
+    "issue_date_text": "10/25/2017",
+    "currency": "USD",
+    "subtotal": "12.94",
+    "tax": "1.23",
+    "total": "14.17"
+   },
+   "items": 2
+  },
+  {
+   "id": 138,
+   "seconds": 40.75,
+   "in": 1946,
+   "out": 597,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CASA CHAN RESTAURANT",
+    "doc_number": "9",
+    "issue_date_text": "21-Dec-2014",
+    "currency": "USD",
+    "subtotal": "24.24",
+    "tax": "1.7",
+    "total": "25.94"
+   },
+   "items": 6
+  },
+  {
+   "id": 139,
+   "seconds": 5.95,
+   "in": 1935,
+   "out": 456,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "SS PARADISE",
+    "doc_number": "00027",
+    "issue_date_text": "06.07.2017",
+    "currency": "INR",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "617.0"
+   },
+   "items": 3
+  },
+  {
+   "id": 140,
+   "seconds": 5.85,
+   "in": 1926,
+   "out": 535,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "SHAKE SHACK",
+    "doc_number": "None",
+    "issue_date_text": "03/03/2015",
+    "currency": "USD",
+    "subtotal": "23.58",
+    "tax": "1.89",
+    "total": "25.47"
+   },
+   "items": 5
+  },
+  {
+   "id": 141,
+   "seconds": 5.6,
+   "in": 1946,
+   "out": 691,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "YAUATCHA",
+    "doc_number": "1867",
+    "issue_date_text": "None",
+    "currency": "USD",
+    "subtotal": "84.8",
+    "tax": "3.82",
+    "total": "88.62"
+   },
+   "items": 8
+  },
+  {
+   "id": 142,
+   "seconds": 6.63,
+   "in": 1910,
+   "out": 600,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Blue Bear Tavern",
+    "doc_number": "00225",
+    "issue_date_text": "01/13/2012",
+    "currency": "USD",
+    "subtotal": "81.0",
+    "tax": "2.44",
+    "total": "83.44"
+   },
+   "items": 6
+  },
+  {
+   "id": 143,
+   "seconds": 4.92,
+   "in": 1910,
+   "out": 665,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Arthurs",
+    "doc_number": "1844",
+    "issue_date_text": "Oct01'17",
+    "currency": "USD",
+    "subtotal": "80.8",
+    "tax": "3.98",
+    "total": "84.78"
+   },
+   "items": 7
+  },
+  {
+   "id": 144,
+   "seconds": 5.92,
+   "in": 1910,
+   "out": 391,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "CHLOE81",
+    "doc_number": "None",
+    "issue_date_text": "08/03/18",
+    "currency": "USD",
+    "subtotal": "36.0",
+    "tax": "3.19",
+    "total": "46.4"
+   },
+   "items": 2
+  },
+  {
+   "id": 145,
+   "seconds": 6.84,
+   "in": 1910,
+   "out": 661,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MIGUELS MEXICAN",
+    "doc_number": "55",
+    "issue_date_text": "Dec26'12",
+    "currency": "USD",
+    "subtotal": "60.87",
+    "tax": "4.27",
+    "total": "65.14"
+   },
+   "items": 7
+  },
+  {
+   "id": 146,
+   "seconds": 5.37,
+   "in": 1935,
+   "out": 380,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Rihanna's Caribbean Restaurant",
+    "doc_number": "12",
+    "issue_date_text": "12-Aug-2018",
+    "currency": "USD",
+    "subtotal": "12.25",
+    "tax": "1.01",
+    "total": "13.26"
+   },
+   "items": 2
+  },
+  {
+   "id": 147,
+   "seconds": 6.21,
+   "in": 1926,
+   "out": 585,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "NEW DELHI INDIAN RESTAURANT",
+    "doc_number": "1740",
+    "issue_date_text": "24-Nov-16",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "13.0"
+   },
+   "items": 6
+  },
+  {
+   "id": 148,
+   "seconds": 5.46,
+   "in": 1938,
+   "out": 773,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Sonic America's Drive-In",
+    "doc_number": "699",
+    "issue_date_text": "Jun22'18",
+    "currency": "USD",
+    "subtotal": "11.88",
+    "tax": "1.19",
+    "total": "13.07"
+   },
+   "items": 11
+  },
+  {
+   "id": 149,
+   "seconds": 3.29,
+   "in": 1931,
+   "out": 431,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Denny's Restaurant",
+    "doc_number": "429742",
+    "issue_date_text": "8/30/2015",
+    "currency": "USD",
+    "subtotal": "3.99",
+    "tax": "0.3",
+    "total": "5.29"
+   },
+   "items": 3
+  },
+  {
+   "id": 150,
+   "seconds": 5.9,
+   "in": 1910,
+   "out": 566,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "ESQUIRE GRILLE",
+    "doc_number": "None",
+    "issue_date_text": "APR04'16",
+    "currency": "USD",
+    "subtotal": "74.49",
+    "tax": "5.96",
+    "total": "80.45"
+   },
+   "items": 5
+  },
+  {
+   "id": 151,
+   "seconds": 7.35,
+   "in": 1910,
+   "out": 342,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_math",
+    "tax_rate"
+   ],
+   "extracted": {
+    "vendor": "Collector's Choice Restaurant",
+    "doc_number": "1904100085",
+    "issue_date_text": "April 10, 2019",
+    "currency": "USD",
+    "subtotal": "11.69",
+    "tax": "1.14",
+    "total": "13.53"
+   },
+   "items": 1
+  },
+  {
+   "id": 152,
+   "seconds": 5.41,
+   "in": 1948,
+   "out": 488,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "KALOOKI'S",
+    "doc_number": "None",
+    "issue_date_text": "03/14/2015",
+    "currency": "USD",
+    "subtotal": "57.0",
+    "tax": "None",
+    "total": "62.7"
+   },
+   "items": 4
+  },
+  {
+   "id": 153,
+   "seconds": 5.54,
+   "in": 1948,
+   "out": 899,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Gordon Ramsay Steak",
+    "doc_number": "2042367",
+    "issue_date_text": "10/21/2014",
+    "currency": "USD",
+    "subtotal": "290.0",
+    "tax": "23.49",
+    "total": "313.49"
+   },
+   "items": 11
+  },
+  {
+   "id": 154,
+   "seconds": 4.12,
+   "in": 1946,
+   "out": 747,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Via Mar Restaurant",
+    "doc_number": "320502",
+    "issue_date_text": "9/6/2018",
+    "currency": "USD",
+    "subtotal": "66.89",
+    "tax": "6.35",
+    "total": "73.24"
+   },
+   "items": 9
+  },
+  {
+   "id": 155,
+   "seconds": 3.54,
+   "in": 1948,
+   "out": 603,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Marco Pierre White",
+    "doc_number": "1501",
+    "issue_date_text": "16Feb'19",
+    "currency": "EUR",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "129.75"
+   },
+   "items": 6
+  },
+  {
+   "id": 156,
+   "seconds": 3.15,
+   "in": 1946,
+   "out": 548,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "IKEA",
+    "doc_number": "None",
+    "issue_date_text": "06/04/2016",
+    "currency": "GBP",
+    "subtotal": "12.37",
+    "tax": "2.48",
+    "total": "14.85"
+   },
+   "items": 5
+  },
+  {
+   "id": 157,
+   "seconds": 3.09,
+   "in": 1935,
+   "out": 370,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "COLLEGE OF SOUTHERN NEVADA RUSSELL'S RESTAURANT",
+    "doc_number": "4488",
+    "issue_date_text": "Oct08'14",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "9.7"
+   },
+   "items": 2
+  },
+  {
+   "id": 158,
+   "seconds": 4.47,
+   "in": 1935,
+   "out": 361,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "line_math"
+   ],
+   "extracted": {
+    "vendor": "MITASU JAPANESE RESTAURANT SDN BHD",
+    "doc_number": "V001-201060",
+    "issue_date_text": "29-06-2018",
+    "currency": "MYR",
+    "subtotal": "709.5",
+    "tax": "0.0",
+    "total": "780.45"
+   },
+   "items": 1
+  },
+  {
+   "id": 159,
+   "seconds": 2.99,
+   "in": 1910,
+   "out": 316,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Taco Time",
+    "doc_number": "None",
+    "issue_date_text": "04/24/2018",
+    "currency": "USD",
+    "subtotal": "5.99",
+    "tax": "0.6",
+    "total": "6.59"
+   },
+   "items": 1
+  },
+  {
+   "id": 160,
+   "seconds": 5.29,
+   "in": 1910,
+   "out": 433,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Angelo's Pizza Restaurant",
+    "doc_number": "4876",
+    "issue_date_text": "7/10/2017",
+    "currency": "USD",
+    "subtotal": "31.45",
+    "tax": "1.89",
+    "total": "33.34"
+   },
+   "items": 3
+  },
+  {
+   "id": 161,
+   "seconds": 4.61,
+   "in": 1910,
+   "out": 637,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Dominican Restaurant",
+    "doc_number": "12005",
+    "issue_date_text": "11/10/18",
+    "currency": "USD",
+    "subtotal": "50.49",
+    "tax": "2.74",
+    "total": "53.23"
+   },
+   "items": 6
+  },
+  {
+   "id": 162,
+   "seconds": 7.66,
+   "in": 1910,
+   "out": 1009,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Juniper & Ivy",
+    "doc_number": "4530",
+    "issue_date_text": "Oct06'16",
+    "currency": "USD",
+    "subtotal": "309.0",
+    "tax": "24.72",
+    "total": "333.72"
+   },
+   "items": 13
+  },
+  {
+   "id": 163,
+   "seconds": 8.9,
+   "in": 1948,
+   "out": 599,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "BEN'S BAYSIDE",
+    "doc_number": "0032",
+    "issue_date_text": "03/05/17",
+    "currency": "USD",
+    "subtotal": "37.95",
+    "tax": "3.37",
+    "total": "41.32"
+   },
+   "items": 6
+  },
+  {
+   "id": 164,
+   "seconds": 4.27,
+   "in": 1935,
+   "out": 248,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_present",
+    "items_missing"
+   ],
+   "extracted": {
+    "vendor": "the golden pear cafe",
+    "doc_number": "9391",
+    "issue_date_text": "Aug06'15",
+    "currency": "USD",
+    "subtotal": "22.7",
+    "tax": "None",
+    "total": "None"
+   },
+   "items": 0
+  },
+  {
+   "id": 165,
+   "seconds": 3.25,
+   "in": 1946,
+   "out": 424,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "EL CHICO MEXICAN RESTAURANT",
+    "doc_number": "1958",
+    "issue_date_text": "Nov12'16",
+    "currency": "AED",
+    "subtotal": "None",
+    "tax": "0",
+    "total": "117.0"
+   },
+   "items": 3
+  },
+  {
+   "id": 166,
+   "seconds": 4.63,
+   "in": 1910,
+   "out": 450,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "PAPPADEAUX SEAFOOD KITCHEN",
+    "doc_number": "0089",
+    "issue_date_text": "01/07/17",
+    "currency": "USD",
+    "subtotal": "38.95",
+    "tax": "3.21",
+    "total": "42.16"
+   },
+   "items": 3
+  },
+  {
+   "id": 167,
+   "seconds": 4.79,
+   "in": 1948,
+   "out": 369,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Casa Rubio Cafe",
+    "doc_number": "T1",
+    "issue_date_text": "May 21, 2019",
+    "currency": "USD",
+    "subtotal": "31.0",
+    "tax": "2.75",
+    "total": "33.75"
+   },
+   "items": 2
+  },
+  {
+   "id": 168,
+   "seconds": 5.64,
+   "in": 1910,
+   "out": 633,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "CARL'S JR",
+    "doc_number": "375719",
+    "issue_date_text": "9/27/2017",
+    "currency": "USD",
+    "subtotal": "7.0",
+    "tax": "0.61",
+    "total": "7.61"
+   },
+   "items": 7
+  },
+  {
+   "id": 169,
+   "seconds": 5.02,
+   "in": 1948,
+   "out": 603,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Delmonico's Italian Steakhouse",
+    "doc_number": "70056",
+    "issue_date_text": "08/22/2015",
+    "currency": "USD",
+    "subtotal": "42.95",
+    "tax": "3.44",
+    "total": "46.39"
+   },
+   "items": 6
+  },
+  {
+   "id": 170,
+   "seconds": 4.59,
+   "in": 1910,
+   "out": 620,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Buca di Beppo",
+    "doc_number": "40020",
+    "issue_date_text": "07/15/2016",
+    "currency": "USD",
+    "subtotal": "100.26",
+    "tax": "9.02",
+    "total": "109.28"
+   },
+   "items": 6
+  },
+  {
+   "id": 171,
+   "seconds": 5.18,
+   "in": 1910,
+   "out": 509,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "items_sum"
+   ],
+   "extracted": {
+    "vendor": "POP TATES",
+    "doc_number": "K00024585",
+    "issue_date_text": "09/12/2012",
+    "currency": "INR",
+    "subtotal": "498.0",
+    "tax": "24.6",
+    "total": "523.0"
+   },
+   "items": 4
+  },
+  {
+   "id": 172,
+   "seconds": 7.65,
+   "in": 1948,
+   "out": 547,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "El Valle",
+    "doc_number": "403593",
+    "issue_date_text": "12/2/2017",
+    "currency": "USD",
+    "subtotal": "16.39",
+    "tax": "1.36",
+    "total": "17.75"
+   },
+   "items": 5
+  },
+  {
+   "id": 173,
+   "seconds": 5.64,
+   "in": 1946,
+   "out": 546,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Lalo's Mexican",
+    "doc_number": "64142",
+    "issue_date_text": "8/24/2017",
+    "currency": "USD",
+    "subtotal": "14.85",
+    "tax": "1.71",
+    "total": "16.56"
+   },
+   "items": 5
+  },
+  {
+   "id": 174,
+   "seconds": 4.78,
+   "in": 1910,
+   "out": 329,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "ipanema",
+    "doc_number": "415",
+    "issue_date_text": "04/13/18",
+    "currency": "USD",
+    "subtotal": "41.95",
+    "tax": "2.94",
+    "total": "55.38"
+   },
+   "items": 1
+  },
+  {
+   "id": 175,
+   "seconds": 4.5,
+   "in": 1950,
+   "out": 318,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Bar Louie",
+    "doc_number": "20111",
+    "issue_date_text": "07/03/2015",
+    "currency": "USD",
+    "subtotal": "6.25",
+    "tax": "1.31",
+    "total": "7.56"
+   },
+   "items": 1
+  },
+  {
+   "id": 176,
+   "seconds": 5.23,
+   "in": 1910,
+   "out": 248,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous",
+    "items_missing"
+   ],
+   "extracted": {
+    "vendor": "HEDLEYS",
+    "doc_number": "None",
+    "issue_date_text": "6/5/17",
+    "currency": "USD",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "41.45"
+   },
+   "items": 0
+  },
+  {
+   "id": 177,
+   "seconds": 6.33,
+   "in": 1935,
+   "out": 473,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "El Charro Cafe",
+    "doc_number": "30076",
+    "issue_date_text": "06/24/2018",
+    "currency": "USD",
+    "subtotal": "45.15",
+    "tax": "2.75",
+    "total": "47.9"
+   },
+   "items": 4
+  },
+  {
+   "id": 178,
+   "seconds": 5.67,
+   "in": 1948,
+   "out": 431,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Gourdough's Public House",
+    "doc_number": "7862",
+    "issue_date_text": "Jan21'17",
+    "currency": "USD",
+    "subtotal": "11.0",
+    "tax": "0.91",
+    "total": "11.91"
+   },
+   "items": 3
+  },
+  {
+   "id": 179,
+   "seconds": 5.87,
+   "in": 1910,
+   "out": 657,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "FourthStreetMill",
+    "doc_number": "4J33",
+    "issue_date_text": "Sep 29, 2018",
+    "currency": "USD",
+    "subtotal": "49.5",
+    "tax": "4.7",
+    "total": "54.2"
+   },
+   "items": 7
+  },
+  {
+   "id": 180,
+   "seconds": 4.73,
+   "in": 1948,
+   "out": 433,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "LIZZY'S",
+    "doc_number": "4427",
+    "issue_date_text": "Aug30'14",
+    "currency": "USD",
+    "subtotal": "11.24",
+    "tax": "0.79",
+    "total": "12.03"
+   },
+   "items": 3
+  },
+  {
+   "id": 181,
+   "seconds": 7.07,
+   "in": 1948,
+   "out": 783,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "DEL FRISCO'S",
+    "doc_number": "1061",
+    "issue_date_text": "Apr07'16",
+    "currency": "USD",
+    "subtotal": "404.0",
+    "tax": "35.86",
+    "total": "439.86"
+   },
+   "items": 9
+  },
+  {
+   "id": 182,
+   "seconds": 6.1,
+   "in": 1948,
+   "out": 337,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Finnegan's Way",
+    "doc_number": "822819",
+    "issue_date_text": "08/21/17",
+    "currency": "USD",
+    "subtotal": "40.0",
+    "tax": "3.6",
+    "total": "50.8"
+   },
+   "items": 1
+  },
+  {
+   "id": 183,
+   "seconds": 5.65,
+   "in": 1948,
+   "out": 369,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "JALISCO",
+    "doc_number": "94",
+    "issue_date_text": "5/19/2019",
+    "currency": "USD",
+    "subtotal": "8.99",
+    "tax": "0.74",
+    "total": "10.0"
+   },
+   "items": 2
+  },
+  {
+   "id": 184,
+   "seconds": 7.3,
+   "in": 1926,
+   "out": 796,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "None",
+    "doc_number": "0193",
+    "issue_date_text": "03/22/13",
+    "currency": "USD",
+    "subtotal": "178.0",
+    "tax": "15.35",
+    "total": "193.35"
+   },
+   "items": 9
+  },
+  {
+   "id": 185,
+   "seconds": 4.26,
+   "in": 1946,
+   "out": 460,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "JT's Diner",
+    "doc_number": "None",
+    "issue_date_text": "02/12/2016",
+    "currency": "USD",
+    "subtotal": "26.3",
+    "tax": "2.1",
+    "total": "28.4"
+   },
+   "items": 4
+  },
+  {
+   "id": 186,
+   "seconds": 6.09,
+   "in": 1935,
+   "out": 375,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Primo Family Restaurant",
+    "doc_number": "137",
+    "issue_date_text": "5/3/19",
+    "currency": "USD",
+    "subtotal": "49.5",
+    "tax": "2.97",
+    "total": "52.47"
+   },
+   "items": 2
+  },
+  {
+   "id": 187,
+   "seconds": 7.25,
+   "in": 1910,
+   "out": 608,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Spiral Diner & Bakery",
+    "doc_number": "185736",
+    "issue_date_text": "6/16/19",
+    "currency": "USD",
+    "subtotal": "46.54",
+    "tax": "3.84",
+    "total": "50.38"
+   },
+   "items": 7
+  },
+  {
+   "id": 188,
+   "seconds": 5.29,
+   "in": 1948,
+   "out": 491,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "New China",
+    "doc_number": "23",
+    "issue_date_text": "03-12-2016",
+    "currency": "USD",
+    "subtotal": "24.95",
+    "tax": "2.01",
+    "total": "26.96"
+   },
+   "items": 4
+  },
+  {
+   "id": 189,
+   "seconds": 5.93,
+   "in": 1948,
+   "out": 435,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MIGUELS MEXICAN",
+    "doc_number": "3923",
+    "issue_date_text": "Ju05'17",
+    "currency": "USD",
+    "subtotal": "25.3",
+    "tax": "1.78",
+    "total": "27.08"
+   },
+   "items": 3
+  },
+  {
+   "id": 190,
+   "seconds": 6.65,
+   "in": 1910,
+   "out": 612,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Bombay Grill House",
+    "doc_number": "104379",
+    "issue_date_text": "30-Jun-2018",
+    "currency": "USD",
+    "subtotal": "108.8",
+    "tax": "9.66",
+    "total": "154.0"
+   },
+   "items": 6
+  },
+  {
+   "id": 191,
+   "seconds": 6.68,
+   "in": 1948,
+   "out": 490,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "MOD Pizza",
+    "doc_number": "AABT4HN6ACCM",
+    "issue_date_text": "5/19/2019",
+    "currency": "USD",
+    "subtotal": "27.45",
+    "tax": "2.53",
+    "total": "29.98"
+   },
+   "items": 4
+  },
+  {
+   "id": 192,
+   "seconds": 6.32,
+   "in": 1948,
+   "out": 490,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "STANFORD'S",
+    "doc_number": "3885",
+    "issue_date_text": "Sep30'17",
+    "currency": "USD",
+    "subtotal": "33.9",
+    "tax": "3.39",
+    "total": "37.29"
+   },
+   "items": 4
+  },
+  {
+   "id": 193,
+   "seconds": 4.73,
+   "in": 1935,
+   "out": 556,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "items_sum",
+    "total_math"
+   ],
+   "extracted": {
+    "vendor": "Marie Callender's Restaurant",
+    "doc_number": "1878",
+    "issue_date_text": "Nov30'14",
+    "currency": "USD",
+    "subtotal": "17.77",
+    "tax": "1.42",
+    "total": "19.19"
+   },
+   "items": 5
+  },
+  {
+   "id": 194,
+   "seconds": 5.42,
+   "in": 1946,
+   "out": 580,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Bar Rua",
+    "doc_number": "241805",
+    "issue_date_text": "17/08/2018",
+    "currency": "EUR",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "65.1"
+   },
+   "items": 6
+  },
+  {
+   "id": 195,
+   "seconds": 3.66,
+   "in": 1910,
+   "out": 561,
+   "attempts": 1,
+   "error": null,
+   "flagged": [
+    "date_ambiguous"
+   ],
+   "extracted": {
+    "vendor": "Amici Conyers",
+    "doc_number": "None",
+    "issue_date_text": "06/10/2018",
+    "currency": "USD",
+    "subtotal": "31.54",
+    "tax": "2.21",
+    "total": "33.75"
+   },
+   "items": 6
+  },
+  {
+   "id": 196,
+   "seconds": 6.72,
+   "in": 1935,
+   "out": 462,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "None",
+    "doc_number": "71128.1",
+    "issue_date_text": "12/31/2018",
+    "currency": "USD",
+    "subtotal": "55.0",
+    "tax": "3.3",
+    "total": "58.3"
+   },
+   "items": 3
+  },
+  {
+   "id": 197,
+   "seconds": 4.0,
+   "in": 1948,
+   "out": 594,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "BAR RISTORANTE STABILIMENTO MARINO E TERMALE SAN MONTANO S.R.L.",
+    "doc_number": "52",
+    "issue_date_text": "28-08-2018",
+    "currency": "EUR",
+    "subtotal": "None",
+    "tax": "None",
+    "total": "34.0"
+   },
+   "items": 6
+  },
+  {
+   "id": 198,
+   "seconds": 3.14,
+   "in": 1926,
+   "out": 774,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "STK",
+    "doc_number": "1959",
+    "issue_date_text": "25AUG'17",
+    "currency": "USD",
+    "subtotal": "142.0",
+    "tax": "12.78",
+    "total": "154.78"
+   },
+   "items": 9
+  },
+  {
+   "id": 199,
+   "seconds": 4.23,
+   "in": 1935,
+   "out": 715,
+   "attempts": 1,
+   "error": null,
+   "flagged": [],
+   "extracted": {
+    "vendor": "Nonna",
+    "doc_number": "None",
+    "issue_date_text": "05/21/12",
+    "currency": "USD",
+    "subtotal": "118.0",
+    "tax": "10.33",
+    "total": "128.33"
+   },
+   "items": 8
+  }
+ ]
+}

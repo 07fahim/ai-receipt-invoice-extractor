@@ -271,3 +271,28 @@ Receipts unchanged in every row; real readings and keys unchanged. Still open: r
 mix of rates (rare where VAT is included by law), and totals under about 5. Small amounts keep a hole: 15% added on top read as included passes
 on a 5.00 total (17.5% of it is within a cent). Euro totals keep the 5-cent room although most euro countries don't
 round cash.
+
+## VAT summary rows (2026-10-13): checks shipped, prompt not
+
+Goal: read the printed per-rate VAT table (`vat_lines`: rate, net, tax, gross) so "VAT included" can be checked
+exactly (mixed rates added on top read as included; totals under about 5). The misread this catches is rare: a
+subtotal read as the total appeared once in 1,358 keyed documents with tax added on top.
+
+Pilot (prompt 6cff05f4, 18 calls, every image checked): 11 of 11 rows right; the 10 receipts without a table read [].
+
+Full re-read, both prompts' answers scored with today's rules (old: fef31308; WildReceipt old answers are be0376e0):
+
+| Prompt | CORD test right | Inv test / val right | WildReceipt VAT receipts | Wrong and not flagged, new |
+|---|---|---|---|---|
+| 6cff05f4 (rows) | 90 -> 90 | 19 -> 17 / 33 -> 33 (date swaps, flagged) | 105 -> 110 of 131 | CORD 96 (unlabelled 41,000 left empty); WildReceipt 108 (VAT table's "Before GST 2.06" taken as the subtotal 2.20) |
+| 2c832ca4 (+ subtotal rule) | 90 -> 91 | 19 -> 17 / 33 -> 33 | 35 -> 37 of 46 | WildReceipt 120 and 319: subtotal left empty where it is printed only in the VAT table (old prompt filled it) |
+
+Samples (35, against b4907187): unchanged except the BPDB bill (flagged both) and a 0.25 round-off read as a discount
+before. Ship rule broken on both prompts: a subtotal lost on about 2 of 46 VAT receipts, against a catch seen once in
+1,358. So the prompt stays fef31308 and the rows checks ship dormant (no rows are read, no behaviour change: 2,347
+saved readings, keys 6/7/1/0 and every planted category identical to main).
+
+Ready for a future prompt: row arithmetic (whole units without cents), rows vs tax (only rows above the tax: duty and
+cess sit in the tax), rows decide "VAT included" only when complete and consistent (a tip or discount outside the table
+allowed), rows dropped on a user save, suggestions never contradict the rows. Known for that prompt: WildReceipt 233
+read the gross 21.95 as the 6% row's net (flag on a right document); 6cff05f4 and 2c832ca4 runs used 504 + 345 calls.

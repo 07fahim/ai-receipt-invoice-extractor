@@ -16,6 +16,13 @@ class Item(BaseModel):
     discount: Optional[Money] = None  # line discount; positive = money taken off
 
 
+class VatLine(BaseModel):  # one row of the VAT summary as printed
+    rate: Optional[Money] = Field(default=None, ge=0, le=100)
+    net: Optional[Money] = None
+    tax: Optional[Money] = None
+    gross: Optional[Money] = None
+
+
 class Document(BaseModel):
     is_document: Optional[bool] = None  # False: not a receipt/invoice at all (menu, photo, logo); None: unknown
     doc_type: Optional[Literal['invoice', 'receipt']] = None
@@ -42,3 +49,4 @@ class Document(BaseModel):
     discount_rate: Optional[Money] = Field(default=None, ge=0, le=100)  # printed on the document discount line
     seller_tax_id: Optional[str] = Field(default=None, max_length=40)  # VAT number, GSTIN or BIN as printed
     items: list[Item] = Field(default=[], max_length=200)
+    vat_lines: list[VatLine] = Field(default=[], max_length=10)  # VAT summary table, one row per rate

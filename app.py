@@ -709,7 +709,8 @@ def update_document(doc_id: int, doc: Document, date_order: DateOrderValue | Non
             raise HTTPException(409, 'Still being read. Save again when it is done.')
         if if_unchanged_since and row['updated_at'] != if_unchanged_since:
             raise HTTPException(409, 'Changed in another tab. Reload to see the latest version.')
-        doc = doc.model_copy(update={'is_document': None, 'document_count': None})  # the user saved it: it is one document
+        # the user saved it: it is one document; rows can't be edited on the review page, so the user's numbers decide
+        doc = doc.model_copy(update={'is_document': None, 'document_count': None, 'vat_lines': []})
         save(con, doc_id, doc, 'reviewed', uid, date_order=date_order)
         queue_document_event(con, doc_id)
     WAKE.set()

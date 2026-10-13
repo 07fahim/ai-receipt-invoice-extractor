@@ -121,4 +121,38 @@ assert d.seller_tax_id is None, d  # bool is an int subclass: must not pass thro
 d = parse_rates('{"total": 10, "seller_tax_id": "Applied"}')
 assert d.seller_tax_id is None, d  # "BIN: Applied" on Arax: a word, not a number
 
+# the VAT summary: null list -> [], rows as objects, numbers never text
+d = parse('{"total": 110, "vat_lines": null}')
+assert d.vat_lines == []
+d = parse('{"total": 110, "vat_lines": [{"rate": 10, "net": 100, "tax": 10, "gross": 110}]}')
+assert d.vat_lines[0].tax == D(10) and d.vat_lines[0].gross == D(110)
+for bad in ('{"vat_lines": ["x"]}', '{"vat_lines": [{"tax": "10,00"}]}'):
+    try:
+        parse(bad)
+        raise AssertionError(bad)
+    except ValueError:
+        pass
+# a row's rate sent as text ("7%" or "7") must not fail the whole document; net/tax/gross as text still must
+d = parse('{"total": 110, "vat_lines": [{"rate": "7%", "net": 100, "tax": 7, "gross": 107}]}')
+assert d.vat_lines[0].rate == D(7), d
+d = parse('{"total": 110, "vat_lines": [{"rate": "7", "net": 100, "tax": 7, "gross": 107}]}')
+assert d.vat_lines[0].rate == D(7), d
+d = parse('{"total": 110, "vat_lines": [{"rate": "none", "net": 100, "tax": 7, "gross": 107}]}')
+assert d.vat_lines[0].rate is None, d
+d = parse('{"total": 110, "vat_lines": [{"rate": "7,5%", "net": 100, "tax": 7.5, "gross": 107.5}]}')
+assert d.vat_lines[0].rate == D('7.5'), d
+try:
+    parse('{"vat_lines": [{"rate": "7%", "net": "100"}]}')
+    raise AssertionError('net as text must still be rejected')
+except ValueError:
+    pass
+# an out-of-range or boolean row rate is dropped, like tax_rate; the document still parses
+for bad_rate in (-5, 150, True):
+    d = parse('{"total": 1, "vat_lines": [{"rate": %s, "net": 100, "tax": 7, "gross": 107}]}' % json.dumps(bad_rate))
+    assert d.vat_lines[0].rate is None, d
+# more than 10 rows is dropped, not truncated
+many_rows = ', '.join('{"rate": 10, "net": 1, "tax": 0.1}' for _ in range(11))
+d = parse('{"total": 1, "vat_lines": [%s]}' % many_rows)
+assert d.vat_lines == [], d
+
 print('ok')
