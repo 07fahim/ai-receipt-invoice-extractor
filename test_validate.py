@@ -159,6 +159,28 @@ idr2 = dict(currency='IDR', subtotal=D('25000'), tax=D('2502'), total=D('27502')
             items=[Item(amount=D('27502'))], vat_lines=[row('10', '25000', '2502')])
 assert checks(**idr2) == ['vat_row']  # 2 units off, still outside the 1-unit room
 
+# a partly read row (net missing) must not cause false flags: the sum check counts every row with tax set,
+# and "VAT included" falls back to the old term since not every row is complete
+f1 = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True,
+          items=[Item(amount=D('107.00')), Item(amount=D('59.50'))],
+          vat_lines=[row('7', '100.00', '7.00', '107.00'), VatLine(rate=D('19'), net=None, tax=D('9.50'), gross=D('59.50'))])
+assert checks(**f1) == []
+
+# a misread row (gross read into net) must not also fire total_math: the rows don't decide "included" unless
+# every row is complete and passes its own arithmetic, so the old term is used instead
+f2 = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True,
+          items=[Item(amount=D('107.00')), Item(amount=D('59.50'))],
+          vat_lines=[row('7', '107.00', '7.00'), row('19', '59.50', '9.50')])
+assert checks(**f2) == ['vat_row', 'vat_row']
+
+# a row whose gross doesn't match net + tax (but whose own rate arithmetic is fine) gets its own message
+f3 = dict(currency='EUR', subtotal=D('100.00'), tax=D('7.00'), total=D('107.00'),
+          items=[Item(amount=D('107.00'))], vat_lines=[row('7', '100.00', '7.00', '108.00')])
+f3_issues = [i for i in validate(Document(**f3), today=TODAY) if i['check'] != 'items_missing']
+assert [i['check'] for i in f3_issues] == ['vat_row'], f3_issues
+assert f3_issues[0]['message'] == 'The 7% VAT row: 100 + 7 is 107. It says 108.', f3_issues
+assert f3_issues[0]['fields'] == ['tax'], f3_issues
+
 # not a receipt at all (menu, logo): one clear message instead of "No total found"; unknown counts as a document
 assert [i['check'] for i in validate(Document(is_document=False))] == ['is_document']
 assert checks(**good, is_document=True) == [] and checks(**good, is_document=None) == []

@@ -276,8 +276,19 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     # Tax added on top is always accepted. "VAT included" (tax already inside the prices) only when the model says so
     # or the numbers prove it (included_share): the arithmetic decides, so a wrong tax_included=True on an invoice
     # whose tax is added on top does no harm.
-    # VAT summary rows, read before the included decision so both it and the row checks below use them
-    rows = [r for r in doc.vat_lines if None not in (r.rate, r.net, r.tax)]
+    # VAT summary rows, read before the included decision so both it and the row checks below use the same
+    # row problems (no arithmetic redone later)
+    def row_room(r):
+        whole = (doc.currency or '').upper() in WHOLE_UNIT_CASH or (not doc.currency and r.tax == r.tax.to_integral_value())
+        return Decimal('1') if whole else CENT * max(1, len(doc.items))
+
+    complete_rows = [r for r in doc.vat_lines if None not in (r.rate, r.net, r.tax)]
+    row_problems = [(r, abs(r.tax - r.net * r.rate / 100) > row_room(r),
+                     r.gross is not None and abs(r.net + r.tax - r.gross) > CENT) for r in complete_rows]
+    tax_rows = [r for r in doc.vat_lines if r.tax is not None]  # every row with tax set, even a partly read one
+    rows_consistent = (bool(doc.vat_lines) and len(complete_rows) == len(doc.vat_lines)
+                       and not any(bad or gross_bad for _, bad, gross_bad in row_problems)
+                       and doc.tax is not None and abs(sum(r.tax for r in tax_rows) - doc.tax) <= CENT * len(tax_rows))
 
     if doc.subtotal is not None and doc.total is not None:
         discount = 0 if discount_in_subtotal else abs(doc.discount or 0)
@@ -286,8 +297,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # (VAT/GST only: a US sales tax subtotal misread as the total would pass the same arithmetic by chance)
         printed = doc.tax_kind in ('vat', 'gst') and doc.tax_rate and abs(
             tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
-        # with rows printed, the total being the rows' gross is proof on its own; without rows, fall back as before
-        row_share = near(sum(r.net + r.tax for r in rows)) if rows else (
+        # rows decide "included" only when every row is complete and consistent (own arithmetic right, tax sum
+        # matches doc.tax): the total being the rows' gross is then proof on its own. Otherwise fall back as before
+        row_share = near(sum(r.net + r.tax for r in complete_rows)) if rows_consistent else (
             doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id, doc.doc_type))
         included = tax and near(expected - tax) and (printed or row_share or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
@@ -320,17 +332,14 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
                 fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(base)} is at most '
                      f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
     # VAT summary rows: each row's own tax must match its rate and net, and the rows must add up to doc.tax.
-    # Whole-unit room (like doc.tax above) for currencies with no cents, or an unknown currency whose row tax
-    # is itself a whole number (e.g. a JPY/IDR row printed or rounded to whole units); otherwise a flat cent
-    # of room per item.
-    for r in rows:
-        whole = (doc.currency or '').upper() in WHOLE_UNIT_CASH or (not doc.currency and r.tax == r.tax.to_integral_value())
-        room = Decimal('1') if whole else CENT * max(1, len(doc.items))
-        if abs(r.tax - r.net * r.rate / 100) > room or (r.gross is not None and abs(r.net + r.tax - r.gross) > CENT):
+    for r, bad, gross_bad in row_problems:
+        if bad:
             fail('vat_row', ['tax'], f'The {pct(r.rate)}% VAT row: {pct(r.rate)}% of {num(r.net)} is '
                  f'{num((r.net * r.rate / 100).quantize(CENT, ROUND_HALF_UP))}. It says {num(r.tax)}.')
-    if rows and doc.tax is not None and abs(sum(r.tax for r in rows) - doc.tax) > CENT * len(rows):
-        fail('vat_rows_tax', ['tax'], f'The VAT rows add up to {num(sum(r.tax for r in rows))}. The tax is {num(doc.tax)}.')
+        elif gross_bad:
+            fail('vat_row', ['tax'], f'The {pct(r.rate)}% VAT row: {num(r.net)} + {num(r.tax)} is {num(r.net + r.tax)}. It says {num(r.gross)}.')
+    if tax_rows and doc.tax is not None and abs(sum(r.tax for r in tax_rows) - doc.tax) > CENT * len(tax_rows):
+        fail('vat_rows_tax', ['tax'], f'The VAT rows add up to {num(sum(r.tax for r in tax_rows))}. The tax is {num(doc.tax)}.')
 
     if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
         most = doc.subtotal * doc.discount_rate / 100
