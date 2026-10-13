@@ -13,7 +13,7 @@ services:
     autoDeployTrigger: checksPass  # deploy only after the GitHub Actions CI passes
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.16  # latest 3.11 patch (bug and security fixes only); tests pass on it
       - key: DATABASE_URL  # Supabase session pooler, port 5432
         sync: false
       - key: SUPABASE_URL
