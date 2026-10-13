@@ -261,6 +261,10 @@ from validate import gstin_valid, uk_vat_valid
 assert gstin_valid('07AAHCA1234F1Z5') and not gstin_valid('07AAHCA1234F1Z6') and not gstin_valid('99AAHCA1234F1Z5')
 # 1234567: weights 8..2 give 112; 112 + 82 = 194 = 2 x 97 (old scheme); 112 + 27 + 55 = 194 (new scheme)
 assert uk_vat_valid('123456782') and uk_vat_valid('123456727') and not uk_vat_valid('123456789')
+from validate import tax_id_problem
+# without GB on a pound receipt (WildReceipt 349 and 10 print '191 2478 96' and '142 440 545'); other currencies unchecked
+assert tax_id_problem('191 2478 96', 'GBP') is None and tax_id_problem('142 440 545', 'GBP') is None
+assert tax_id_problem('123 4567 89', 'GBP') and tax_id_problem('123 4567 89', 'USD') is None
 assert found(**{**greenleaf, 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_id': 'GB123 4567 89'}) == \
     {'tax_id_invalid': 'GB123 4567 89 is not a valid UK VAT number. Check it on the document.'}
 assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \

@@ -176,9 +176,12 @@ def uk_vat_valid(digits):
     return total % 97 == 0 or (total + 55) % 97 == 0
 
 
-def tax_id_problem(raw):
-    # only formats with a public check digit; a Bangladeshi BIN or other EU numbers are not checked
+def tax_id_problem(raw, currency=None):
+    # only formats with a public check digit; a Bangladeshi BIN or other EU numbers are not checked.
+    # UK receipts often print the number without GB ("VAT Reg No: 191 2478 96")
     s = re.sub(r'[\s.-]', '', raw or '').upper()
+    if (currency or '').upper() == 'GBP' and re.fullmatch(r'\d{9}|\d{12}', s):
+        s = 'GB' + s
     if re.fullmatch(r'GB(\d{9}|\d{12})', s):
         return None if uk_vat_valid(s[2:11]) else f'{raw} is not a valid UK VAT number. Check it on the document.'
     if len(s) == 15 and s[:2].isdigit() and s[13] == 'Z':
@@ -287,7 +290,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             fail('discount_rate', ['discount'], f'{pct(doc.discount_rate)}% of {num(doc.subtotal)} is '
                  f'{num(most.quantize(CENT, ROUND_HALF_UP))}. The discount is {num(abs(doc.discount))}.')
 
-    problem = tax_id_problem(doc.seller_tax_id)
+    problem = tax_id_problem(doc.seller_tax_id, doc.currency)
     if problem:
         fail('tax_id_invalid', ['seller_tax_id'], problem)
     if doc.tax_kind in ('vat', 'gst') and doc.tax and not doc.seller_tax_id and (doc.currency or '').upper() in VAT_ID_EXPECTED:
