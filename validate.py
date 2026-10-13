@@ -47,6 +47,9 @@ VAT_RATES = tuple(map(Decimal, '2.6 3.8 5 6 7 7.5 8 8.1 9 10 11 12 13 14 15 16 1
 # 0% food and 20% in the UK), any share up to the top rate may be a mix, unless the tax is exactly one of the
 # country's rates of the total: that is tax added on top with the subtotal read as the total (10.00 on 100.00), which
 # a mix almost never gives (4.15 on 29.15). Euro countries by the VAT number's prefix, else all euro rates.
+# Invoices don't get this: they add the tax on top (736 of 737 saved invoice readings), and two rates on top look
+# exactly like a mix. A known country's own rates also count as exact, and euro rates on euro documents (25% only
+# for a known country: 20% on top looks like 25%).
 VAT_BY = {k: tuple(map(Decimal, v.split())) for k, v in {
     'GBP': '5 20', 'CHF': '2.6 3.8 8.1', 'JPY': '8 10', 'SEK': '6 12 25', 'NOK': '12 15 25', 'DKK': '25', 'ISK': '11 24',
     'AT': '10 13 20', 'BE': '6 12 21', 'CY': '5 9 19', 'DE': '7 19', 'EE': '9 13 24', 'EL': '6 13 24', 'ES': '4 10 21',
@@ -68,13 +71,15 @@ def included_share(tax, total, lines, allow=frozenset()):
             and any(abs(tax - total * r / (100 + r)) <= Decimal('0.01') for r in INCLUDED_VAT_RATES))
 
 
-def vat_share(tax, bases, currency=None, tax_id=None):
-    if any(abs(tax - b * r / (100 + r)) <= CENT for b in bases for r in VAT_RATES):
-        return True
+def vat_share(tax, bases, currency=None, tax_id=None, doc_type=None):
     c = (currency or '').upper()
     prefix = re.sub(r'[^A-Z]', '', (tax_id or '').upper())[:2]
-    rates = VAT_BY.get(prefix if c == 'EUR' and prefix in VAT_BY else c)
-    if not rates or tax <= 0 or any(abs(tax - b * r / 100) <= CENT for b in bases for r in rates):
+    country = prefix if c == 'EUR' and prefix in VAT_BY else c
+    own = tuple(r for r in VAT_BY['EUR'] if r < 25) if country == 'EUR' else VAT_BY.get(country, ())
+    if any(abs(tax - b * r / (100 + r)) <= CENT for b in bases for r in VAT_RATES + own):
+        return True
+    rates = VAT_BY.get(country)
+    if doc_type == 'invoice' or not rates or tax <= 0 or any(abs(tax - b * r / 100) <= CENT for b in bases for r in rates):
         return False
     return any(tax <= b * max(rates) / (100 + max(rates)) + CENT for b in bases)
 
@@ -279,7 +284,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # (VAT/GST only: a US sales tax subtotal misread as the total would pass the same arithmetic by chance)
         printed = doc.tax_kind in ('vat', 'gst') and doc.tax_rate and abs(
             tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
-        included = tax and near(expected - tax) and (printed or (doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id)) or included_share(tax, doc.total, net, allow))
+        included = tax and near(expected - tax) and (printed or (doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id, doc.doc_type)) or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
                  f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')

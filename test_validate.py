@@ -106,6 +106,13 @@ assert mixed('GBP', '20', '100') == ['total_math'] and mixed('EUR', '19', '100',
 assert mixed('EUR', '20.32', '100', 'FI12345678') == [] and mixed('EUR', '20.32', '100') == []  # Finland 25.5%
 assert mixed('EUR', '10', '100') == ['total_math'] and mixed('JPY', '80', '1000') == ['total_math']  # 10%, 8% on top
 assert mixed('EUR', '25', '100', 'FR12345678901') == ['total_math']  # 20% on top looks like 25% included: not a French rate
+# invoices add the tax on top: two rates on top (Italy 100 at 10% + 100 at 22%, subtotal 200 read as the total) is no mix
+inv = lambda tax, total, tax_id=None, doc_type='invoice': checks(doc_type=doc_type, subtotal=D(total), tax=D(tax), total=D(total),
+                                                             currency='EUR', tax_included=True, seller_tax_id=tax_id, items=[Item(amount=D(total))])
+assert inv('32', '200', 'IT1') == ['total_math'] and inv('32', '200', 'IT1', 'receipt') == []
+assert inv('5.21', '100') == [] and inv('5.21', '100', 'FR1') == []  # one rate, 5.5% included (France)
+assert inv('20', '100', 'FR1') == ['total_math'] and inv('20.32', '100', 'FI1') == []  # 20% on top; Finland 25.5% included
+assert mixed('EUR', '4.15', '29.15', 'DE1') == []  # a German receipt mixing 7% and 19%, unchanged
 # the share of the subtotal also counts: a tip without VAT added after it (WildReceipt test 270, ZAR 14%)
 assert checks(subtotal=D('318'), tax=D('39.05'), service_charge=D('32'), total=D('350'), tax_included=True, items=[Item(amount=D('318'))]) == []
 no_sub = {**incl, 'subtotal': None}

@@ -257,7 +257,17 @@ not exactly one of the country's rates of the total (the mark of tax added on to
 prefix. Simulated mixed receipts (20,000 each, 2-12 lines): flagged 0.1% DE, 0.3% FR, 0.1% JP, 0.1% UK, 0.2% SE; 2.4%
 for euro receipts without a VAT number read (all euro rates). Before this they were flagged nearly always. Planted
 subtotal-read-as-total, marked included, caught: USD 90%, EUR 89% (n=9; the miss is a 14.5% share), every other
-currency 100%. Still a hole: a reduced rate added on top in a country whose top rate is higher, when the tax is
-not exactly that rate (rounding). Small amounts keep a hole: 15% added on top read as included passes
+currency 100%. Invoices (added after review): invoices add the tax on top (736 of 737 saved invoice readings), and two rates on top
+look exactly like a mix, so the mixed-rate allowance is for receipts only; a known country's own rates (and euro rates
+on euro documents, 25% only with the country known) count as exact. Simulated, 3,000 each, flagged before -> after:
+
+| Invoice, subtotal read as the total, marked included | Caught | Genuine VAT-included invoice flagged |
+|---|---|---|
+| IT 10% / FR 5.5% / IE 13.5% on top | 92% -> 100% | 0% -> 0% |
+| IT 10+22% / DE 7+19% / JP 8+10% / UK 0+20% on top | 7-43% -> 99.6-99.9% | 0% -> 99.5-100% (accepted: mixed-rate included invoices go to review) |
+| FI 25.5% / SE 25% | 100% -> 100% | 0% -> 0% |
+
+Receipts unchanged in every row; real readings and keys unchanged. Still open: receipts with tax added on top at a
+mix of rates (rare where VAT is included by law), and totals under about 5. Small amounts keep a hole: 15% added on top read as included passes
 on a 5.00 total (17.5% of it is within a cent). Euro totals keep the 5-cent room although most euro countries don't
 round cash.
