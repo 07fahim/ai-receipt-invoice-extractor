@@ -182,9 +182,15 @@ assert [o['label'] for o in labels['options']] == ['Tax 180.50', 'Total 2,080.50
 # a printed rate decides: 10% of 33 is 3.30, so the tax is the misread
 one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', tax_rate=D(10), tax_kind='vat', items=lines))
 assert one == {'message': 'Is the tax 3.30? Then the total adds up.', 'changes': [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]}, one
-# the tax matches its rate, so the total is the misread
-one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('86.30'), total_text='86.30', tax_rate=D(10), tax_kind='vat', items=lines))
-assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '86.30', 'to': '36.30'}]}, one
+# the tax matches its rate, so the total is the misread, or a 50.00 charge (delivery, a tip) was not read
+two = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('86.30'), total_text='86.30', tax_rate=D(10), tax_kind='vat', items=lines))
+assert two['message'] == 'The total was misread, or a charge was not read. Pick the one the photo shows.' and [o['changes'] for o in two['options']] == [
+    [{'field': 'total', 'from': '86.30', 'to': '36.30'}], [{'field': 'service_charge', 'from': None, 'to': '50.00'}]], two
+# a total below its parts can't hold a missed charge: one answer
+one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('26.30'), total_text='26.30', tax_rate=D(10), tax_kind='vat', items=lines))
+assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '26.30', 'to': '36.30'}]}, one
+three = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('41.30'), total_text='41.30', items=lines))
+assert [o['label'] for o in three['options']] == ['Tax 8.30', 'Total 36.30', 'Other charge 5'], three
 # no guess when the tax is inside the prices (subtotal = total) or the total is printed in whole units (rounded)
 assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.00'), total=D('33.00'), total_text='33.00', items=lines)) is None
 assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36', items=lines)) is None

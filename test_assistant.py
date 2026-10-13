@@ -141,7 +141,10 @@ def tools():
                 'No seller GSTIN found. It is needed to claim this GST back.',
                 'This document is dated 01/2024. The rest of this upload is from 03/2026.',
                 'Is the tax 3.30? Then the total adds up.', 'Is the total 36.30? Then every sum adds up.',
-                'The tax or the total was misread. Pick the one the photo shows.', 'Tax 3.30', 'Total 41.30']
+                'The tax or the total was misread. Pick the one the photo shows.',
+                'The total was misread, or a charge was not read. Pick the one the photo shows.',
+                'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.',
+                'Tax 3.30', 'Other charge 5', 'Total 41.30']
     assert len(examples) == len(assistant.BANGLA)
     # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
     # 18 checks, 5 suggestions (2 found.append, 2 f-string returns, 1 plain return), 1 note dict in validate.py

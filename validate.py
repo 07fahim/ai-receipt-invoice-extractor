@@ -408,14 +408,24 @@ def suggest(doc: Document) -> dict | None:
             fits = [(f, v) for f, v in options if not any(i['check'] == 'tax_rate' for i in validate(changed({f: v})))]
             if len(fits) == 1:
                 options = fits
-        change = lambda f, v: [{'field': f, 'from': str(getattr(doc, f)), 'to': str(v)}]
+        # A charge the reading missed (delivery, a tip; at least 1, never a few cents) looks the same as a total
+        # misread too high: it is offered beside that total, never alone. Planted missed charges got 159 wrong "Is the total" and 951 choices
+        # without the right answer.
+        charge = (doc.service_charge or 0) + doc.total - rest - doc.tax
+        if 'total' in (f for f, _ in options) and charge - (doc.service_charge or 0) >= 1 and not sums_fail(changed({'service_charge': charge})):
+            options.append(('service_charge', charge))
+        change = lambda f, v: [{'field': f, 'from': None if getattr(doc, f) is None else str(getattr(doc, f)), 'to': str(v)}]
         if len(options) == 1:
             f, v = options[0]
             msg = 'Then the total adds up.' if f == 'tax' else 'Then every sum adds up.'
             return {'message': f'Is the {f} {num(v)}? {msg}', 'changes': change(f, v)}
-        if len(options) == 2:
-            return {'message': 'The tax or the total was misread. Pick the one the photo shows.', 'changes': [],
-                    'options': [{'label': f'{f.capitalize()} {num(v)}', 'changes': change(f, v)} for f, v in options]}
+        if options:
+            message = {('tax', 'total'): 'The tax or the total was misread. Pick the one the photo shows.',
+                       ('total', 'service_charge'): 'The total was misread, or a charge was not read. Pick the one the photo shows.',
+                       ('tax', 'total', 'service_charge'): 'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.'}
+            label = {'tax': 'Tax', 'total': 'Total', 'service_charge': 'Other charge'}
+            return {'message': message[tuple(f for f, _ in options)], 'changes': [],
+                    'options': [{'label': f'{label[f]} {num(v)}', 'changes': change(f, v)} for f, v in options]}
     if not found:
         return None
     field, value, candidate, message = found[0]

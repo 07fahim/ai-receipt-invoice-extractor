@@ -134,7 +134,12 @@ BANGLA = [(re.compile(p), t) for p, t in [
     (r'Is the tax (.+)\? Then the total adds up\.', 'কর কি {0}? তাহলে মোট মিলে যায়।'),
     (r'Is the total (.+)\? Then every sum adds up\.', 'মোট কি {0}? তাহলে সব যোগফল মিলে যায়।'),
     (r'The tax or the total was misread\. Pick the one the photo shows\.', 'কর অথবা মোট ভুল পড়া হয়েছে। ছবিতে যেটি আছে সেটি বেছে নিন।'),
+    (r'The total was misread, or a charge was not read\. Pick the one the photo shows\.',
+     'মোট ভুল পড়া হয়েছে, অথবা একটি চার্জ পড়া হয়নি। ছবিতে যেটি আছে সেটি বেছে নিন।'),
+    (r'The tax or the total was misread, or a charge was not read\. Pick the one the photo shows\.',
+     'কর অথবা মোট ভুল পড়া হয়েছে, অথবা একটি চার্জ পড়া হয়নি। ছবিতে যেটি আছে সেটি বেছে নিন।'),
     (r'Tax (\S+)', 'কর {0}'),  # option labels of the tax-or-total suggestion
+    (r'Other charge (\S+)', 'অন্য চার্জ {0}'),
     (r'Total (\S+)', 'মোট {0}'),
 ]]
 

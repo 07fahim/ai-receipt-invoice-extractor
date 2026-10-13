@@ -176,7 +176,7 @@ export default function ReviewPage() {
   // fills in the suggested values; nothing is saved until the user saves
   function applySuggestion(s: Suggestion) {
     // only onto the values it was worked out from: after an edit it waits for the next check
-    if (!s.changes.every((c) => current(c.field) != null && Number(current(c.field)) === Number(c.from))) { // 280.00 is 280.0
+    if (!s.changes.every((c) => sameValue(current(c.field), c.from))) { // 280.00 is 280.0; an empty field stays empty
       toast.error("The document changed. Wait a moment for the checks to update.");
       return;
     }
@@ -513,7 +513,7 @@ export default function ReviewPage() {
                         <p className="text-xs font-medium">{o.label}</p>
                         <ul className="mt-1 text-xs">
                           {o.changes.map((c) => (
-                            <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
+                            <li key={c.field}>{fieldLabel(c.field)}: <s>{c.from === null ? "empty" : pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
                           ))}
                         </ul>
                         <Button size="sm" className="mt-2" aria-label={`Apply ${o.label}`} onClick={() => applySuggestion({ message: suggestion.message, changes: o.changes })}>Apply</Button>
@@ -525,7 +525,7 @@ export default function ReviewPage() {
                     {suggestion.changes.length <= 3 && (
                       <ul className="mt-1.5 text-xs">
                         {suggestion.changes.map((c) => (
-                          <li key={c.field}>{fieldLabel(c.field)}: <s>{pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
+                          <li key={c.field}>{fieldLabel(c.field)}: <s>{c.from === null ? "empty" : pad(c.from)}</s> → <b>{pad(c.to)}</b></li>
                         ))}
                       </ul>
                     )}
