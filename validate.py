@@ -18,9 +18,11 @@ XOF XPF YER ZAR ZMW ZWG
 
 # Line sums must match to the cent. Only the final total may be cash-rounded, and only by what its own rounding
 # allows: rupiah, dong and won totals rounded to hundreds (IDR 334,011 printed as 334,000) up to 0.05%, measured on
-# CORD (results/M2_NOTES.md); taka, rupees and totals printed without cents by less than one unit (404.36 taka
-# printed as 404; a BPDB bill cuts 9,983,196.70 to 9,983,196.00 and carries the rest); a total in 5 cents (12.37 printed as 12.35) up to 2.5 cents in the currencies whose cash is rounded
-# so (CHF, AUD, CAD, ...); any other total to the cent. A flat 0.05% hid misread cents on USD invoices (978.12 read
+# CORD (results/M2_NOTES.md); taka, rupees and totals printed without cents rounded to whole units (404.36 taka
+# printed as 404) or cut by less than one (a BPDB bill cuts 9,983,196.70 to 9,983,196.00 and carries the rest);
+# a total in 5 cents (12.37 printed as 12.35) up to 2.5 cents in the currencies whose cash is rounded so (CHF, AUD,
+# CAD, ...; EUR too, though only some euro countries round, so a 2-cent euro misread can pass); any other total to
+# the cent. A flat 0.05% hid misread cents on USD invoices (978.12 read
 # as 978.16, results/M3_NOTES.md), 5 cents of room hid 977.50 read for 977.52 in USD, and 0.05% hid 400 taka on a
 # 977,500 taka total. A total printed with cents ("1,200.00") gets whole-unit room only in currencies whose cash is
 # rounded to whole units (Shwapno: 816.15 printed "816.00"). No currency on the receipt (CORD) keeps all the room.
@@ -37,7 +39,9 @@ INCLUDED_VAT_RATES = (Decimal(5), Decimal('7.5'), Decimal(10), Decimal(15))
 # Rates a "VAT included" tax may be the share of, when the document prints none. A share at no rate (6.00 of 40.50,
 # 17%) is a misread. 25% is left out: 20% added on top with the subtotal read as the total looks like 25% included.
 # The share may be of the total or of the subtotal (a tip or service charge without VAT added after it).
-VAT_RATES = tuple(map(Decimal, '5 6 7 7.5 8 9 10 11 12 13 14 15 16 17 17.5 18 19 20 21 22 23 24'.split()))
+# Known false alarm: a receipt with two rates and no rate read (7% and 19% in Germany, 8% and 10% in Japan) or 25%
+# (Nordic) goes to review. None in the measured sets (results/M4_NOTES.md).
+VAT_RATES = tuple(map(Decimal, '2.6 3.8 5 6 7 7.5 8 8.1 9 10 11 12 13 14 15 16 17 17.5 18 19 20 21 22 23 24'.split()))
 
 # countries where a seller VAT/GST number is expected: BIN (BDT), GSTIN (INR), UK VAT (GBP), EU VAT (EUR)
 VAT_ID_EXPECTED = {'BDT', 'INR', 'GBP', 'EUR'}
@@ -69,7 +73,10 @@ def cash_rounding(currency, total_text):
 def total_close(expected, total, allow=frozenset()):
     gap = abs(expected - total)
     if 'whole' in allow and total == total.to_integral_value():
-        return gap < max(Decimal(1), abs(total) * TOTAL_ROUNDING if 'hundreds' in allow else 0)
+        if 'hundreds' in allow and gap <= abs(total) * TOTAL_ROUNDING:
+            return True
+        over = abs(total) - abs(expected)  # rounded up by half a unit at most, or cut by less than one
+        return -1 < over <= Decimal('0.5')
     return gap <= (Decimal('0.025') if 'five' in allow and total * 20 == (total * 20).to_integral_value() else Decimal('0.01'))
 
 
@@ -403,16 +410,16 @@ def suggest(doc: Document) -> dict | None:
             and CENTS_PRINTED.search(doc.total_text or '') and doc.currency and doc.currency.upper() not in WHOLE_UNIT_CASH):
         rest = doc.subtotal + (doc.service_charge or 0) - abs(doc.discount or 0)
         options = [(f, v) for f, v in (('tax', doc.total - rest), ('total', rest + doc.tax))
-                   if v > 0 and v != getattr(doc, f) and not sums_fail(changed({f: v}))]
+                   if v * doc.total > 0 and v != getattr(doc, f) and not sums_fail(changed({f: v}))]  # a refund stays negative
         if doc.tax_rate is not None and doc.tax_kind:
             fits = [(f, v) for f, v in options if not any(i['check'] == 'tax_rate' for i in validate(changed({f: v})))]
             if len(fits) == 1:
                 options = fits
         # A charge the reading missed (delivery, a tip; at least 1, never a few cents) looks the same as a total
-        # misread too high: it is offered beside that total, never alone. Planted missed charges got 159 wrong "Is the total" and 951 choices
-        # without the right answer.
+        # misread too high: it is offered beside that total, never alone. Planted missed charges got 159 wrong
+        # "Is the total" and 951 choices without the right answer.
         charge = (doc.service_charge or 0) + doc.total - rest - doc.tax
-        if 'total' in (f for f, _ in options) and charge - (doc.service_charge or 0) >= 1 and not sums_fail(changed({'service_charge': charge})):
+        if doc.total > 0 and 'total' in (f for f, _ in options) and charge - (doc.service_charge or 0) >= 1 and not sums_fail(changed({'service_charge': charge})):
             options.append(('service_charge', charge))
         change = lambda f, v: [{'field': f, 'from': None if getattr(doc, f) is None else str(getattr(doc, f)), 'to': str(v)}]
         if len(options) == 1:
@@ -425,7 +432,8 @@ def suggest(doc: Document) -> dict | None:
                        ('tax', 'total', 'service_charge'): 'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.'}
             label = {'tax': 'Tax', 'total': 'Total', 'service_charge': 'Other charge'}
             return {'message': message[tuple(f for f, _ in options)], 'changes': [],
-                    'options': [{'label': f'{label[f]} {num(v)}', 'changes': change(f, v)} for f, v in options]}
+                    'options': [{'label': f'{label[f]} {num(v - (doc.service_charge or 0) if f == "service_charge" else v)}',
+                                 'changes': change(f, v)} for f, v in options]}
     if not found:
         return None
     field, value, candidate, message = found[0]

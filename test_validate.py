@@ -48,6 +48,10 @@ assert checks(**{**good, 'tax': D('127.52')}) == ['total_math']
 taka = dict(subtotal=D('977500'), total=D('977500'), currency='BDT', items=[Item(amount=D('977500'))])
 assert checks(**{**taka, 'total': D('977900')}) == ['total_math'] and checks(**{**taka, 'subtotal': D('977500.70'), 'items': [Item(amount=D('977500.70'))]}) == []
 assert checks(**{**taka, 'currency': 'IDR', 'total': D('977900')}) == []  # rupiah: rounded to hundreds
+small_taka = lambda sub, total: checks(subtotal=D(sub), total=D(total), currency='bdt', items=[Item(amount=D(sub))])
+assert small_taka('403.60', '404') == [] and small_taka('404.90', '404') == []  # rounded up, or cut
+assert small_taka('403.01', '404') == ['total_math'] and small_taka('405.00', '404') == ['total_math']
+assert checks(subtotal=D('12.37'), total=D('12.35'), currency='chf') == []
 # no total_text: a dollar total gets no whole-unit room
 assert checks(subtotal=D('978.40'), total=D('978'), currency='USD') == ['total_math']
 # missing inputs skip checks instead of failing them
@@ -191,6 +195,12 @@ one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total
 assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '26.30', 'to': '36.30'}]}, one
 three = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('41.30'), total_text='41.30', items=lines))
 assert [o['label'] for o in three['options']] == ['Tax 8.30', 'Total 36.30', 'Other charge 5'], three
+# a service charge already read: the label gives the missed amount, the change the new service charge
+svc = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), service_charge=D('2.00'), total=D('43.30'), total_text='43.30', items=lines))
+assert svc['options'][-1] == {'label': 'Other charge 5', 'changes': [{'field': 'service_charge', 'from': '2.00', 'to': '7.00'}]}, svc
+# a refund: no option flips the sign of the tax or the total
+refund = suggest(Document(currency='USD', subtotal=D('-33.00'), tax=D('-3.30'), total=D('-26.30'), total_text='-26.30', items=[Item(amount=D('-33.00'))]))
+assert refund is None or all(D(c['to']) < 0 for o in refund.get('options') or [refund] for c in o['changes']), refund
 # no guess when the tax is inside the prices (subtotal = total) or the total is printed in whole units (rounded)
 assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.00'), total=D('33.00'), total_text='33.00', items=lines)) is None
 assert suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36', items=lines)) is None

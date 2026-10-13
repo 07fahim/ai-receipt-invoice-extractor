@@ -241,9 +241,9 @@ reading was checked on the image.
 
 | Change | Real readings: new flags | Planted misreads caught, before -> after |
 |---|---|---|
-| Rounding room by currency: 5-cent room only where cash is rounded so, under 1 unit for taka and rupees, none for a dollar total without a printed total | 2: BPDB utility bill (service charge counted twice: a real catch); WildReceipt 265 (Singapore "$" read as USD, so its 5-cent rounding is refused: a false alarm) | USD total off by cents onto a 5-cent value: 48% -> 78% (n=920; a 1-cent miss always passes) |
+| Rounding room by currency: 5-cent room only where cash is rounded so, taka and rupees rounded up by at most 0.5 or cut by less than 1, none for a dollar total without a printed total | 2: BPDB utility bill (service charge counted twice: a real catch); WildReceipt 265 (Singapore "$" read as USD, so its 5-cent rounding is refused: a false alarm) | USD total off by cents onto a 5-cent value: 48% -> 78% (n=920; a 1-cent miss always passes) |
 | A tax marked "included" must be a VAT rate's share of the total or the subtotal | 0 (two that looked wrong, WildReceipt 10 and 349, were key mistakes: the receipts print VAT 6.00 and subtotal 16.35) | subtotal taken as the total, marked included: 13% -> 94% (n=997) |
-| No quantity guess when one digit of the unit price also fits | WILD 138 "2 x 5.99 = 13.98 -> 2.334" no longer shown; Beef Ribs 1.89, PlayStation 2 -> 1 kept | wrong quantity guesses on misread prices: 3,133 -> 121 of 12,488 (the rest are a leading digit read as 0) |
+| No quantity guess when one digit of the unit price also fits | WildReceipt 138 "2 x 5.99 = 13.98 -> 2.334" no longer shown; Beef Ribs 1.89, PlayStation 2 -> 1 kept | wrong quantity guesses on misread prices: 3,133 -> 121 of 12,488 (the rest are a leading digit read as 0) |
 | A missed charge offered beside a total misread too high | suggestions only | unread delivery/tip: 1,110 wrong -> 12 wrong, 1,098 choices holding the right one; a right lone "Is the total" became a choice 35 times (208 -> 173) |
 | UK VAT numbers without GB checked on pound documents | none in the saved readings; the two real ones seen (WildReceipt 10, 349) are valid | - |
 
@@ -251,3 +251,8 @@ Tried and dropped: requiring a VAT rate's share when no subtotal is printed adde
 XPF receipts) to catch 2. Not changed: the supplementary duty case: none of the 93 BDT readings has one, and the BDT
 tax_rate flags seen (Singer, Arax) are the shop's own arithmetic. Keys (eval_validation, 4 sets): 0 flagged before and
 after; katanaml validation total digit misread 93.8% -> 95.8%. eval_rates unchanged (0 of 472 keys flagged).
+Not covered by the measured sets, so not proven safe: a "VAT included" receipt with two rates and no rate read (Germany
+7% and 19%, Japan 8% and 10%) or 25% (Nordic) now goes to review (total_math), where it passed before. A reviewer's
+made-up examples, none seen in real readings yet. Small amounts keep a hole: 15% added on top read as included passes
+on a 5.00 total (17.5% of it is within a cent). Euro totals keep the 5-cent room although most euro countries don't
+round cash.
