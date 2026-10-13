@@ -55,6 +55,11 @@ VAT_BY = {k: tuple(map(Decimal, v.split())) for k, v in {
     'LU': '3 8 14 17', 'LV': '5 12 21', 'MT': '5 7 18', 'NL': '9 21', 'PT': '6 13 23', 'SI': '5 9.5 22', 'SK': '5 19 23'}.items()}
 VAT_BY['EUR'] = tuple(sorted({r for k, rates in VAT_BY.items() if len(k) == 2 for r in rates}))
 
+# Bangladeshi supplementary duty rates, 5% to 500% (not checked against the latest NBR schedule). The tax read holds
+# the duty too, and VAT is charged on the price plus the duty: 25% duty and 15% VAT on 103,600 is 25,900 + 19,425 =
+# 45,325 (data/synthetic_bd 02). Not handled yet: duty inside "VAT included" prices.
+SD_RATES = tuple(map(Decimal, '5 10 15 20 25 30 35 45 60 65 100 150 200 250 300 350 500'.split()))
+
 # countries where a seller VAT/GST number is expected: BIN (BDT), GSTIN (INR), UK VAT (GBP), EU VAT (EUR)
 VAT_ID_EXPECTED = {'BDT', 'INR', 'GBP', 'EUR'}
 
@@ -328,7 +333,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         room = Decimal('1') if doc.tax == doc.tax.to_integral_value() else CENT * max(1, len(doc.items))
         if doc.tax_kind in ('vat', 'gst'):
             bases = [base] + ([base + doc.service_charge] if doc.service_charge else [])
-            if not any(abs(doc.tax - b * rate) <= room or abs(doc.tax - b * rate / (1 + rate)) <= room for b in bases):
+            duty = [d / 100 for d in SD_RATES] if (doc.currency or '').upper() == 'BDT' and doc.tax_kind == 'vat' else []
+            due = [x for b in bases for x in [b * rate, b * rate / (1 + rate)] + [b * d + b * (1 + d) * rate for d in duty]]
+            if not any(abs(doc.tax - x) <= room for x in due):
                 fail('tax_rate', ['tax'], f'{doc.tax_kind.upper()} {pct(doc.tax_rate)}% of {num(base)} is '
                      f'{num((base * rate).quantize(CENT, ROUND_HALF_UP))}. The document says {num(doc.tax)}.')
         else:

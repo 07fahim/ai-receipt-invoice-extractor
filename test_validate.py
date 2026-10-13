@@ -402,4 +402,8 @@ assert older_than_upload(date(2024, 1, 20), batch) == {
 assert older_than_upload(date(2025, 11, 1), batch) is None  # within 6 months
 assert older_than_upload(date(2024, 1, 20), batch[:2]) is None  # too few others to compare
 assert older_than_upload(None, batch) is None
+# Bangladeshi supplementary duty inside the tax: 25% duty, then 15% VAT on price + duty (data/synthetic_bd 02, read right)
+sd = dict(currency='BDT', tax_kind='vat', tax_rate=D(15), seller_tax_id='000123456-0101', subtotal=D('103600'), total=D('148925'), items=[Item(amount=D('103600'))])
+assert checks(**sd, tax=D('45325')) == [] and checks(**{**sd, 'currency': 'USD'}, tax=D('45325')) != []
+assert 'tax_rate' in checks(**{**sd, 'total': D('148825')}, tax=D('45225'))  # 100 off: no duty rate fits
 print('ok')
