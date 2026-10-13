@@ -45,7 +45,7 @@ vendor (the seller's business name only, as printed, usually at the top; null if
 branch (the store number or branch name printed with the business name, e.g. "#017314" or "Gulshan branch"; never the street address),
 buyer, doc_number, issue_date (YYYY-MM-DD), due_date (YYYY-MM-DD),
 issue_date_text and due_date_text (each date exactly as printed, character for character),
-currency (ISO 4217 code), subtotal, discount,
+currency (ISO 4217 code), subtotal (the line printed as the subtotal; the VAT summary's net total only when no subtotal line is printed), discount,
 tax (all taxes and duties together, e.g. VAT plus supplementary duty; never the service charge, which has its own field),
 tax_included (true if the printed prices already include the tax, e.g. "VAT included"; false if it is added on top),
 tax_rate (copy the percentage only when printed next to the tax line or in the tax label, never calculated from the amounts; e.g. 15 for "VAT 15%"; CGST and SGST halves count as their sum, e.g. 5 for "CGST 2.5% + SGST 2.5%"; 0 if "0%" or "0.00%" is printed; null if several different rates are printed or none),
