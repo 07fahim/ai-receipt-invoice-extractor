@@ -139,6 +139,8 @@ d = parse('{"total": 110, "vat_lines": [{"rate": "7", "net": 100, "tax": 7, "gro
 assert d.vat_lines[0].rate == D(7), d
 d = parse('{"total": 110, "vat_lines": [{"rate": "none", "net": 100, "tax": 7, "gross": 107}]}')
 assert d.vat_lines[0].rate is None, d
+d = parse('{"total": 110, "vat_lines": [{"rate": "7,5%", "net": 100, "tax": 7.5, "gross": 107.5}]}')
+assert d.vat_lines[0].rate == D('7.5'), d
 try:
     parse('{"vat_lines": [{"rate": "7%", "net": "100"}]}')
     raise AssertionError('net as text must still be rejected')
