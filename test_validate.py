@@ -41,6 +41,15 @@ assert checks(subtotal=D('91000'), total=D('91000'), items=[Item(amount=D('91070
 assert checks(**{**good, 'total': D('977.55')}) == ['total_math'] and checks(**{**good, 'total': D('977.51')}) == []
 # 5-cent cash rounding (CHF, AUD, CAD): 12.37 printed as 12.35 is fine, 12.30 is not
 assert checks(subtotal=D('12.37'), total=D('12.35')) == [] and checks(subtotal=D('12.37'), total=D('12.30')) == ['total_math']
+assert checks(subtotal=D('12.37'), total=D('12.35'), currency='CHF') == []
+assert checks(**{**good, 'total': D('977.55')}) == ['total_math']  # dollars are not cash-rounded: 977.50 for 977.52 is caught
+assert checks(**{**good, 'tax': D('127.52')}) == ['total_math']
+# taka and rupees are cut or rounded to whole units, never by hundreds (977,500 read as 977,900 was let through by 0.05%)
+taka = dict(subtotal=D('977500'), total=D('977500'), currency='BDT', items=[Item(amount=D('977500'))])
+assert checks(**{**taka, 'total': D('977900')}) == ['total_math'] and checks(**{**taka, 'subtotal': D('977500.70'), 'items': [Item(amount=D('977500.70'))]}) == []
+assert checks(**{**taka, 'currency': 'IDR', 'total': D('977900')}) == []  # rupiah: rounded to hundreds
+# no total_text: a dollar total gets no whole-unit room
+assert checks(subtotal=D('978.40'), total=D('978'), currency='USD') == ['total_math']
 # missing inputs skip checks instead of failing them
 assert [i['check'] for i in validate(Document(total=D('10')))] == ['items_missing']
 assert [i['check'] for i in validate(Document())] == ['total_present']
