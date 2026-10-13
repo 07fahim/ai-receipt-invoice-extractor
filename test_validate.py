@@ -168,6 +168,14 @@ idr2 = dict(currency='IDR', subtotal=D('25000'), tax=D('2502'), total=D('27502')
             items=[Item(amount=D('27502'))], vat_lines=[row('10', '25000', '2502')])
 assert checks(**idr2) == ['vat_row']  # 2 units off, still outside the 1-unit room
 
+# a tip/service charge or a document discount outside the VAT table must not flag "included"
+tip = dict(currency='EUR', subtotal=D('107.00'), tax=D('7.00'), service_charge=D('5.00'), total=D('112.00'),
+           tax_included=True, items=[Item(amount=D('107.00'))], vat_lines=[row('7', '100.00', '7.00', '107.00')])
+assert checks(**tip) == []
+disc = dict(currency='EUR', subtotal=D('107.00'), tax=D('7.00'), discount=D('10.00'), total=D('97.00'),
+            tax_included=True, items=[Item(amount=D('107.00'))], vat_lines=[row('7', '100.00', '7.00', '107.00')])
+assert checks(**disc) == []
+
 # a partly read row (net missing) must not cause false flags: the sum check counts every row with tax set,
 # and "VAT included" falls back to the old term since not every row is complete
 f1 = dict(currency='EUR', subtotal=D('166.50'), tax=D('16.50'), total=D('166.50'), tax_included=True,

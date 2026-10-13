@@ -303,7 +303,9 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             tax - doc.total * doc.tax_rate / (100 + doc.tax_rate)) <= Decimal('0.01')
         # rows decide "included" only when every row is complete and consistent (own arithmetic right, tax sum
         # matches doc.tax): the total being the rows' gross is then proof on its own. Otherwise fall back as before
-        row_share = near(sum(r.net + r.tax for r in complete_rows)) if rows_consistent else (
+        # a tip/service charge or a discount outside the VAT table still lets the rows' gross prove "included"
+        rows_gross = sum(r.net + r.tax for r in complete_rows)
+        row_share = (near(rows_gross) or near(rows_gross + (doc.service_charge or 0) - discount)) if rows_consistent else (
             doc.tax_included and vat_share(tax, (doc.total, doc.subtotal), doc.currency, doc.seller_tax_id, doc.doc_type))
         included = tax and near(expected - tax) and (printed or row_share or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
