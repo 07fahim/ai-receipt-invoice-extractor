@@ -469,6 +469,8 @@ def suggest(doc: Document) -> dict | None:
         rest = doc.subtotal + (doc.service_charge or 0) - abs(doc.discount or 0)
         options = [(f, v) for f, v in (('tax', doc.total - rest), ('total', rest + doc.tax))
                    if v * doc.total > 0 and v != getattr(doc, f) and not sums_fail(changed({f: v}))]  # a refund stays negative
+        # a candidate that leaves the VAT rows not adding up to the new tax is no fix at all
+        options = [(f, v) for f, v in options if not any(i['check'] == 'vat_rows_tax' for i in validate(changed({f: v})))]
         if doc.tax_rate is not None and doc.tax_kind:
             fits = [(f, v) for f, v in options if not any(i['check'] == 'tax_rate' for i in validate(changed({f: v})))]
             if len(fits) == 1:

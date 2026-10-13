@@ -317,6 +317,12 @@ assert msg == 'The total is printed as 22.000. Is it 22,000?', msg
 from validate import num
 assert [num(D(x)) for x in ('1270.0', '0.6', '0.63', '1.005', '9983196.70')] == ['1,270', '0.60', '0.63', '1.005', '9,983,196.70']
 
+# a candidate that breaks the VAT rows is dropped, like a candidate that breaks tax_rate
+rows_block = suggest(Document(currency='USD', subtotal=D('100.00'), tax=D('10.00'), total=D('101.00'), total_text='101.00',
+                              items=[Item(amount=D('100.00'))], vat_lines=[row('10', '100', '10', '110')]))
+assert not (rows_block and any(c['field'] == 'tax' and D(c['to']) == 1 for o in rows_block.get('options', [rows_block])
+                                for c in o.get('changes', []))), rows_block
+
 from validate import review
 def found(**kw):
     return {i['check']: i['message'] for i in validate(Document(**kw), today=TODAY)}
