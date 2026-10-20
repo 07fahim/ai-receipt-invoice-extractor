@@ -161,8 +161,8 @@ Indonesian receipts) and [katanaml invoices](https://huggingface.co/datasets/kat
 CORD validation receipts were also used to find problems (thousands separators, a discount counted twice), so
 neither CORD split is fully unseen. The first invoice run looked at both invoice splits, so neither is unseen for
 the date fix either. The Taco Bell receipt on the landing page and in the webhook example comes from the ExpressExpense US receipt
-set (CC0). The three demo samples and the receipts in the demo clips are made-up documents; the handwritten
-Bangla memo in the clips is the author's own.
+set (CC0). The three demo samples and the receipts in the demo clips are made-up documents; the Bangla memo in the
+clips is typed from a handwritten memo in the author's own sample set.
 
 ## Tech stack
 
