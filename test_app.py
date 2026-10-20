@@ -656,6 +656,10 @@ try:
     flush()
     assert own_events[-1][0]['id'] == nxt and c.get('/account/webhook', headers=judy).json()['last_error'] is None
     app.RETRY_SECONDS = real_retry
+    # n8n asleep on Render's free plan answered 502 for over 6 minutes (2026-10-20): tries at most 2 minutes apart
+    # for the first 15 minutes, so the first alert after a sleep is late by minutes, still given up only after hours
+    tries = [sum(real_retry[:i]) for i in range(len(real_retry) + 1)]
+    assert max(b - a for a, b in zip(tries, tries[1:]) if a < 15 * 60) <= 120 and tries[-1] >= 2 * 3600
     # a slow address delays only its own user
     Hook.slow, arrived[:] = 3, []
     c.post('/documents', files=[('files', ('j.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=judy)
