@@ -29,16 +29,16 @@
 
 ## Highlights
 
-- **91% and 94% of receipts read fully correct** on the CORD-v2 test and validation sets, and only 2 in 100 were
-  wrong without a check catching it.
+- **90% of CORD-v2 test receipts read fully correct** with the current prompt (91% test and 94% validation with the
+  earlier one), and at most 2 in 100 were wrong without a check catching it.
 - **Checks you can read:** every sum, tax line, date and duplicate is checked by plain Python, so a flag always says
   exactly what failed and why.
 - **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
   decimal point, or a weighed item read as quantity 1), and nothing changes without the user's click.
-- **An assistant for your documents:** ask in English or Bangla about spending, due bills or why a receipt was flagged. It answers from your own data through read-only lookups, so it never changes a document. 25 of 26 test questions answered right.
+- **An assistant for your documents:** ask in English or Bangla about spending, due bills or why a receipt was flagged. It answers from your own data through read-only lookups, so it never changes a document. 25 of 26 test questions on sample data answered right.
 - **A second reading** by another model on flagged documents (and passed ones while free quota is left), offered
   field by field. On a crumpled handwritten Bangla memo it found the misread date and one of the two misread amounts.
-- **97% read right on 396 international receipts** (WildReceipt), after checking every difference against the image;
+- **97% read right on 396 international receipts** (WildReceipt), after checking every difference by hand;
   every real error was flagged.
 - **Fits into existing tools:** CSV, Excel and QuickBooks exports, plus signed webhooks to n8n (Google Sheets,
   Telegram, email) or the user's own address.
@@ -65,13 +65,13 @@
   whole account.
 - **Second reading** of flagged documents, and passed ones while quota is left, by another model. Offered field by
   field in the review screen; a passed document moves to review when the second reading differs on money, dates,
-  line amounts or the vendor. Nothing changes until the user picks a value.
+  line amounts, the vendor or the invoice number. Nothing changes until the user picks a value.
 - **Assistant:** a chat window on every app page answers questions about the user's own documents in English or Bangla (Bangla questions get Bangla check messages). The model is Gemini 3.5 Flash-Lite, with Qwen on Groq and then OpenRouter as fallbacks. It uses five read-only lookups, each limited to the signed-in user's documents. Chats are kept until the user deletes them, and there are daily message limits per user and for the whole app. Measured results: [results/ASSISTANT_NOTES.md](results/ASSISTANT_NOTES.md).
 
 ## How it works
 
 <p align="center">
-  <img src="assets/how-it-works.svg" alt="Crosscheck architecture. The Next.js web app on Vercel signs users in with Supabase Auth and sends uploads to a FastAPI API on Render. Gemini 3.1 Flash-Lite reads each image or PDF page into JSON, plain Python checks test sums, tax, quantity times price, dates, currency and duplicates, then passed documents are ready to export and flagged ones go to the review screen, ready once fixed. Gemini 3.5 Flash gives a second reading. The assistant answers questions about the user's own documents with read-only lookups, using Gemini and Qwen. Exports are CSV, Excel and QuickBooks bills. Every change is saved in Postgres on Supabase and sent as a signed, retried webhook to n8n or your own URL." width="100%">
+  <img src="assets/how-it-works.svg" alt="Crosscheck architecture. The Next.js web app on Vercel signs users in with Supabase Auth and sends uploads to a FastAPI API on Render. Gemini 3.1 Flash-Lite reads each image or PDF into JSON, plain Python checks test sums, tax, quantity times price, dates, currency and duplicates, then passed documents are ready to export and flagged ones go to the review screen, ready once fixed. Gemini 3.5 Flash gives a second reading. The assistant answers questions about the user's own documents with read-only lookups, using Gemini, Qwen and OpenRouter. Exports are CSV, Excel and QuickBooks bills. Every change is saved in Postgres on Supabase and sent as a signed, retried webhook to n8n or your own URL." width="100%">
 </p>
 
 ## Measured results
@@ -111,9 +111,9 @@ The app now runs prompt `fef31308` (2026-10-08). It adds one rule: a weight prin
 - WildReceipt is an international receipt set (US, UK, Europe, Malaysia, India, the Gulf and more), measured
   2026-10-03. The prompt and checks were not changed for it; the label converter was fixed on it. Scored: total,
   subtotal, tax and item amounts. Its answer keys often differ from our format, so all 74 differences were checked
-  against the images. 12 are real model errors: 2 misread numbers and 10 coupon or discount lines listed as items.
-  The checks flagged all 12. The other 62 are answer-key errors, fuel receipts that label the price per gallon as the
-  item price, receipts with no line called "Subtotal", discounts and zero lines written differently, and rounding or
+  by hand: 61 against the images and 13 by comparing the numbers held in different forms. 12 are real model
+  errors: 2 misread numbers and 10 coupon or discount lines listed as items. The checks flagged all 12. The other 62
+  are answer-key errors or format differences: fuel receipts that label the price per gallon as the item price, receipts with no line called "Subtotal", discounts and zero lines written differently, and rounding or
   a tip. That leaves 384 of 396 (97.0%) read right and no error unflagged. Its licence is unclear, so only these numbers are published.
 
 **Planted mistakes.** Each correct answer key was copied once per mistake type, with one realistic mistake planted
@@ -123,7 +123,7 @@ on). Then the checks were run on every copy. No model calls are involved.
 | Set | Mistakes planted | Caught |
 |---|---|---|
 | CORD receipts, test / validation | 596 / 580 | 93.0% / 94.5% |
-| Invoices, test / validation | 175 / 336 | 98.9% / 95.8% |
+| Invoices, test / validation | 175 / 336 | 98.9% / 96.1% |
 
 The weak spot is one misread digit in a CORD total (66% and 73% caught), mostly on receipts that print no subtotal.
 
@@ -160,8 +160,9 @@ Indonesian receipts) and [katanaml invoices](https://huggingface.co/datasets/kat
 (synthetic English invoices, tagged MIT). Prompt changes were tried on training samples first. CORD test and a few
 CORD validation receipts were also used to find problems (thousands separators, a discount counted twice), so
 neither CORD split is fully unseen. The first invoice run looked at both invoice splits, so neither is unseen for
-the date fix either. The receipt in the screenshot and two of the demo samples come from the ExpressExpense US
-receipt set (CC0); the third sample is a synthetic Dhaka bill.
+the date fix either. The receipt in the screenshot and the US receipt in the demo clips come from the ExpressExpense US
+receipt set (CC0). The three demo samples are made-up documents: a US grocery receipt, a UK VAT invoice and a
+Bangladeshi VAT invoice.
 
 ## Tech stack
 
@@ -169,7 +170,7 @@ receipt set (CC0); the third sample is a synthetic Dhaka bill.
 |---|---|
 | Web app | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | API | Python 3.11, FastAPI, Pydantic |
-| AI | Gemini 3.1 Flash-Lite (vision), one image per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings; Gemini 3.5 Flash-Lite for the assistant, with Qwen on Groq and OpenRouter as fallbacks |
+| AI | Gemini 3.1 Flash-Lite (vision), one file per call, temperature 0; Gemini 3.5 Flash (thinking low) for second readings; Gemini 3.5 Flash-Lite for the assistant, with Qwen on Groq and OpenRouter as fallbacks |
 | Data and sign-in | PostgreSQL and Auth on Supabase |
 | Automation | n8n (Google Sheets, Telegram, Gmail), signed webhooks |
 | Hosting and CI | Vercel, Render, GitHub Actions |
@@ -188,6 +189,7 @@ You need Python 3.11, Node 24 and a Postgres database. The project uses Supabase
    | `SUPABASE_SECRET_KEY` | Optional. Lets users delete their account |
    | `FRONTEND_ORIGIN` | The web app address(es), comma-separated. Default `http://localhost:3000` |
    | `DAILY_UPLOAD_LIMIT` | Model reads per user in any 24 hours. Default 10 |
+   | `READS_DAILY_LIMIT` | Optional. Model reads for the whole app in any 24 hours. Default 450 |
    | `EXTRACT_MODEL` | Optional. Default `gemini-3.1-flash-lite` |
    | `SECOND_MODEL` | Optional. Reads flagged documents a second time, and passed ones from leftover quota. Default `gemini-3.5-flash` (thinking low) |
    | `SECOND_READ_DAILY_LIMIT` | Optional. Second readings for the whole app in any 24 hours. Default 15 |
@@ -275,6 +277,7 @@ posts `{"event": "test", "id": null}` to your own saved address.
 python test_validate.py   # the checks and fix suggestions
 python test_extract.py    # parsing the model's answers
 python test_app.py        # the API end to end, with a fake model and a temporary database schema
+python test_assistant.py  # the assistant's lookups, limits and Bangla messages, with fake models
 cd web && npm run lint && npm run build
 ```
 
