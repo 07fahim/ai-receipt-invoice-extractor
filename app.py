@@ -75,6 +75,7 @@ def read_refused(con, uid):
 @contextlib.asynccontextmanager
 async def lifespan(_):
     ids = claim_stuck()  # before the sweep loop starts, so the two never pick the same document
+    QUEUED.update(ids)
     RECOVERY.submit(lambda: [process(i) for i in ids])
     threading.Thread(target=deliver_events, daemon=True).start()  # also sends events left over from before a restart
     yield
@@ -277,15 +278,18 @@ SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a
 
 STUCK_MINUTES = 30  # far longer than a slow reading with all its retries (about 7 minutes); counted from the start of the reading
 RECOVERY = ThreadPoolExecutor(1)  # recovery readings run one at a time: each holds its file in memory several times over
+QUEUED = set()  # documents waiting for or in process() in this API process: the sweep leaves them to that reading
 
 
 def resume_stale():
     # claimed first, so only one sweep starts each; a reading that was still running meanwhile can't overwrite it (only_if_processing)
     with store.conn() as con:
         ids = [r['id'] for r in con.execute("UPDATE documents SET updated_at = now() WHERE status = 'processing' "
-                                            "AND updated_at < now() - make_interval(mins => %s) RETURNING id", (STUCK_MINUTES,))]
+                                            "AND updated_at < now() - make_interval(mins => %s) AND NOT (id = ANY(%s)) RETURNING id",
+                                            (STUCK_MINUTES, list(QUEUED)))]
     for doc_id in ids:
         print(f'document {doc_id} was stuck in processing: reading it again')
+        QUEUED.add(doc_id)
         RECOVERY.submit(process, doc_id)
 
 
@@ -395,6 +399,8 @@ def process(doc_id):
                                  "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
             if failed:
                 queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
+    finally:
+        QUEUED.discard(doc_id)
     WAKE.set()
     SECOND_WORKER.submit(second_read, doc_id)   # queued on its own single worker, so it never delays the next file's first reading
 
@@ -561,6 +567,7 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
         if refused:
             created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again later.'})
             continue
+        QUEUED.add(doc_id)
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
     return created
@@ -735,6 +742,7 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
             get_row(con, doc_id, uid)  # 404 for ids that are not the user's
             raise HTTPException(409, 'Only failed or flagged documents can be read again.')
         con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
+    QUEUED.add(doc_id)
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
 

@@ -919,14 +919,23 @@ try:
 
     # a document stuck in 'processing' (its job lost in a deploy) is read again by the sweep
     stuck = c.post('/documents', files=[('files', ('s.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))]).json()[0]['id']
+    # one still waiting its turn in a batch (a slow AI service) is left to its own reading, never read twice
     with store.conn() as con:
         con.execute("UPDATE documents SET status = 'processing', updated_at = now() - interval '1 hour' WHERE id = %s", (stuck,))
+        queued = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status, updated_at) VALUES "
+                             "(%s, 'q.jpg', 'image/jpeg', %s, 'processing', now() - interval '1 hour') RETURNING id",
+                             (ALICE, JPG + b'good')).fetchone()['id']
+    app.QUEUED.add(queued)
     app.resume_stale()
     for _ in range(50):
         if c.get(f'/documents/{stuck}').json()['status'] != 'processing':
             break
         time.sleep(0.1)
     assert c.get(f'/documents/{stuck}').json()['status'] == 'passed'
+    app.RECOVERY.submit(lambda: None).result()  # every recovery reading is done
+    assert c.get(f'/documents/{queued}').json()['status'] == 'processing'
+    app.QUEUED.discard(queued)
+    c.delete(f'/documents/{queued}')
     # control characters typed into a field can't break the Excel export
     assert app.cell('vendor', 'A\x01B', xlsx=True) == 'AB'
     print('ok')
