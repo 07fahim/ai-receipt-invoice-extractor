@@ -244,14 +244,14 @@ cord0 = {'currency': 'IDR', 'subtotal': D('60.0'), 'discount': D('60.0'), 'tax':
          'total_text': '60.000', 'tax_kind': 'vat',
          'items': [Item(description='TICKET CP', quantity=D(2), unit_price=D('60.0'), amount=D('60.0'))]}
 s = suggest(Document(**cord0))
-assert s and 'The total would be 60,000' in s['message'], s
+assert s and s['message'] == 'The amounts look 1,000 times too small. The photo may use a dot for thousands. Apply to make the total 60,000.', s
 k = suggest(Document(total=D('22'), total_text='22.000', subtotal=D('22'), items=[Item(amount=D('22'))]))
 assert {c['field']: c['to'] for c in k['changes']} == {'subtotal': '22000', 'total': '22000', 'items[0].amount': '22000'}, k
 # a weighed item read as quantity 1 ("Beef Ribs 1.89 lb @ 19.50 = 36.86")
 ribs = dict(subtotal=D('42.86'), total=D('42.86'), items=[Item(description='Beef Ribs', quantity=1, unit_price=D('19.50'), amount=D('36.86')),
             Item(description='Bread', quantity=2, unit_price=D('3'), amount=D('6'))])
 s = suggest(Document(**ribs))
-assert s == {'message': 'Beef Ribs: is the quantity 1.89? Then the line adds up.',
+assert s == {'message': 'Beef Ribs: with quantity 1.89 the line adds up. Apply it if the photo shows 1.89.',
              'changes': [{'field': 'items[0].quantity', 'from': '1', 'to': '1.89'}]}, s
 assert checks(**{**ribs, 'items': [ribs['items'][0].model_copy(update={'quantity': D('1.89')}), ribs['items'][1]]}) == []
 s = suggest(Document(total=D('9.00'), items=[Item(quantity=1, unit_price=D('2.25'), amount=D('9.00'))]))
@@ -262,14 +262,16 @@ assert suggest(Document(total=D('740'), items=[Item(quantity=4, unit_price=D('12
 assert suggest(Document(total=D('10'), items=[Item(quantity=1, unit_price=D('7'), amount=D('10'))])) is None  # 1.428 and 1.429 both fit
 two = [Item(quantity=1, unit_price=D('2.50'), amount=D('7.50')), Item(quantity=1, unit_price=D('2'), amount=D('4'))]
 assert suggest(Document(total=D('11.50'), items=two)) is None  # two lines fail
-assert suggest(Document(**memo)) == {'message': 'Did you mean 240 instead of 280? Then every sum adds up.',
+assert suggest(Document(**memo)) == {'message': 'With 240 instead of 280, every sum adds up. Apply it if the photo shows 240. '
+                                                'If it shows 280, the seller made the mistake. Apply or save anyway.',
                                      'changes': [{'field': 'items[1].amount', 'from': '280', 'to': '240'}]}  # amount wrong, not 2.333
 assert suggest(Document(**{**ribs, 'total': D('50')})) is None  # the total would still be off
 assert suggest(Document(total=D('0.58'), items=[Item(quantity=D('1.76'), unit_price=D('0.99'), amount=D('0.58'))])) is None  # 0.99/3 lb: the price is wrong
 # one sum fails (subtotal + tax = total): the tax or the total was misread
 lines = [Item(description='x', quantity=D(1), unit_price=D(a), amount=D(a)) for a in ('10', '20', '3')]
 both = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', items=lines))
-assert both['changes'] == [] and both['message'] == 'The tax or the total was misread. Pick the one the photo shows.', both
+assert both['changes'] == [] and both['message'] == ('Changing the tax or the total makes the sums add up. Pick the one the photo shows. '
+                                                   'If neither, the seller added it up wrong.'), both
 assert [(o['label'], o['changes']) for o in both['options']] == [
     ('Tax 3.30', [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]),
     ('Total 41.30', [{'field': 'total', 'from': '36.30', 'to': '41.30'}])], both
@@ -278,14 +280,14 @@ labels = suggest(Document(currency='GBP', subtotal=D('1200.00'), tax=D('880.50')
 assert [o['label'] for o in labels['options']] == ['Tax 180.50', 'Total 2,080.50'], labels  # thousands get commas
 # a printed rate decides: 10% of 33 is 3.30, so the tax is the misread
 one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('8.30'), total=D('36.30'), total_text='36.30', tax_rate=D(10), tax_kind='vat', items=lines))
-assert one == {'message': 'Is the tax 3.30? Then the total adds up.', 'changes': [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]}, one
+assert one == {'message': 'With tax 3.30 the total adds up. Apply it if the photo shows 3.30. If not, the seller added it up wrong.', 'changes': [{'field': 'tax', 'from': '8.30', 'to': '3.30'}]}, one
 # the tax matches its rate, so the total is the misread, or a 50.00 charge (delivery, a tip) was not read
 two = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('86.30'), total_text='86.30', tax_rate=D(10), tax_kind='vat', items=lines))
-assert two['message'] == 'The total was misread, or a charge was not read. Pick the one the photo shows.' and [o['changes'] for o in two['options']] == [
+assert two['message'] == 'Changing the total or adding a missed charge makes the sums add up. Pick the one the photo shows.' and [o['changes'] for o in two['options']] == [
     [{'field': 'total', 'from': '86.30', 'to': '36.30'}], [{'field': 'service_charge', 'from': None, 'to': '50.00'}]], two
 # a total below its parts can't hold a missed charge: one answer
 one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('26.30'), total_text='26.30', tax_rate=D(10), tax_kind='vat', items=lines))
-assert one == {'message': 'Is the total 36.30? Then every sum adds up.', 'changes': [{'field': 'total', 'from': '26.30', 'to': '36.30'}]}, one
+assert one == {'message': 'With total 36.30 every sum adds up. Apply it if the photo shows 36.30. If not, the seller added it up wrong.', 'changes': [{'field': 'total', 'from': '26.30', 'to': '36.30'}]}, one
 three = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('41.30'), total_text='41.30', items=lines))
 assert [o['label'] for o in three['options']] == ['Tax 8.30', 'Total 36.30', 'Other charge 5'], three
 # a service charge already read: the label gives the missed amount, the change the new service charge
@@ -313,7 +315,7 @@ for bad in ({'items': [{}] * 201}, {'total': '1e100000'}):
     except pydantic.ValidationError:
         pass
 msg = validate(Document(total=D('22'), total_text='22.000', items=[Item(amount=D('22'))]), today=TODAY)[0]['message']
-assert msg == 'The total is printed as 22.000. Is it 22,000?', msg
+assert msg == 'The total is printed as 22.000. It may mean 22,000. Check the amounts on the photo.', msg
 from validate import num
 assert [num(D(x)) for x in ('1270.0', '0.6', '0.63', '1.005', '9983196.70')] == ['1,270', '0.60', '0.63', '1.005', '9,983,196.70']
 
@@ -328,12 +330,12 @@ def found(**kw):
     return {i['check']: i['message'] for i in validate(Document(**kw), today=TODAY)}
 mehedi = dict(currency='BDT', subtotal=D('896'), discount=D('44.80'), tax=D('120'), total=D('971.20'), tax_rate=15, tax_kind='vat',
               seller_tax_id='0012-3456-7890', items=[Item(amount=D('896'))])
-assert found(**mehedi) == {'tax_rate': 'VAT 15% of 851.20 is 127.68. The document says 120.'}, found(**mehedi)
+assert found(**mehedi) == {'tax_rate': '15% VAT on 851.20 is 127.68 but the VAT says 120. If the photo shows 120, the seller charged the wrong VAT. Ask the seller or save anyway.'}, found(**mehedi)
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88')}) == {}
 assert found(**{**mehedi, 'tax': D('111.03'), 'total': D('962.23')}) == {}  # VAT included in the prices
 greenleaf = dict(subtotal=D('16'), discount=D('1.60'), tax=D('3.20'), total=D('17.60'), tax_rate=20, tax_kind='vat',
                  seller_tax_id='GB123456782', items=[Item(amount=D('16'))])
-assert found(**greenleaf) == {'tax_rate': 'VAT 20% of 14.40 is 2.88. The document says 3.20.'}  # VAT before the discount
+assert found(**greenleaf) == {'tax_rate': '20% VAT on 14.40 is 2.88 but the VAT says 3.20. If the photo shows 3.20, the seller charged the wrong VAT. Ask the seller or save anyway.'}  # VAT before the discount
 restaurant = dict(subtotal=D('1000'), service_charge=D('100'), tax=D('165'), total=D('1265'), tax_rate=15, tax_kind='vat',
                   seller_tax_id='004567891-0102', items=[Item(amount=D('1000'))])
 assert found(**restaurant) == {}  # VAT on subtotal + service charge
@@ -342,17 +344,17 @@ gst_halves = dict(currency='INR', subtotal=D('1000'), tax=D('50'), total=D('1050
 assert found(**gst_halves) == {}
 maple = dict(subtotal=D('80.44'), discount=D('8.04'), tax=D('8.55'), total=D('80.95'), tax_rate=D('8.5'), tax_kind='sales_tax',
              items=[Item(amount=D('80.44'))])
-assert found(**maple) == {'tax_rate': 'Tax 8.5% of 80.44 is at most 6.84. The document says 8.55.'}
+assert found(**maple) == {'tax_rate': 'Tax of 8.5% on 80.44 is at most 6.84 but the tax says 8.55. If the photo shows 8.55, the seller charged too much. Ask the seller or save anyway.'}
 target_tax = dict(subtotal=D('26.85'), tax=D('1.20'), total=D('28.05'), tax_rate=7, tax_kind='sales_tax', items=[Item(amount=D('26.85'))])
 assert found(**target_tax) == {}  # less sales tax than the rate: some items can be exempt
 walmart = dict(subtotal=D('29.18'), tax=D('2.86'), total=D('32.04'), tax_rate=0, tax_kind='sales_tax', items=[Item(amount=D('29.18'))])
-assert found(**walmart) == {'tax_rate': 'Tax 0% of 29.18 is at most 0.00. The document says 2.86.'}
+assert found(**walmart) == {'tax_rate': 'Tax of 0% on 29.18 is at most 0.00 but the tax says 2.86. If the photo shows 2.86, the seller charged too much. Ask the seller or save anyway.'}
 # the ceiling is subtotal + service charge: the message must print that sum, not the subtotal alone (M-2)
 service_tax = dict(subtotal=D('100'), service_charge=D('18'), tax=D('13'), total=D('131'), tax_rate=10, tax_kind='sales_tax',
                     items=[Item(amount=D('100'))])
-assert found(**service_tax) == {'tax_rate': 'Tax 10% of 118 is at most 11.80. The document says 13.'}, found(**service_tax)
+assert found(**service_tax) == {'tax_rate': 'Tax of 10% on 118 is at most 11.80 but the tax says 13. If the photo shows 13, the seller charged too much. Ask the seller or save anyway.'}, found(**service_tax)
 target_disc = dict(subtotal=D('26.85'), discount=D('3.49'), tax=D('1.64'), total=D('25.00'), discount_rate=10, items=[Item(amount=D('26.85'))])
-assert found(**target_disc) == {'discount_rate': '10% of 26.85 is 2.69. The discount is 3.49.'}
+assert found(**target_disc) == {'discount_rate': 'A 10% discount on 26.85 is 2.69 but the discount says 3.49. If the photo shows 3.49, ask the seller or save anyway.'}
 assert found(**{**target_disc, 'discount': D('2.69'), 'total': D('25.80')}) == {}
 assert found(**{**mehedi, 'tax_rate': None}) == {} and found(**{**mehedi, 'tax_kind': None}) == {}  # nothing printed: skipped
 # a whole-unit tax can be truncated instead of rounded (CORD 90: 10% of 26,818 = 2,681.80, printed 2,681)
@@ -360,7 +362,7 @@ cord90 = dict(subtotal=D('26818'), tax=D('2681'), total=D('29499'), tax_rate=10,
               seller_tax_id='01.234.567.8-901.000', items=[Item(amount=D('26818'))])
 assert found(**cord90) == {}
 assert found(**{**cord90, 'tax': D('2679'), 'total': D('29497')}) == {
-    'tax_rate': 'VAT 10% of 26,818 is 2,681.80. The document says 2,679.'}
+    'tax_rate': '10% VAT on 26,818 is 2,681.80 but the VAT says 2,679. If the photo shows 2,679, the seller charged the wrong VAT. Ask the seller or save anyway.'}
 # CORD test 33: discount recorded on the item and again on SUBTTL, so the subtotal already has it taken off;
 # the tax_rate base must not subtract it a second time (the base still fails: the shop taxed the pre-discount amount)
 cord33 = dict(currency='IDR', subtotal=D('117500'), discount=D('67000'), tax=D('19557'), tax_included=False,
@@ -368,7 +370,7 @@ cord33 = dict(currency='IDR', subtotal=D('117500'), discount=D('67000'), tax=D('
               items=[Item(description='GRILLED BABY POTATO (R', quantity=D('1'), unit_price=D('50500'), amount=D('50500')),
                      Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000')),
                      Item(description='HOT TUNA', quantity=D('1'), unit_price=D('67000'), amount=D('67000'), discount=D('67000'))])
-assert found(**cord33) == {'tax_rate': 'VAT 10% of 117,500 is 11,750. The document says 19,557.'}, found(**cord33)
+assert found(**cord33) == {'tax_rate': '10% VAT on 117,500 is 11,750 but the VAT says 19,557. If the photo shows 19,557, the seller charged the wrong VAT. Ask the seller or save anyway.'}, found(**cord33)
 # no VAT number: Indonesian rupiah receipts tax a local restaurant tax, no VAT/GST number applies there
 assert review([{'check': 'a', 'level': 'note'}, {'check': 'b'}]) == [{'check': 'b'}]
 
@@ -381,12 +383,13 @@ from validate import tax_id_problem
 assert tax_id_problem('191 2478 96', 'GBP') is None and tax_id_problem('142 440 545', 'GBP') is None
 assert tax_id_problem('123 4567 89', 'GBP') and tax_id_problem('123 4567 89', 'USD') is None
 assert found(**{**greenleaf, 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_id': 'GB123 4567 89'}) == \
-    {'tax_id_invalid': 'GB123 4567 89 is not a valid UK VAT number. Check it on the document.'}
+    {'tax_id_invalid': 'GB123 4567 89 is not a real UK VAT number. If the photo shows the same, ask the seller for the right one. '
+                       'You need it to claim the VAT back.'}
 assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \
     {'tax_id_invalid': '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.'}
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None}) == \
-    {'tax_id_missing': 'No seller VAT number found. It is needed to claim this VAT back.'}
-assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No seller GSTIN found. It is needed to claim this GST back.'}
+    {'tax_id_missing': 'No seller BIN found. You need it to claim this VAT back. Check the photo or ask the seller.'}  # Bangladesh says BIN
+assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No seller GSTIN found. You need it to claim this GST back. Check the photo or ask the seller.'}
 # the note only fires where a VAT/GST number is expected (BDT, INR, GBP, EUR); Indonesian local tax has none
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None, 'currency': 'IDR'}) == {}
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None, 'currency': None}) == {}
@@ -397,7 +400,7 @@ assert note[0]['level'] == 'note' and review(note) == []
 from validate import older_than_upload
 batch = [date(2026, 3, d) for d in (2, 9, 15)]
 assert older_than_upload(date(2024, 1, 20), batch) == {
-    'message': 'This document is dated 01/2024. The rest of this upload is from 03/2026.',
+    'message': 'This one is dated 01/2024. The rest of this upload is from 03/2026. Check the year on the photo.',
     'check': 'older_than_upload', 'fields': ['issue_date'], 'level': 'note'}
 assert older_than_upload(date(2025, 11, 1), batch) is None  # within 6 months
 assert older_than_upload(date(2024, 1, 20), batch[:2]) is None  # too few others to compare
@@ -406,4 +409,26 @@ assert older_than_upload(None, batch) is None
 sd = dict(currency='BDT', tax_kind='vat', tax_rate=D(15), seller_tax_id='000123456-0101', subtotal=D('103600'), total=D('148925'), items=[Item(amount=D('103600'))])
 assert checks(**sd, tax=D('45325')) == [] and checks(**{**sd, 'currency': 'USD'}, tax=D('45325')) != []
 assert 'tax_rate' in checks(**{**sd, 'total': D('148825')}, tax=D('45225'))  # 100 off: no duty rate fits
+# every other check message, word for word
+adds = 'If the photo shows the same, the seller added it up wrong. Ask the seller or save anyway.'
+assert found(**{**good, 'subtotal': D('800'), 'total': D('927.50')})['items_sum'] == f'The lines add up to 850 but the subtotal says 800. {adds}'
+assert found(**{**good, 'total': D('997.50')})['total_math'] == f'Subtotal + tax + charges - discount = 977.50 but the total says 997.50. {adds}'
+assert found(total=D('91000'), items=[Item(amount=D('17500')), Item(amount=D('46000'))])['items_total'] == \
+    f'The lines with tax and discounts come to 63,500 but the total says 91,000. {adds}'
+seller = 'If the photo shows the same, the seller made the mistake. Ask the seller or save anyway.'
+assert found(**{**good, 'items': [Item(description='Cups', quantity=3, unit_price=D('350'), amount=D('700')), good['items'][1]]})['line_math'] == \
+    f'Cups: 3 x 350 = 1,050 but the line says 700. {seller}'
+assert found(total=D('10.6'), items=[Item(quantity=3, unit_price=D('3.5'), amount=D('10.6'))])['line_math'] == \
+    f'Line 1: 3 x 3.50 = 10.50 but the line says 10.60. {seller}'
+assert found(**{**good, 'issue_date': date(2026, 12, 1), 'due_date': None})['date_future'] == \
+    'The date 1 Dec 2026 is in the future. Check it on the photo. The day and month may be swapped.'
+assert found(**{**good, 'due_date': date(2026, 9, 1)})['due_before_issue'] == 'The due date is before the issue date. Check both on the photo.'
+assert found(**{**good, 'currency': 'TK'})['currency_code'] == '"TK" is not a currency code. Type the 3-letter code, like USD or BDT.'
+assert found()['total_present'] == 'No total found. Type it in from the photo.'
+assert found(total=D('10'))['items_missing'] == 'No line items found. Add them from the photo, or save anyway if the paper has none.'
+assert found(**good, document_count=2)['one_document'] == 'This file seems to hold 2 receipts or invoices. Upload each one in its own file.'
+assert found(is_document=False)['is_document'] == \
+    "This doesn't look like a receipt or invoice. If it is one, press Read again or type the fields from the photo."
+assert found(**{**greenleaf, 'currency': 'GBP', 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_id': None})['tax_id_missing'] == \
+    'No seller VAT number found. You need it to claim this VAT back. Check the photo or ask the seller.'
 print('ok')

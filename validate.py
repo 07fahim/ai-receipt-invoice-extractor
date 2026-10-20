@@ -173,6 +173,10 @@ def pct(r):
     return f'{r.normalize():f}'  # 15, 8.5, 0
 
 
+SELLER_SUM = 'If the photo shows the same, the seller added it up wrong. Ask the seller or save anyway.'
+ASK = 'Ask the seller or save anyway.'
+
+
 def review(issues):
     # notes are shown on the document but never send it to review
     return [i for i in issues if i.get('level') != 'note']
@@ -185,7 +189,7 @@ def older_than_upload(issue_date, others):
     middle = sorted(others)[len(others) // 2]
     if (middle - issue_date).days <= 183:
         return None
-    return {'message': f'This document is dated {issue_date:%m/%Y}. The rest of this upload is from {middle:%m/%Y}.',
+    return {'message': f'This one is dated {issue_date:%m/%Y}. The rest of this upload is from {middle:%m/%Y}. Check the year on the photo.',
             'check': 'older_than_upload', 'fields': ['issue_date'], 'level': 'note'}
 
 
@@ -217,7 +221,8 @@ def tax_id_problem(raw, currency=None):
     if (currency or '').upper() == 'GBP' and re.fullmatch(r'\d{9}|\d{12}', s):
         s = 'GB' + s
     if re.fullmatch(r'GB(\d{9}|\d{12})', s):
-        return None if uk_vat_valid(s[2:11]) else f'{raw} is not a valid UK VAT number. Check it on the document.'
+        return None if uk_vat_valid(s[2:11]) else (f'{raw} is not a real UK VAT number. If the photo shows the same, '
+                                                       'ask the seller for the right one. You need it to claim the VAT back.')
     if len(s) == 15 and s[:2].isdigit() and s[13] == 'Z':
         return None if gstin_valid(s) else f'{raw} is not a valid GSTIN. Check it on the document.'
     return None
@@ -239,7 +244,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         issues.append({'check': check, 'fields': fields, 'message': message, **({'level': level} if level else {})})
 
     if doc.is_document is False:  # one clear message instead of "No total found" and friends
-        fail('is_document', [], "This doesn't look like a receipt or invoice.")
+        fail('is_document', [], "This doesn't look like a receipt or invoice. If it is one, press Read again or type the fields from the photo.")
         return issues
 
     if date_order is None:
@@ -248,18 +253,18 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
                 fail('date_ambiguous', [field], f'Is {getattr(doc, field + "_text")} day first or month first?')
 
     if (doc.document_count or 1) > 1:
-        fail('one_document', [], f'This file seems to hold {doc.document_count} documents. Upload one per file.')
+        fail('one_document', [], f'This file seems to hold {doc.document_count} receipts or invoices. Upload each one in its own file.')
 
     if doc.total is None:
-        fail('total_present', ['total'], 'No total found.')
+        fail('total_present', ['total'], 'No total found. Type it in from the photo.')
 
     printed = thousands_read_as_decimals(doc.total_text, doc.total)
     if printed and (doc.currency or '').upper() not in THREE_DECIMAL_CURRENCIES:
         whole = Decimal(re.sub(r'\D', '', printed))
-        fail('total_format', ['total'], f'The total is printed as {printed}. Is it {num(whole)}?')
+        fail('total_format', ['total'], f'The total is printed as {printed}. It may mean {num(whole)}. Check the amounts on the photo.')
 
     if not doc.items and (doc.total or doc.subtotal):
-        fail('items_missing', ['items'], 'There are amounts but no line items.')
+        fail('items_missing', ['items'], 'No line items found. Add them from the photo, or save anyway if the paper has none.')
 
     tax = doc.tax or 0
     amounts = [i.amount for i in doc.items]
@@ -268,7 +273,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         # tax-inclusive prices: lines add up to subtotal + tax
         gross = sum(amounts)  # item discounts listed apart, already inside the discount line
         if not (close(net, doc.subtotal) or close(gross, doc.subtotal) or (tax and close(net, doc.subtotal + tax))):
-            fail('items_sum', ['items', 'subtotal'], f'Line items add up to {num(net)}. The subtotal is {num(doc.subtotal)}.')
+            fail('items_sum', ['items', 'subtotal'], f'The lines add up to {num(net)} but the subtotal says {num(doc.subtotal)}. {SELLER_SUM}')
 
     allow = cash_rounding(doc.currency, doc.total_text)
     near = lambda expected: total_close(expected, doc.total, allow)
@@ -315,14 +320,14 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         included = tax and near(expected - tax) and (printed or row_share or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
             fail('total_math', ['subtotal', 'tax', 'service_charge', 'discount', 'total'],
-                 f'Subtotal + tax + service - discount = {num(expected)}. The total is {num(doc.total)}.')
+                 f'Subtotal + tax + charges - discount = {num(expected)} but the total says {num(doc.total)}. {SELLER_SUM}')
     elif doc.total is not None and net is not None:
         # no subtotal printed: the lines themselves must add up to the total. Unless the model says the tax is
         # added on top (tax_included False), both readings are accepted, so a wrong tax is not always caught here.
         expected = net + tax + (doc.service_charge or 0) - (0 if twice else abs(doc.discount or 0))
         included = tax and near(expected - tax) and (doc.tax_included is not False or included_share(tax, doc.total, net, allow))
         if not (near(expected) or included):
-            fail('items_total', ['items', 'total'], f'Line items add up to {num(expected)}. The total is {num(doc.total)}.')
+            fail('items_total', ['items', 'total'], f'The lines with tax and discounts come to {num(expected)} but the total says {num(doc.total)}. {SELLER_SUM}')
 
     # Printed rates: the shop's own arithmetic, so no fix is ever suggested for these. VAT/GST is charged on the
     # amount after the discount (HMRC VAT Notice 700 for basic discounts), with or without the service charge,
@@ -336,14 +341,15 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             duty = [d / 100 for d in SD_RATES] if (doc.currency or '').upper() == 'BDT' and doc.tax_kind == 'vat' else []
             due = [x for b in bases for x in [b * rate, b * rate / (1 + rate)] + [b * d + b * (1 + d) * rate for d in duty]]
             if not any(abs(doc.tax - x) <= room for x in due):
-                fail('tax_rate', ['tax'], f'{doc.tax_kind.upper()} {pct(doc.tax_rate)}% of {num(base)} is '
-                     f'{num((base * rate).quantize(CENT, ROUND_HALF_UP))}. The document says {num(doc.tax)}.')
+                kind = doc.tax_kind.upper()
+                fail('tax_rate', ['tax'], f'{pct(doc.tax_rate)}% {kind} on {num(base)} is {num((base * rate).quantize(CENT, ROUND_HALF_UP))} '
+                     f'but the {kind} says {num(doc.tax)}. If the photo shows {num(doc.tax)}, the seller charged the wrong {kind}. {ASK}')
         else:
             base = doc.subtotal + (doc.service_charge or 0)
             top = base * rate
             if (rate == 0 and doc.tax > 0) or doc.tax > top + room:
-                fail('tax_rate', ['tax'], f'Tax {pct(doc.tax_rate)}% of {num(base)} is at most '
-                     f'{top.quantize(CENT, ROUND_HALF_UP):,.2f}. The document says {num(doc.tax)}.')  # 0.00, never 0
+                fail('tax_rate', ['tax'], f'Tax of {pct(doc.tax_rate)}% on {num(base)} is at most {top.quantize(CENT, ROUND_HALF_UP):,.2f} '  # 0.00, never 0
+                     f'but the tax says {num(doc.tax)}. If the photo shows {num(doc.tax)}, the seller charged too much. {ASK}')
     # VAT summary rows: each row's own tax must match its rate and net, and the rows must add up to doc.tax.
     for r, bad, gross_bad in row_problems:
         if bad:
@@ -359,15 +365,17 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
     if doc.discount_rate is not None and doc.discount and doc.subtotal is not None:
         most = doc.subtotal * doc.discount_rate / 100
         if abs(doc.discount) > most + CENT:
-            fail('discount_rate', ['discount'], f'{pct(doc.discount_rate)}% of {num(doc.subtotal)} is '
-                 f'{num(most.quantize(CENT, ROUND_HALF_UP))}. The discount is {num(abs(doc.discount))}.')
+            fail('discount_rate', ['discount'], f'A {pct(doc.discount_rate)}% discount on {num(doc.subtotal)} is '
+                 f'{num(most.quantize(CENT, ROUND_HALF_UP))} but the discount says {num(abs(doc.discount))}. '
+                 f'If the photo shows {num(abs(doc.discount))}, ask the seller or save anyway.')
 
     problem = tax_id_problem(doc.seller_tax_id, doc.currency)
     if problem:
         fail('tax_id_invalid', ['seller_tax_id'], problem)
     if doc.tax_kind in ('vat', 'gst') and doc.tax and not doc.seller_tax_id and (doc.currency or '').upper() in VAT_ID_EXPECTED:
-        name, label = ('GST', 'GSTIN') if doc.tax_kind == 'gst' else ('VAT', 'VAT number')
-        fail('tax_id_missing', ['seller_tax_id'], f'No seller {label} found. It is needed to claim this {name} back.', 'note')
+        name, label = ('GST', 'GSTIN') if doc.tax_kind == 'gst' else ('VAT', 'BIN' if doc.currency.upper() == 'BDT' else 'VAT number')
+        fail('tax_id_missing', ['seller_tax_id'], f'No seller {label} found. You need it to claim this {name} back. '
+             'Check the photo or ask the seller.', 'note')
 
     for n, i in enumerate(doc.items):
         # a weight printed as 1.03 kg may be 1.034 kg: allow for its rounding, half the last printed step
@@ -375,16 +383,20 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
             continue
         room = abs(i.unit_price) * Decimal('0.005') if i.quantity != i.quantity.to_integral_value() else 0
         if abs(i.quantity * i.unit_price - i.amount) > max(Decimal('0.01'), room):
-            fail('line_math', [f'items[{n}]'], f'{num(i.quantity)} x {num(i.unit_price)} = {num(i.quantity * i.unit_price)}. The line says {num(i.amount)}.')
+            fail('line_math', [f'items[{n}]'], f'{i.description or f"Line {n + 1}"}: {num(i.quantity)} x {num(i.unit_price)} = '
+                 f'{num(i.quantity * i.unit_price)} but the line says {num(i.amount)}. '
+                 'If the photo shows the same, the seller made the mistake. Ask the seller or save anyway.')
 
     # one day of room: the server's date (UTC) is behind Dhaka until 06:00; due dates may be in the future
     if doc.issue_date is not None and doc.issue_date > today + timedelta(days=1):
-        fail('date_future', ['issue_date'], f'The issue date {doc.issue_date} is in the future.')
+        d = doc.issue_date
+        fail('date_future', ['issue_date'], f'The date {d.day} {d:%b %Y} is in the future. Check it on the photo. '
+             'The day and month may be swapped.')
     if doc.issue_date and doc.due_date and doc.due_date < doc.issue_date:
-        fail('due_before_issue', ['issue_date', 'due_date'], 'The due date is before the issue date.')
+        fail('due_before_issue', ['issue_date', 'due_date'], 'The due date is before the issue date. Check both on the photo.')
 
     if doc.currency is not None and doc.currency.upper() not in CURRENCIES:
-        fail('currency_code', ['currency'], f'"{doc.currency}" is not a currency code.')
+        fail('currency_code', ['currency'], f'"{doc.currency}" is not a currency code. Type the 3-letter code, like USD or BDT.')
 
     return issues
 
@@ -426,7 +438,7 @@ def suggest(doc: Document) -> dict | None:
         after = sums_fail(changed(updates))
         if 'total_format' in after or not after <= failing:  # other sums may still fail, but x1000 must not add one
             return None
-        return {'message': f'The amounts look 1,000 times too small. The total would be {num(doc.total * 1000)}.',
+        return {'message': f'The amounts look 1,000 times too small. The photo may use a dot for thousands. Apply to make the total {num(doc.total * 1000)}.',
                 'changes': [{'field': f, 'from': str(v), 'to': str(updates[f])} for f, v in amounts]}
 
     # A weighed item read as a whole quantity (1.89 lb @ 19.50 = 36.86 read as 1 x 19.50): the quantity with the fewest
@@ -451,14 +463,15 @@ def suggest(doc: Document) -> dict | None:
         price_fits = any(abs(item.quantity * p - item.amount) <= Decimal('0.005') for p in one_digit_changes(item.unit_price))
         if len(fits) == 1 and fits[0] != item.quantity and not price_fits and not sums_fail(changed({field: fits[0]})):
             q = Decimal(format(fits[0].normalize(), 'f'))
-            found.append((field, item.quantity, q, f'{item.description or f"Line {n + 1}"}: is the quantity {num(q)}? Then the line adds up.'))
+            found.append((field, item.quantity, q, f'{item.description or f"Line {n + 1}"}: with quantity {num(q)} the line adds up. Apply it if the photo shows {num(q)}.'))
 
     # The search grows with amounts squared: 33 amounts took 0.45 s, 99 took 2.9 s (laptop, 2026-10-02),
     # and it runs on every open and every edit pause, so long documents get no digit suggestion.
     for field, value in amounts if len(failing) >= 2 and len(amounts) <= 40 else ():
         for candidate in one_digit_changes(value):
             if not sums_fail(changed({field: candidate})):
-                found.append((field, value, candidate, f'Did you mean {num(candidate)} instead of {num(value)}? Then every sum adds up.'))
+                found.append((field, value, candidate, f'With {num(candidate)} instead of {num(value)}, every sum adds up. Apply it if the photo shows '
+                                                         f'{num(candidate)}. If it shows {num(value)}, the seller made the mistake. Apply or save anyway.'))
                 if len(found) > 1:
                     return None  # two different fixes both fit: the numbers can't tell which is right
     # Only "subtotal + tax + service - discount = total" fails: the tax or the total was misread. Each candidate
@@ -491,11 +504,13 @@ def suggest(doc: Document) -> dict | None:
         change = lambda f, v: [{'field': f, 'from': None if getattr(doc, f) is None else str(getattr(doc, f)), 'to': str(v)}]
         if len(options) == 1:
             f, v = options[0]
-            msg = 'Then the total adds up.' if f == 'tax' else 'Then every sum adds up.'
-            return {'message': f'Is the {f} {num(v)}? {msg}', 'changes': change(f, v)}
+            msg = 'the total adds up' if f == 'tax' else 'every sum adds up'
+            return {'message': f'With {f} {num(v)} {msg}. Apply it if the photo shows {num(v)}. If not, the seller added it up wrong.',
+                    'changes': change(f, v)}
         if options:
-            message = {('tax', 'total'): 'The tax or the total was misread. Pick the one the photo shows.',
-                       ('total', 'service_charge'): 'The total was misread, or a charge was not read. Pick the one the photo shows.',
+            message = {('tax', 'total'): 'Changing the tax or the total makes the sums add up. Pick the one the photo shows. '
+                                         'If neither, the seller added it up wrong.',
+                       ('total', 'service_charge'): 'Changing the total or adding a missed charge makes the sums add up. Pick the one the photo shows.',
                        ('tax', 'total', 'service_charge'): 'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.'}
             label = {'tax': 'Tax', 'total': 'Total', 'service_charge': 'Other charge'}
             return {'message': message[tuple(f for f, _ in options)], 'changes': [],
