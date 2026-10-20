@@ -17,6 +17,7 @@ const sections: [string, React.ReactNode][] = [
       <li>The AI&apos;s first reading of each file. I compare it with your corrections to measure how often the AI is wrong.</li>
       <li>The time of each upload. This is for the daily limit.</li>
       <li>Your webhook address and its secret, if you add one. Both are encrypted.</li>
+      <li>Your assistant chats.</li>
     </ul>
     <p>No ads. No tracking. Cookies only keep you signed in.</p>
   </>],
@@ -30,8 +31,9 @@ const sections: [string, React.ReactNode][] = [
         People at Google may also see them.
       </li>
       <li>
-        <b>Google Gemini</b>, <b>Groq</b> or <b>OpenRouter</b> answers assistant questions. They get your question and the data read from your
-        documents. Files are never sent. This demo uses their free plans.
+        <b>Google Gemini</b>, <b>Groq</b> or <b>OpenRouter</b> answers assistant questions. They get your question, the earlier messages in
+        the chat and the data read from your documents. Files are never sent. This demo uses their free plans, so they may keep questions
+        and use them to improve their AI. OpenRouter passes each question to a free model it picks.
       </li>
       <li><b>Gmail</b> sends the sign-up and reset emails.</li>
       <li><b>Supabase</b> stores the data and handles sign-in.</li>
@@ -42,7 +44,7 @@ const sections: [string, React.ReactNode][] = [
     <p>Nothing is sold or shared with anyone else.</p>
   </>],
   ["How long it is kept", <>
-    <p>Until you delete it. Deleting a document removes it right away. Deleting your account removes everything.</p>
+    <p>Until you delete it. Deleting a document removes it right away. Deleting your account removes all your data. Anonymous counts stay for the daily limits.</p>
     <p>Assistant chats are kept until you delete them, one at a time or all at once.</p>
   </>],
   ["Your rights", <>
@@ -67,7 +69,7 @@ export default function PrivacyPage() {
       </header>
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Last updated 2 October 2026</p>
+        <p className="mt-2 text-sm text-muted-foreground">Last updated 20 October 2026</p>
         <div className="mt-8 space-y-8">
           {sections.map(([title, body]) => (
             <section key={title}>
