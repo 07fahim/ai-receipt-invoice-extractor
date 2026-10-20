@@ -108,7 +108,14 @@ export async function download(path: string, fallbackName: string) {
 
 export function money(value: string | number | null, currency?: string | null) {
   if (value === null || value === undefined) return "–";
-  // 2 decimals, 3 for currencies such as KWD
-  const n = Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+  // the currency's own decimals (JPY 0, KWD 3); without a known currency 2, or 3 when printed
+  let digits = { minimumFractionDigits: 2, maximumFractionDigits: 3 };
+  try {
+    if (currency) {
+      const d = new Intl.NumberFormat("en-US", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+      digits = { minimumFractionDigits: d, maximumFractionDigits: d };
+    }
+  } catch {} // not a currency code, e.g. "XX"
+  const n = Number(value).toLocaleString("en-US", digits);
   return currency ? `${n} ${currency}` : n;
 }
