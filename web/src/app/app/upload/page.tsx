@@ -71,7 +71,11 @@ export default function UploadPage() {
   }, [pendingKey, entries]);
 
   const send = useCallback(async (files: File[]) => {
-    if (!files.length || busy) return;
+    if (!files.length) return;
+    if (busy) {
+      toast.error("Wait for this batch to finish.");
+      return;
+    }
     if (files.length > 20) {
       toast.error("Upload up to 20 files at a time.");
       return;
@@ -186,10 +190,10 @@ export default function UploadPage() {
         <span className="mt-1 text-sm text-muted-foreground">JPG, PNG, WebP, HEIC or PDF · up to 10 MB each</span>
         <span className="mt-0.5 hidden text-sm text-muted-foreground pointer-fine:inline">or paste an image with Ctrl+V</span>
         <span className="mt-2 text-[13px] text-muted-foreground">Tip: lay the receipt flat in good light and fill the frame.</span>
-        <Button asChild className="mt-4 h-10 px-4" disabled={busy}>
+        <Button asChild className={cn("mt-4 h-10 px-4", busy && "opacity-50")}>
           <span>{busy ? "Uploading…" : "Choose files"}</span>
         </Button>
-        <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => send([...(e.target.files ?? [])])} />
+        <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only" disabled={busy} onChange={(e) => send([...(e.target.files ?? [])])} />
       </label>
 
       {usage && (
