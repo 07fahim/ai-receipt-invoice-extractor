@@ -385,7 +385,7 @@ def validate(doc: Document, today: date | None = None, date_order: str | None = 
         if abs(i.quantity * i.unit_price - i.amount) > max(Decimal('0.01'), room):
             fail('line_math', [f'items[{n}]'], f'{i.description or f"Line {n + 1}"}: {num(i.quantity)} x {num(i.unit_price)} = '
                  f'{num(i.quantity * i.unit_price)} but the line says {num(i.amount)}. '
-                 'If the photo shows the same, the seller made the mistake. Ask the seller or save anyway.')
+                 f'If the photo shows the same, the seller made the mistake. {ASK}')
 
     # one day of room: the server's date (UTC) is behind Dhaka until 06:00; due dates may be in the future
     if doc.issue_date is not None and doc.issue_date > today + timedelta(days=1):
