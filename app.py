@@ -834,7 +834,10 @@ def delete_auth_user(uid):
 
 @app.delete('/account', status_code=204)
 def delete_account(uid: str = Depends(current_user)):
-    # if the sign-in account can't be removed, the database changes roll back
+    # the data goes first and is committed, then the sign-in account: if that fails, the user is still signed in
+    # and can try again (never a removed sign-in with data left behind)
+    if not os.environ.get('SUPABASE_SECRET_KEY'):
+        raise HTTPException(503, 'Account deletion is not set up on this server.')
     with store.conn() as con:
         con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
@@ -844,13 +847,13 @@ def delete_account(uid: str = Depends(current_user)):
         con.execute('UPDATE assistant_messages SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts app-wide
         con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
-        try:
-            delete_auth_user(uid)
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f'deleting auth user {uid} failed: {e!r}')
-            raise HTTPException(502, 'Could not delete the account. Please try again.')
+    try:
+        delete_auth_user(uid)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f'deleting auth user {uid} failed: {e!r}')
+        raise HTTPException(502, 'Could not delete the account. Please try again.')
 
 
 class WebhookIn(BaseModel):

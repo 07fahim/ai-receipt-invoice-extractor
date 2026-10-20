@@ -503,22 +503,36 @@ try:
     assert c.get('/usage', headers=carol).json() == {'used': 3, 'limit': 3}  # shown on the upload page
     app.DAILY_UPLOAD_LIMIT = 50
 
-    # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
+    # delete account: everything of the user goes, other users keep theirs
     frank = as_user(FRANK := str(uuid.uuid4()))
     c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
     removed = []
     real_delete = app.delete_auth_user
+    # not set up on the server: refused before anything is deleted
+    app.delete_auth_user = removed.append
+    os.environ.pop('SUPABASE_SECRET_KEY', None)
+    assert c.delete('/account', headers=frank).status_code == 503 and c.get('/stats', headers=frank).json()['documents'] == 1
+    assert removed == []
+    os.environ['SUPABASE_SECRET_KEY'] = 'test-key'
+    # the data is deleted and committed first: a failed sign-in removal then leaves no data behind, and the user,
+    # still signed in, can try again
     app.delete_auth_user = lambda uid: (_ for _ in ()).throw(RuntimeError('supabase down'))
-    assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 1
+    assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 0
     # a retry after Supabase already removed the account (its first answer lost) still counts as removed
     real_urlopen = urllib.request.urlopen
     def gone(*a, **k): raise urllib.error.HTTPError('u', 404, 'User not found', {}, None)
-    urllib.request.urlopen, os.environ['SUPABASE_SECRET_KEY'] = gone, 'test-key'
+    urllib.request.urlopen = gone
     real_delete(FRANK)  # no exception
     urllib.request.urlopen = real_urlopen
-    del os.environ['SUPABASE_SECRET_KEY']
-    app.delete_auth_user = removed.append
+    c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
+
+    def removed_after_commit(uid):
+        with store.conn() as con:  # another connection sees only committed changes
+            assert con.execute('SELECT count(*) AS n FROM documents WHERE user_id = %s', (uid,)).fetchone()['n'] == 0
+        removed.append(uid)
+    app.delete_auth_user = removed_after_commit
     assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
+    app.delete_auth_user = removed.append
     assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
 
     # duplicates: a later copy of the same invoice (same vendor, number and total) is flagged and links to the first;
