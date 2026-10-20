@@ -79,6 +79,68 @@ def tool(uid, name, **args):
         return json.loads(assistant.run_tool(con, uid, name, args))
 
 
+def bangla_messages():
+    # one example of every check and fix-suggestion message in validate.py and app.py
+    adds = 'If the photo shows the same, the seller added it up wrong. Ask the seller or save anyway.'
+    ask = 'Ask the seller or save anyway.'
+    examples = ["This doesn't look like a receipt or invoice. If it is one, press Read again or type the fields from the photo.",
+                'Is 9/1/2016 day first or month first?',
+                'This file seems to hold 2 receipts or invoices. Upload each one in its own file.',
+                'No total found. Type it in from the photo.',
+                'The total is printed as 1.234. It may mean 1,234. Check the amounts on the photo.',
+                'No line items found. Add them from the photo, or save anyway if the paper has none.',
+                f'The lines add up to 90 but the subtotal says 100. {adds}',
+                f'Subtotal + tax + charges - discount = 59.11 but the total says 64.43. {adds}',
+                f'The lines with tax and discounts come to 90 but the total says 100. {adds}',
+                f'আম: 2 x 120 = 240 but the line says 280. If the photo shows the same, the seller made the mistake. {ask}',
+                'The date 1 Jan 2027 is in the future. Check it on the photo. The day and month may be swapped.',
+                'The due date is before the issue date. Check both on the photo.',
+                '"XYZ" is not a currency code. Type the 3-letter code, like USD or BDT.',
+                'You uploaded this before: #12 has the same seller, number and total. Open it to compare and delete one copy if they match.',
+                'A second read of the photo found different values. Check those fields on the photo.',
+                'The amounts look 1,000 times too small. The photo may use a dot for thousands. Apply to make the total 64,430.',
+                'আম: with quantity 1.89 the line adds up. Apply it if the photo shows 1.89.',
+                'With 8.50 instead of 85.0, every sum adds up. Apply it if the photo shows 8.50. '
+                'If it shows 85.0, the seller made the mistake. Apply or save anyway.',
+                f'15% VAT on 851.20 is 127.68 but the VAT says 120. If the photo shows 120, the seller charged the wrong VAT. {ask}',
+                'The 7% VAT row: 7% of 100 is 7. It says 8.',
+                'The 7% VAT row: 100 + 7 is 107. It says 108.',
+                'The VAT rows add up to 16.50. The tax is 16.',
+                f'5% GST on 1,000 is 50 but the GST says 60. If the photo shows 60, the seller charged the wrong GST. {ask}',
+                f'Tax of 8.5% on 80.44 is at most 6.84 but the tax says 8.55. If the photo shows 8.55, the seller charged too much. {ask}',
+                'A 10% discount on 26.85 is 2.69 but the discount says 3.49. If the photo shows 3.49, ask the seller or save anyway.',
+                'GB123 4567 89 is not a real UK VAT number. If the photo shows the same, ask the seller for the right one. '
+                'You need it to claim the VAT back.',
+                '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.',
+                'No seller VAT number found. You need it to claim this VAT back. Check the photo or ask the seller.',
+                'No seller BIN found. You need it to claim this VAT back. Check the photo or ask the seller.',
+                'No seller GSTIN found. You need it to claim this GST back. Check the photo or ask the seller.',
+                'This one is dated 01/2024. The rest of this upload is from 03/2026. Check the year on the photo.',
+                'With tax 3.30 the total adds up. Apply it if the photo shows 3.30. If not, the seller added it up wrong.',
+                'With total 36.30 every sum adds up. Apply it if the photo shows 36.30. If not, the seller added it up wrong.',
+                'Changing the tax or the total makes the sums add up. Pick the one the photo shows. If neither, the seller added it up wrong.',
+                'Changing the total or adding a missed charge makes the sums add up. Pick the one the photo shows.',
+                'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.',
+                'Tax 3.30', 'Other charge 5', 'Total 41.30']
+    assert len(examples) == len(assistant.BANGLA)
+    # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
+    # 20 checks, 5 suggestions (2 found.append, 2 f-string returns, 1 plain return), 1 note dict in validate.py
+    src, app_src = open('validate.py', encoding='utf-8').read(), open('app.py', encoding='utf-8').read()
+    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (21, 2, 3, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
+    # each example matches its own pattern (in order), and no English is left but codes, the date's month and button names
+    for (pattern, text), m in zip(assistant.BANGLA, examples):
+        assert pattern.fullmatch(m) and assistant.bangla(m) == text.format(*pattern.fullmatch(m).groups()), (pattern.pattern, m)
+    keep = ('XYZ', 'AI', '07AAHCA1234F1Z6', 'Jan', 'USD', 'BDT', 'Read again', 'Save anyway', 'Apply')
+    for m in examples:
+        left = assistant.bangla(m)
+        for k in keep:
+            left = left.replace(k, '')
+        assert not re.search('[A-Za-z]{3}', left), (m, assistant.bangla(m))
+    assert assistant.bangla(f'With tax 3.30 the total adds up. Apply it if the photo shows 3.30. If not, the seller added it up wrong.') == \
+        'কর 3.30 হলে মোট মিলে যায়। ছবিতে 3.30 থাকলে Apply চাপুন। না থাকলে বিক্রেতা যোগে ভুল করেছেন।'
+    assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English
+
+
 def tools():
     soon = (date.today() + timedelta(days=3)).isoformat()
     s1 = add(ALICE, 'passed', vendor='Shwapno', currency='BDT', issue_date='2026-09-03', total=1200,
@@ -87,7 +149,8 @@ def tools():
              items=[{'description': 'Milk', 'amount': 800}])
     add(ALICE, 'passed', vendor='Aarong', currency='BDT', issue_date='2026-08-10', total=6200)
     flagged = add(ALICE, 'needs_review', checks=[{'check': 'items_sum', 'fields': ['items', 'subtotal'],
-                                                  'message': 'Line items add up to 90. The subtotal is 100.'}],
+                                                  'message': 'The lines add up to 90 but the subtotal says 100. If the photo shows the same, '
+                                                             'the seller added it up wrong. Ask the seller or save anyway.'}],
                   vendor='Shwapno', currency='BDT', issue_date='2026-09-25', subtotal=100, total=100,
                   items=[{'description': 'Eggs', 'amount': 90}])
     latte = add(ALICE, 'passed', vendor='Starbucks', currency='USD', issue_date='2026-09-05', total=5.5,
@@ -111,52 +174,17 @@ def tools():
     assert mine == {(r['currency'], float(r['total'])) for r in stats['spend_by_currency']}, (mine, stats)
 
     doc = tool(ALICE, 'get_document', id=flagged)
-    assert doc['checks'][0]['message'] == "In the AI's reading: Line items add up to 90. The subtotal is 100.", doc
+    assert doc['checks'][0]['message'] == ("In the AI's reading: The lines add up to 90 but the subtotal says 100. "
+                                         'If the photo shows the same, the seller added it up wrong. Ask the seller or save anyway.'), doc
     assert 'error' in tool(ALICE, 'get_document', id=bob)  # Bob's document is "not found" for Alice
 
-    # a Bangla question gets Bangla check messages: one example of every check message in validate.py and app.py
+    # a Bangla question gets Bangla check messages (every message: bangla_messages)
     with store.conn() as con:
         in_bangla = json.loads(assistant.run_tool(con, ALICE, 'get_document', {'id': flagged}, True))
         model_says_bangla = json.loads(assistant.run_tool(con, ALICE, 'get_document', {'id': flagged, 'in_bangla': True}))
-    assert in_bangla['checks'][0]['message'] == 'এআই-এর পড়া অনুযায়ী: লাইন আইটেমগুলোর যোগফল 90। সাবটোটাল 100।', in_bangla
+    assert in_bangla['checks'][0]['message'] == ('এআই-এর পড়া অনুযায়ী: লাইনগুলোর যোগফল 90, কিন্তু সাবটোটালে লেখা 100। '
+                                                 'ছবিতেও একই থাকলে বিক্রেতা যোগে ভুল করেছেন। বিক্রেতাকে জিজ্ঞেস করুন অথবা Save anyway চাপুন।'), in_bangla
     assert model_says_bangla['checks'][0]['message'].startswith("In the AI's reading"), model_says_bangla  # the app decides
-    examples = ["This doesn't look like a receipt or invoice.", 'Is 9/1/2016 day first or month first?',
-                'This file seems to hold 2 documents. Upload one per file.', 'No total found.',
-                'The total is printed as 1.234. Is it 1,234?', 'There are amounts but no line items.',
-                'Line items add up to 90. The subtotal is 100.', 'Subtotal + tax + service - discount = 59.11. The total is 64.43.',
-                'Line items add up to 90. The total is 100.', '2 x 120 = 240. The line says 280.',
-                'The issue date 2027-01-01 is in the future.', 'The due date is before the issue date.',
-                '"XYZ" is not a currency code.', 'Same vendor, number and total as 001. It was uploaded earlier.',
-                'A second AI reading differs. Compare with the photo.',
-                'The amounts look 1,000 times too small. The total would be 64,430.',
-                'আম: is the quantity 1.89? Then the line adds up.',
-                'Did you mean 8.50 instead of 85.0? Then every sum adds up.',
-                'VAT 15% of 851.20 is 127.68. The document says 120.',
-                'The 7% VAT row: 7% of 100 is 7. It says 8.',
-                'The 7% VAT row: 100 + 7 is 107. It says 108.',
-                'The VAT rows add up to 16.50. The tax is 16.',
-                'GST 5% of 1,000 is 50. The document says 60.',
-                'Tax 8.5% of 80.44 is at most 6.84. The document says 8.55.',
-                '10% of 26.85 is 2.69. The discount is 3.49.',
-                'GB123 4567 89 is not a valid UK VAT number. Check it on the document.',
-                '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.',
-                'No seller VAT number found. It is needed to claim this VAT back.',
-                'No seller GSTIN found. It is needed to claim this GST back.',
-                'This document is dated 01/2024. The rest of this upload is from 03/2026.',
-                'Is the tax 3.30? Then the total adds up.', 'Is the total 36.30? Then every sum adds up.',
-                'The tax or the total was misread. Pick the one the photo shows.',
-                'The total was misread, or a charge was not read. Pick the one the photo shows.',
-                'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.',
-                'Tax 3.30', 'Other charge 5', 'Total 41.30']
-    assert len(examples) == len(assistant.BANGLA)
-    # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:
-    # 20 checks, 5 suggestions (2 found.append, 2 f-string returns, 1 plain return), 1 note dict in validate.py
-    src, app_src = open('validate.py', encoding='utf-8').read(), open('app.py', encoding='utf-8').read()
-    assert (src.count("fail('"), src.count('found.append('), src.count("{'message': f'"), app_src.count("'message': "))         == (21, 2, 3, 2), 'a message was added or removed: update assistant.BANGLA and the examples above'
-    for m in examples:
-        assert not re.search('[A-Za-z]{3}', assistant.bangla(m).replace('XYZ', '').replace('AI', '').replace('07AAHCA1234F1Z6', '')), m
-    assert assistant.bangla('Is the tax 3.30? Then the total adds up.') == 'কর কি 3.30? তাহলে মোট মিলে যায়।'
-    assert assistant.bangla('Something new.') == 'Something new.'  # no match: stays English
 
     # an ambiguous date: both readings given, no internal check code or status, like the Taco Bell case
     ambiguous = add(ALICE, 'needs_review', checks=[{'check': 'date_ambiguous', 'fields': ['issue_date'],
@@ -338,6 +366,7 @@ def endpoints():
 
 try:
     chat_fallback()
+    bangla_messages()
     seeded = tools()
     loop(seeded)
     endpoints()
