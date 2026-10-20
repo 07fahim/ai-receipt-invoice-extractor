@@ -130,7 +130,8 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
     dup = store.duplicate_of(con, uid, doc, before_id=doc_id)
     if dup:
         checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
-                       'message': f'Same vendor, number and total as {dup["doc_number"]}. It was uploaded earlier.'})
+                       'message': f'You uploaded this before: #{dup["id"]} has the same seller, number and total. '
+                                  'Open it to compare and delete one copy if they match.'})
     if doc_id is not None:
         note = older_than_upload(doc.issue_date, store.upload_dates(con, uid, doc_id))
         if note:
@@ -143,7 +144,7 @@ def run_checks(con, uid, doc: Document, order, doc_id=None):
             changes = meaningful_changes(doc, second, first)
             if changes:
                 checks.append({'check': 'second_reading', 'fields': sorted({c['field'].split('[')[0] for c in changes}),
-                               'message': 'A second AI reading differs. Compare with the photo.'})
+                               'message': 'A second read of the photo found different values. Check those fields on the photo.'})
     return checks
 
 

@@ -519,7 +519,8 @@ try:
     first, copy, other = (c.get(f'/documents/{i}', headers=george).json() for i in ids)
     assert first['status'] == 'passed' and other['status'] == 'passed', (first['checks'], other['checks'])
     assert copy['status'] == 'needs_review' and [x['check'] for x in copy['checks']] == ['duplicate']
-    assert copy['checks'][0]['duplicate_of'] == ids[0] and 'INV-1042' in copy['checks'][0]['message']
+    assert copy['checks'][0]['duplicate_of'] == ids[0] and copy['checks'][0]['message'] == (
+        f'You uploaded this before: #{ids[0]} has the same seller, number and total. Open it to compare and delete one copy if they match.')
     live = c.post('/check', json=copy['document'], params={'doc_id': ids[1]}, headers=george).json()['checks']
     assert [x['check'] for x in live] == ['duplicate']
     assert c.post('/check', json=first['document'], params={'doc_id': ids[0]}, headers=george).json()['checks'] == []
