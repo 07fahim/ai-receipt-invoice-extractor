@@ -148,10 +148,17 @@ export default function ReviewPage() {
     return () => removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  // leaving for another document with unsaved edits asks first
-  function leaveCheck(e: React.MouseEvent) {
-    if (dirty && !window.confirm("Leave without saving your changes?")) e.preventDefault();
-  }
+  // any link in the app (sidebar, assistant, prev/next) asks first; Next's Link skips navigation when the click is prevented
+  useEffect(() => {
+    if (!dirty) return;
+    const guard = (e: MouseEvent) => {
+      const a = (e.target as Element).closest?.("a[href]");
+      if (!a || a.getAttribute("target") === "_blank" || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!window.confirm("Leave without saving your changes?")) e.preventDefault();
+    };
+    document.addEventListener("click", guard, true);
+    return () => document.removeEventListener("click", guard, true);
+  }, [dirty]);
 
   const issues = checks.filter((c) => c.level !== "note");
   const notes = checks.filter((c) => c.level === "note");
@@ -296,10 +303,10 @@ export default function ReviewPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {pos + 1} of {queue.length}
               <Button variant="outline" size="icon" aria-label="Previous document" disabled={pos === 0} asChild={pos > 0}>
-                {pos > 0 ? <Link href={`/app/documents/${queue[pos - 1]}`} onClick={leaveCheck}><ArrowLeft /></Link> : <ArrowLeft />}
+                {pos > 0 ? <Link href={`/app/documents/${queue[pos - 1]}`}><ArrowLeft /></Link> : <ArrowLeft />}
               </Button>
               <Button variant="outline" size="icon" aria-label="Next document" disabled={pos === queue.length - 1} asChild={pos < queue.length - 1}>
-                {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`} onClick={leaveCheck}><ArrowRight /></Link> : <ArrowRight />}
+                {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`}><ArrowRight /></Link> : <ArrowRight />}
               </Button>
             </div>
           )}
