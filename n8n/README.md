@@ -18,9 +18,9 @@ sends a Telegram message and an email with a link to it.
    WhatsApp (Meta Cloud API) was tried and paused: Meta blocks sending until the business has a payment method,
    a complete business profile and business verification.
 
-Delivery: a failed send is retried after 1 min, 5 min, 30 min and 2 h, then dropped. Each attempt waits up to
-5 minutes, because waking a sleeping n8n on Render took 113 s. While n8n is still starting up it answers 404 for a
-minute or two; the retry covers that.
+Delivery: a failed send is retried after 1 min, then every 2 min up to 15 min, every 5 min up to 30 min, then after
+30 min and 2 h, then dropped. Each attempt waits up to 5 minutes. Waking a sleeping n8n on Render took 113 s once and
+about 14 minutes another time; meanwhile it answers 404 or 502, and the retries cover that.
 
 Known limits: the signature covers the body only, so a captured request could be sent again and re-send the same
 row or alert. If an attempt times out while n8n is still working, the event is sent again and an alert can arrive
