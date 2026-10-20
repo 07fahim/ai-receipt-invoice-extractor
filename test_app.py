@@ -936,6 +936,16 @@ try:
     assert c.get(f'/documents/{queued}').json()['status'] == 'processing'
     app.QUEUED.discard(queued)
     c.delete(f'/documents/{queued}')
+    # saving the failure fails too (database down): process() still never raises, so a batch's next files still run
+    real_error, app.public_error = app.public_error, lambda e: (_ for _ in ()).throw(RuntimeError('database down'))
+    with store.conn() as con:
+        down = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                           "VALUES (%s, 'd.jpg', 'image/jpeg', %s, 'processing') RETURNING id", (ALICE, JPG + b'boom')).fetchone()['id']
+    app.QUEUED.add(down)
+    app.process(down)
+    app.public_error = real_error
+    assert down not in app.QUEUED
+    c.delete(f'/documents/{down}')
     # control characters typed into a field can't break the Excel export
     assert app.cell('vendor', 'A\x01B', xlsx=True) == 'AB'
     print('ok')

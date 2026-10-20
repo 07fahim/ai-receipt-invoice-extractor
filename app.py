@@ -393,11 +393,14 @@ def process(doc_id):
             if save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True):
                 queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted or already read meanwhile)
     except Exception as e:
-        with store.conn() as con:
-            failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
-                                 "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
-            if failed:
-                queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
+        try:  # never raises: a batch's next files still run, and the sweep reads this one again later
+            with store.conn() as con:
+                failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
+                                     "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
+                if failed:
+                    queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
+        except Exception as e2:
+            print(f'document {doc_id}: saving the failure failed: {e2!r}')
     finally:
         QUEUED.discard(doc_id)
     WAKE.set()
