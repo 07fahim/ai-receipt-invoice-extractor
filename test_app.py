@@ -376,6 +376,10 @@ try:
     wb = load_workbook(io.BytesIO(c.get('/export').content))
     assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 4 and wb['Items'].max_row == 6
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+    # only checked documents by default; one waiting for review comes only when asked for (Erin has one)
+    assert c.get('/export', params={'format': 'csv'}, headers=erin).content.decode('utf-8-sig').count('\n') == 1
+    assert load_workbook(io.BytesIO(c.get('/export', headers=erin).content))['Documents'].max_row == 1
+    assert c.get('/export', params={'format': 'csv', 'status': 'needs_review'}, headers=erin).content.decode('utf-8-sig').count('\n') == 2
     dates = {h.value: x for h, x in zip(wb['Documents'][1], wb['Documents'][2])}
     assert dates['issue_date'].value.date() == date(2016, 5, 26) and dates['issue_date'].number_format == 'yyyy-mm-dd'  # a real date
     assert dates['due_date'].value is None and '2016-05-26' in csv_text  # CSV keeps ISO text

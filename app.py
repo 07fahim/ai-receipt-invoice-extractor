@@ -1017,10 +1017,13 @@ ITEM_COLUMNS = ['document_id', 'description', 'quantity', 'unit_price', 'amount'
 
 
 def export_rows(uid, status):
+    # checked documents only, unless a status is asked for
     sql = "SELECT id, file_name, status, document FROM documents WHERE user_id = %s AND status != 'failed' AND document IS NOT NULL"
     args = [uid]
     if status:
         sql += ' AND status = %s'; args.append(status)
+    else:
+        sql += " AND status IN ('passed', 'reviewed')"
     docs, items = [], []
     with store.conn() as con:
         for r in con.execute(sql + ' ORDER BY id', args):
