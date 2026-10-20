@@ -263,9 +263,9 @@ def open_webhook(url, payload, secret, users_own, timeout):
     return status
 
 
-# after the first try; then the event is dropped and the next one goes. Every 2 minutes for the first 15:
-# a sleeping n8n on Render's free plan answered 502 for over 6 minutes (2026-10-20).
-RETRY_SECONDS = (60,) + (120,) * 7 + (1800, 7200)
+# after the first try; then the event is dropped and the next one goes. Every 2 minutes for the first 15, then every 5
+# up to 30: a sleeping n8n on Render's free plan took about 14 minutes to answer (2026-10-20, seen once).
+RETRY_SECONDS = (60,) + (120,) * 7 + (300,) * 3 + (1800, 7200)
 WAKE = threading.Event()  # set after a commit that queued events
 SENDING = set()  # users with an event in flight: one at a time per user keeps their events in order
 SENDING_LOCK = threading.Lock()
@@ -327,7 +327,7 @@ def deliver(event_id, uid):
             target = r and webhook_for(con, uid)
             error = None
             if r and not target and configured(con, uid):
-                error = 'webhooks are not set up on the server'  # e.g. WEBHOOK_KEY missing after a deploy: retried like a failed send, so it waits about 2.5 h
+                error = 'webhooks are not set up on the server'  # e.g. WEBHOOK_KEY missing after a deploy: retried like a failed send, so it waits until the retries run out
                 print(f'webhook event {event_id} waits: {error}')
         if r is None:
             return
