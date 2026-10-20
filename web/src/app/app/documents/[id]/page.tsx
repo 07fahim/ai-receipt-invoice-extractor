@@ -557,7 +557,8 @@ export default function ReviewPage() {
                 || issues.some((c) => names.includes(c.check)))
                 .filter(([, names]) => !names.includes("tax_id_invalid") || !!doc?.seller_tax_id)
                 .map(([label, names]) => {
-                const issue = issues.find((c) => names.includes(c.check));
+                const found = issues.filter((c) => names.includes(c.check));
+                const issue = found.length > 0;
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>
                     <span className={cn("w-4 text-center", !issue && "text-ok")}>
@@ -566,14 +567,14 @@ export default function ReviewPage() {
                     </span>
                     <span>
                       {label}
-                      {issue && (
-                        <span className="block text-xs font-normal">
-                          {issue.message}
-                          {issue.duplicate_of && (
-                            <> · <Link href={`/app/documents/${issue.duplicate_of}`} className="text-primary underline">Open it</Link></>
+                      {found.map((c, n) => (
+                        <span key={n} className="block text-xs font-normal">
+                          {c.message}
+                          {c.duplicate_of && (
+                            <> · <Link href={`/app/documents/${c.duplicate_of}`} className="text-primary underline">Open it</Link></>
                           )}
                         </span>
-                      )}
+                      ))}
                     </span>
                   </li>
                 );
