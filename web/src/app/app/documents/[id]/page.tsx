@@ -727,6 +727,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
   const [pages, setPages] = useState(1);
   const [page, setPage] = useState(0);
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null); // the id/page whose image could not be fetched
   const [zoom, setZoom] = useState(1);
   const [turn, setTurn] = useState(0);
 
@@ -743,7 +744,9 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
       .then((b) => {
         if (!gone) setSrc((url = URL.createObjectURL(b)));
       })
-      .catch(() => !gone && setSrc(null));
+      .catch(() => {
+        if (!gone) { setSrc(null); setFailed(`${id}/${page}`); }
+      });
     return () => {
       gone = true;
       if (url) URL.revokeObjectURL(url);
@@ -782,7 +785,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
             style={{ width: `${zoom * 100}%`, height: zoom > 1 ? "auto" : "100%", transform: `rotate(${turn}deg)` }}
           />
         ) : (
-          <p className="p-6 text-sm text-muted-foreground">Loading the original…</p>
+          <p className="p-6 text-sm text-muted-foreground">{failed === `${id}/${page}` ? "Could not load the file." : "Loading the original…"}</p>
         )}
       </div>
     </section>
