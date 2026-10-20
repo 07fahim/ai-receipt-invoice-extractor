@@ -263,8 +263,9 @@ def open_webhook(url, payload, secret, users_own, timeout):
     return status
 
 
-# after the first try; then the event is dropped and the next one goes. Every 2 minutes for the first 15, then every 5
-# up to 30: a sleeping n8n on Render's free plan took about 14 minutes to answer (2026-10-20, seen once).
+# Waits between tries, in seconds, after the first try; then the event is dropped and the next one goes.
+# Every 2 minutes for the first 15, then every 5 up to 30: a sleeping n8n on Render's free plan took about
+# 14 minutes to answer (2026-10-20, seen once).
 RETRY_SECONDS = (60,) + (120,) * 7 + (300,) * 3 + (1800, 7200)
 WAKE = threading.Event()  # set after a commit that queued events
 SENDING = set()  # users with an event in flight: one at a time per user keeps their events in order
