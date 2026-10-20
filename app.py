@@ -125,13 +125,17 @@ def get_row(con, doc_id, uid, with_file=False, lock=False):
     return r
 
 
+def duplicate_check(dup_id):
+    return {'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup_id,
+            'message': f'You uploaded this before: #{dup_id} has the same seller, number and total. '
+                       'Open it to compare and delete one copy if they match.'}
+
+
 def run_checks(con, uid, doc: Document, order, doc_id=None):
     checks = validate(doc, date_order=order)
     dup = store.duplicate_of(con, uid, doc, before_id=doc_id)
     if dup:
-        checks.append({'check': 'duplicate', 'fields': ['doc_number'], 'duplicate_of': dup['id'],
-                       'message': f'You uploaded this before: #{dup["id"]} has the same seller, number and total. '
-                                  'Open it to compare and delete one copy if they match.'})
+        checks.append(duplicate_check(dup['id']))
     if doc_id is not None:
         note = older_than_upload(doc.issue_date, store.upload_dates(con, uid, doc_id))
         if note:
@@ -661,7 +665,7 @@ def document_detail(con, doc_id, uid):
     if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
         dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
         # the original may have been deleted or corrected since: drop the flag, or link the copy still there
-        r['checks'] = [{**c, 'duplicate_of': dup['id']} if c['check'] == 'duplicate' else c
+        r['checks'] = [duplicate_check(dup['id']) if c['check'] == 'duplicate' else c
                        for c in r['checks'] if dup or c['check'] != 'duplicate']
     if r['document']:
         note = older_than_upload(Document(**r['document']).issue_date, store.upload_dates(con, uid, doc_id))

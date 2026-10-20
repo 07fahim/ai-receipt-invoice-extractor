@@ -525,6 +525,11 @@ try:
     assert [x['check'] for x in live] == ['duplicate']
     assert c.post('/check', json=first['document'], params={'doc_id': ids[0]}, headers=george).json()['checks'] == []
     assert c.post('/check', json=copy['document'], headers=as_user(str(uuid.uuid4()))).json()['checks'] == []
+    # the first copy deleted: a third copy links the copy still there, and its message names that one
+    third = c.post('/documents', headers=george, files=[('files', ('c.jpg', io.BytesIO(JPG + b'inv1042b'), 'image/jpeg'))]).json()[0]['id']
+    assert c.delete(f'/documents/{ids[0]}', headers=george).status_code == 204
+    dup = c.get(f'/documents/{third}', headers=george).json()['checks'][0]
+    assert dup['duplicate_of'] == ids[1] and f'#{ids[1]} ' in dup['message'] and f'#{ids[0]} ' not in dup['message'], dup
 
     # iPhone HEIC photos are stored as JPEG (model, viewer and browsers can read them); a fake HEIC is refused
     from PIL import Image
