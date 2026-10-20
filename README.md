@@ -29,8 +29,8 @@
 
 ## Highlights
 
-- **90% of CORD-v2 test receipts read fully correct** with the current prompt (91% test and 94% validation with the
-  earlier one), and at most 2 in 100 were wrong without a check catching it.
+- **90% of CORD-v2 test receipts read fully correct** with the current prompt (91% test and 94% validation with an
+  earlier prompt), and at most 2 in 100 were wrong without a check catching it.
 - **Checks you can read:** every sum, tax line, date and duplicate is checked by plain Python, so a flag always says
   exactly what failed and why.
 - **One click to fix:** the review screen suggests the likely fix (for example a thousands separator read as a
@@ -160,9 +160,9 @@ Indonesian receipts) and [katanaml invoices](https://huggingface.co/datasets/kat
 (synthetic English invoices, tagged MIT). Prompt changes were tried on training samples first. CORD test and a few
 CORD validation receipts were also used to find problems (thousands separators, a discount counted twice), so
 neither CORD split is fully unseen. The first invoice run looked at both invoice splits, so neither is unseen for
-the date fix either. The receipt in the screenshot and the US receipt in the demo clips come from the ExpressExpense US
-receipt set (CC0). The three demo samples are made-up documents: a US grocery receipt, a UK VAT invoice and a
-Bangladeshi VAT invoice.
+the date fix either. The Taco Bell receipt on the landing page and in the webhook example comes from the ExpressExpense US receipt
+set (CC0). The three demo samples and the receipts in the demo clips are made-up documents; the handwritten
+Bangla memo in the clips is the author's own.
 
 ## Tech stack
 
@@ -277,7 +277,7 @@ posts `{"event": "test", "id": null}` to your own saved address.
 python test_validate.py   # the checks and fix suggestions
 python test_extract.py    # parsing the model's answers
 python test_app.py        # the API end to end, with a fake model and a temporary database schema
-python test_assistant.py  # the assistant's lookups, limits and Bangla messages, with fake models
+python test_assistant.py  # the assistant's lookups, limits and Bangla messages, with fake models and a temporary schema
 cd web && npm run lint && npm run build
 ```
 

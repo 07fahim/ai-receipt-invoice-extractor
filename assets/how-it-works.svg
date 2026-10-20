@@ -92,7 +92,7 @@
   <circle cx="270" cy="327" r="14" fill="#EEF2FF"/>
   <text x="270" y="332" text-anchor="middle" font-size="15" font-weight="700" fill="#1D4ED8">2</text>
   <text x="292" y="334" font-size="19" font-weight="700" fill="#111827">Reading</text>
-  <text x="264" y="368" font-size="14" fill="#374151">Each image or PDF page</text>
+  <text x="264" y="368" font-size="14" fill="#374151">Each image or PDF</text>
   <text x="264" y="389" font-size="14" fill="#374151">comes back as JSON with</text>
   <text x="264" y="410" font-size="14" fill="#374151">every field and line item</text>
   <text x="264" y="436" font-size="13" fill="#6B7280">providers.py</text>
