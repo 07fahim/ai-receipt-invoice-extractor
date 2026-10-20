@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type SecondChange, type Suggestion } from "@/lib/api";
+import { api, getJSON, money, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type SecondChange, type Suggestion } from "@/lib/api";
 import { cn, skip, skippedIds } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
@@ -284,7 +284,9 @@ export default function ReviewPage() {
 
   const pos = queue.indexOf(Number(id));
   const canReadAgain = detail.status === "failed" || detail.status === "needs_review";
-  const itemsTotal = doc?.items.reduce((s, i) => s + Number(i.amount ?? 0) - Math.abs(Number(i.discount ?? 0)), 0) ?? 0;
+  // a half-typed amount like "12,5" is left out rather than turning the total into NaN
+  const num = (v: string | null) => (isNaN(Number(v)) ? 0 : Number(v));
+  const itemsTotal = doc?.items.reduce((s, i) => s + num(i.amount) - Math.abs(num(i.discount)), 0) ?? 0;
 
   return (
     <div>
@@ -475,8 +477,8 @@ export default function ReviewPage() {
                   + Add line
                 </button>
                 <span className="tabular-nums">
-                  Lines total {itemsTotal.toFixed(2)}
-                  {doc.subtotal !== null && !isNaN(Number(doc.subtotal)) && <> · Subtotal {Number(doc.subtotal).toFixed(2)}</>}
+                  Lines total {money(itemsTotal, doc.currency)}
+                  {doc.subtotal !== null && !isNaN(Number(doc.subtotal)) && <> · Subtotal {money(doc.subtotal, doc.currency)}</>}
                 </span>
               </div>
             </Group>
