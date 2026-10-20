@@ -74,6 +74,7 @@ def read_refused(con, uid):
 @contextlib.asynccontextmanager
 async def lifespan(_):
     ids = claim_stuck()  # before the sweep loop starts, so the two never pick the same document
+    QUEUED.update(ids)
     RECOVERY.submit(lambda: [process(i) for i in ids])
     threading.Thread(target=deliver_events, daemon=True).start()  # also sends events left over from before a restart
     yield
@@ -276,15 +277,18 @@ SECOND_WORKER = ThreadPoolExecutor(1)  # second readings run one at a time, so a
 
 STUCK_MINUTES = 30  # far longer than a slow reading with all its retries (about 7 minutes); counted from the start of the reading
 RECOVERY = ThreadPoolExecutor(1)  # recovery readings run one at a time: each holds its file in memory several times over
+QUEUED = set()  # documents waiting for or in process() in this API process: the sweep leaves them to that reading
 
 
 def resume_stale():
     # claimed first, so only one sweep starts each; a reading that was still running meanwhile can't overwrite it (only_if_processing)
     with store.conn() as con:
         ids = [r['id'] for r in con.execute("UPDATE documents SET updated_at = now() WHERE status = 'processing' "
-                                            "AND updated_at < now() - make_interval(mins => %s) RETURNING id", (STUCK_MINUTES,))]
+                                            "AND updated_at < now() - make_interval(mins => %s) AND NOT (id = ANY(%s)) RETURNING id",
+                                            (STUCK_MINUTES, list(QUEUED)))]
     for doc_id in ids:
         print(f'document {doc_id} was stuck in processing: reading it again')
+        QUEUED.add(doc_id)
         RECOVERY.submit(process, doc_id)
 
 
@@ -389,11 +393,16 @@ def process(doc_id):
             if save(con, doc_id, doc, None, str(row['user_id']), extra, only_if_processing=True):
                 queue_document_event(con, doc_id)  # passed or needs_review (nothing if deleted or already read meanwhile)
     except Exception as e:
-        with store.conn() as con:
-            failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
-                                 "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
-            if failed:
-                queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
+        try:  # never raises: a batch's next files still run, and the sweep reads this one again later
+            with store.conn() as con:
+                failed = con.execute("UPDATE documents SET status = 'failed', error = %s, updated_at = now() "
+                                     "WHERE id = %s AND status = 'processing'", (public_error(e), doc_id)).rowcount
+                if failed:
+                    queue_document_event(con, doc_id)  # document.failed: an alert, the file could not be read
+        except Exception as e2:
+            print(f'document {doc_id}: saving the failure failed: {e2!r}')
+    finally:
+        QUEUED.discard(doc_id)
     WAKE.set()
     SECOND_WORKER.submit(second_read, doc_id)   # queued on its own single worker, so it never delays the next file's first reading
 
@@ -560,6 +569,7 @@ def upload(files: list[UploadFile], tasks: BackgroundTasks, uid: str = Depends(c
         if refused:
             created.append({'file_name': f.filename, 'error': 'Daily limit reached. Try again later.'})
             continue
+        QUEUED.add(doc_id)
         tasks.add_task(process, doc_id)
         created.append({'id': doc_id, 'file_name': f.filename, 'status': 'processing'})
     return created
@@ -734,6 +744,7 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
             get_row(con, doc_id, uid)  # 404 for ids that are not the user's
             raise HTTPException(409, 'Only failed or flagged documents can be read again.')
         con.execute('INSERT INTO reads (user_id) VALUES (%s)', (uid,))
+    QUEUED.add(doc_id)
     tasks.add_task(process, doc_id)
     return {'id': doc_id, 'status': 'processing'}
 
@@ -741,8 +752,10 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
 @app.delete('/documents/{doc_id}', status_code=204)
 def delete_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
-        gone = con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s RETURNING status', (doc_id, uid)).fetchone()
-        if gone and gone['status'] in ('passed', 'reviewed'):  # only checked documents have a spreadsheet row to mark
+        gone = con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s RETURNING status, checks', (doc_id, uid)).fetchone()
+        # only checked documents have a spreadsheet row to mark, and passed ones a second reading sent to review
+        if gone and (gone['status'] in ('passed', 'reviewed') or
+                     gone['status'] == 'needs_review' and {c['check'] for c in review(gone['checks'] or [])} == {'second_reading'}):
             queue_event(con, uid, {'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
     if gone is None:
         raise HTTPException(404, 'Document not found.')
@@ -833,23 +846,26 @@ def delete_auth_user(uid):
 
 @app.delete('/account', status_code=204)
 def delete_account(uid: str = Depends(current_user)):
-    # if the sign-in account can't be removed, the database changes roll back
+    # the data goes first and is committed, then the sign-in account: if that fails, the user is still signed in
+    # and can try again (never a removed sign-in with data left behind)
+    if not os.environ.get('SUPABASE_SECRET_KEY'):
+        raise HTTPException(503, 'Account deletion is not set up on this server.')
     with store.conn() as con:
         con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
-        con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
+        con.execute('UPDATE reads SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts toward the app-wide cap
         con.execute('UPDATE second_reads SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts toward the app-wide cap
         con.execute('DELETE FROM assistant_chats WHERE user_id = %s', (uid,))
         con.execute('UPDATE assistant_messages SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts app-wide
         con.execute('DELETE FROM webhooks WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM webhook_events WHERE user_id = %s', (uid,))
-        try:
-            delete_auth_user(uid)
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f'deleting auth user {uid} failed: {e!r}')
-            raise HTTPException(502, 'Could not delete the account. Please try again.')
+    try:
+        delete_auth_user(uid)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f'deleting auth user {uid} failed: {e!r}')
+        raise HTTPException(502, 'Could not delete the account. Please try again.')
 
 
 class WebhookIn(BaseModel):
@@ -1016,10 +1032,13 @@ ITEM_COLUMNS = ['document_id', 'description', 'quantity', 'unit_price', 'amount'
 
 
 def export_rows(uid, status):
+    # checked documents only, unless a status is asked for
     sql = "SELECT id, file_name, status, document FROM documents WHERE user_id = %s AND status != 'failed' AND document IS NOT NULL"
     args = [uid]
     if status:
         sql += ' AND status = %s'; args.append(status)
+    else:
+        sql += " AND status IN ('passed', 'reviewed')"
     docs, items = [], []
     with store.conn() as con:
         for r in con.execute(sql + ' ORDER BY id', args):
@@ -1061,6 +1080,7 @@ def quickbooks_rows(uid):
     with store.conn() as con:
         found = con.execute("SELECT id, document FROM documents WHERE user_id = %s AND status IN ('passed', 'reviewed') "
                             'ORDER BY id', (uid,))
+        seen = set()
         for r in found:
             d = Document.model_validate(r['document'])
             if d.issue_date is None or d.total is None:
@@ -1071,8 +1091,12 @@ def quickbooks_rows(uid):
             # tax added on top gets its own line; "VAT included" is already inside the items. Whichever adds up wins.
             lines = next((ls for ls in (items + extra + ([('Tax', d.tax)] if d.tax else []), items + extra)
                           if items and sum(v for _, v in ls) == d.total), [('Total', d.total)])
+            # QuickBooks merges rows that share a Bill no. into one bill: a number already used gets the id added,
+            # the first keeps its own, so an earlier import still matches
+            number = d.doc_number and (f'{d.doc_number}-{r["id"]}' if d.doc_number in seen else d.doc_number)
+            seen.add(d.doc_number)
             # US date order; QuickBooks asks for the file's date format on import.
-            bill = [cell('text', d.doc_number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
+            bill = [cell('text', number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
                     f'{d.issue_date:%m/%d/%Y}', f'{(d.due_date or d.issue_date):%m/%d/%Y}', 'Uncategorized Expense']
             # 2 decimals, or 3 for currencies such as KWD
             rows += [bill + [cell('text', desc), f'{v:.2f}' if v == round(v, 2) else format(v.normalize(), 'f'), None] for desc, v in lines]

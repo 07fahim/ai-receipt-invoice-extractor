@@ -55,8 +55,8 @@
 - **Sends to review** only what failed a check. The review screen shows the original next to the fields, explains
   each failed check and can suggest a fix (never applied without a click). A date like 05/11/2021 is asked about,
   and the answer can be kept for every document from that vendor.
-- **Exports** CSV and Excel (every document read, with its status) and a QuickBooks bill import file (checked
-  documents only). A dashboard shows spending and tax per currency
+- **Exports** CSV, Excel and a QuickBooks bill import file (checked documents only; CSV and Excel can export
+  one status on request). A dashboard shows spending and tax per currency
   (amounts are never converted).
 - **Sends events** (`document.passed`, `needs_review`, `reviewed`, `failed`, `deleted`) to a webhook. The included
   n8n workflow writes each checked document to a Google Sheet and sends Telegram and email alerts for the ones that need
@@ -266,8 +266,9 @@ def from_crosscheck(body: bytes, signature: str, secret: str) -> bool:
 ```
 
 A send can be repeated after a timeout, so use `event_id` to ignore repeats. `document.deleted` is sent only for
-checked documents and carries just `id` and `status` (plus `event` and `event_id`). The Account page's "Send test"
-posts `{"event": "test", "id": null}` to your own saved address.
+checked documents (also a passed one that a second reading later sent to review) and carries just `id` and `status`
+(plus `event` and `event_id`). The Account page's "Send test" posts `{"event": "test", "id": null}` to your own
+saved address.
 
 ## Tests
 

@@ -37,9 +37,10 @@ CREATE TABLE IF NOT EXISTS vendor_date_orders (
     PRIMARY KEY (user_id, vendor)
 );
 CREATE TABLE IF NOT EXISTS reads (   -- one row per model read (upload or retry): the daily limit counts these,
-    user_id UUID NOT NULL,            -- so deleting documents does not give the quota back
+    user_id UUID,                     -- so deleting documents does not give the quota back (NULL once the account is deleted)
     at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE reads ALTER COLUMN user_id DROP NOT NULL;   -- was NOT NULL: deleted accounts' reads now stay for the app-wide cap
 CREATE INDEX IF NOT EXISTS reads_user ON reads (user_id, at);
 CREATE INDEX IF NOT EXISTS reads_at ON reads (at);  -- the app-wide cap counts every user's reads
 CREATE TABLE IF NOT EXISTS second_reads (   -- one row per second reading asked for: both caps count these, so

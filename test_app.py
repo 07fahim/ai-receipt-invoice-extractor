@@ -376,6 +376,10 @@ try:
     wb = load_workbook(io.BytesIO(c.get('/export').content))
     assert wb.sheetnames == ['Documents', 'Items'] and wb['Documents'].max_row == 4 and wb['Items'].max_row == 6
     assert wb['Items']['E2'].value == 3.0 and c.get('/export', params={'format': 'pdf'}).status_code == 422
+    # only checked documents by default; one waiting for review comes only when asked for (Erin has one)
+    assert c.get('/export', params={'format': 'csv'}, headers=erin).content.decode('utf-8-sig').count('\n') == 1
+    assert load_workbook(io.BytesIO(c.get('/export', headers=erin).content))['Documents'].max_row == 1
+    assert c.get('/export', params={'format': 'csv', 'status': 'needs_review'}, headers=erin).content.decode('utf-8-sig').count('\n') == 2
     dates = {h.value: x for h, x in zip(wb['Documents'][1], wb['Documents'][2])}
     assert dates['issue_date'].value.date() == date(2016, 5, 26) and dates['issue_date'].number_format == 'yyyy-mm-dd'  # a real date
     assert dates['due_date'].value is None and '2016-05-26' in csv_text  # CSV keeps ISO text
@@ -402,7 +406,11 @@ try:
     # documents without a date are skipped and counted
     ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 999.60,'
                           ' "total": 1000, "items": [{"description": "Rice", "amount": 999.60}]}')
-    upload(('r.jpg', JPG + b'rounded'))
+    r1_id = upload(('r.jpg', JPG + b'rounded')).json()[0]['id']
+    # another supplier's bill with the same number
+    ANSWERS['rounded2'] = ('{"vendor": "Other Round", "doc_number": "R1", "issue_date": "2024-01-03", "subtotal": 30,'
+                           ' "total": 30, "items": [{"description": "Tea", "amount": 10}, {"description": "Milk", "amount": 20}]}')
+    r2_id = upload(('r2.jpg', JPG + b'rounded2')).json()[0]['id']
     # "VAT included": passes the checks, and the bill keeps its item lines without adding the VAT again
     ANSWERS['vatincl'] = ('{"vendor": "Green Basket", "doc_number": "GB1", "issue_date": "2026-09-18", "currency": "BDT",'
                           ' "subtotal": 1150, "tax": 150, "tax_included": true, "total": 1150,'
@@ -420,6 +428,8 @@ try:
     assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
     assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']
     assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.00')]
+    # QuickBooks merges rows that share a Bill no. into one bill: the later R1 gets its id added, the first keeps its number
+    assert [x[0] for x in qb if x[1] == 'Round Co'] == ['R1'] and [x[0] for x in qb if x[1] == 'Other Round'] == [f'R1-{r2_id}'] * 2
 
     # any-language file names download fine
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
@@ -493,22 +503,42 @@ try:
     assert c.get('/usage', headers=carol).json() == {'used': 3, 'limit': 3}  # shown on the upload page
     app.DAILY_UPLOAD_LIMIT = 50
 
-    # delete account: everything of the user goes, other users keep theirs; a failed account removal keeps the data
+    # delete account: everything of the user goes, other users keep theirs
     frank = as_user(FRANK := str(uuid.uuid4()))
     c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
     removed = []
     real_delete = app.delete_auth_user
+    # not set up on the server: refused before anything is deleted
+    app.delete_auth_user = removed.append
+    os.environ.pop('SUPABASE_SECRET_KEY', None)
+    assert c.delete('/account', headers=frank).status_code == 503 and c.get('/stats', headers=frank).json()['documents'] == 1
+    assert removed == []
+    os.environ['SUPABASE_SECRET_KEY'] = 'test-key'
+    # the data is deleted and committed first: a failed sign-in removal then leaves no data behind, and the user,
+    # still signed in, can try again
     app.delete_auth_user = lambda uid: (_ for _ in ()).throw(RuntimeError('supabase down'))
-    assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 1
+    assert c.delete('/account', headers=frank).status_code == 502 and c.get('/stats', headers=frank).json()['documents'] == 0
     # a retry after Supabase already removed the account (its first answer lost) still counts as removed
     real_urlopen = urllib.request.urlopen
     def gone(*a, **k): raise urllib.error.HTTPError('u', 404, 'User not found', {}, None)
-    urllib.request.urlopen, os.environ['SUPABASE_SECRET_KEY'] = gone, 'test-key'
+    urllib.request.urlopen = gone
     real_delete(FRANK)  # no exception
     urllib.request.urlopen = real_urlopen
-    del os.environ['SUPABASE_SECRET_KEY']
-    app.delete_auth_user = removed.append
+    c.post('/documents', files=[('files', ('f.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))], headers=frank)
+
+    def removed_after_commit(uid):
+        with store.conn() as con:  # another connection sees only committed changes
+            assert con.execute('SELECT count(*) AS n FROM documents WHERE user_id = %s', (uid,)).fetchone()['n'] == 0
+        removed.append(uid)
+    app.delete_auth_user = removed_after_commit
+
+    def all_reads():
+        with store.conn() as con:
+            return con.execute("SELECT count(*) AS n FROM reads WHERE at > now() - interval '1 day'").fetchone()['n']
+    before = all_reads()
     assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
+    assert all_reads() == before  # its reads still count toward the app-wide cap
+    app.delete_auth_user = removed.append
     assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
 
     # duplicates: a later copy of the same invoice (same vendor, number and total) is flagged and links to the first;
@@ -780,6 +810,10 @@ try:
     d2 = c.get(f'/documents/{pass2_id}').json()
     fixed = {**d2['document'], 'total': '120'}
     assert not any(x['check'] == 'second_reading' for x in c.post('/check', json=fixed, params={'doc_id': pass2_id}).json()['checks'])
+    # it was sent as passed first, so the sheet has its row: deleting it still marks the row deleted
+    assert c.delete(f'/documents/{pass2_id}').status_code == 204
+    flush()
+    assert events[-1][0]['event'] == 'document.deleted' and events[-1][0]['id'] == pass2_id
     # a passed receipt whose second reading differs only in vendor case and a 0.00 line stays passed
     pass3_id = c.post('/documents', files=[('files', ('p3.jpg', io.BytesIO(JPG + b'pass3'), 'image/jpeg'))]).json()[0]['id']
     second_done()
@@ -885,14 +919,33 @@ try:
 
     # a document stuck in 'processing' (its job lost in a deploy) is read again by the sweep
     stuck = c.post('/documents', files=[('files', ('s.jpg', io.BytesIO(JPG + b'good'), 'image/jpeg'))]).json()[0]['id']
+    # one still waiting its turn in a batch (a slow AI service) is left to its own reading, never read twice
     with store.conn() as con:
         con.execute("UPDATE documents SET status = 'processing', updated_at = now() - interval '1 hour' WHERE id = %s", (stuck,))
+        queued = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status, updated_at) VALUES "
+                             "(%s, 'q.jpg', 'image/jpeg', %s, 'processing', now() - interval '1 hour') RETURNING id",
+                             (ALICE, JPG + b'good')).fetchone()['id']
+    app.QUEUED.add(queued)
     app.resume_stale()
     for _ in range(50):
         if c.get(f'/documents/{stuck}').json()['status'] != 'processing':
             break
         time.sleep(0.1)
     assert c.get(f'/documents/{stuck}').json()['status'] == 'passed'
+    app.RECOVERY.submit(lambda: None).result()  # every recovery reading is done
+    assert c.get(f'/documents/{queued}').json()['status'] == 'processing'
+    app.QUEUED.discard(queued)
+    c.delete(f'/documents/{queued}')
+    # saving the failure fails too (database down): process() still never raises, so a batch's next files still run
+    real_error, app.public_error = app.public_error, lambda e: (_ for _ in ()).throw(RuntimeError('database down'))
+    with store.conn() as con:
+        down = con.execute("INSERT INTO documents (user_id, file_name, mime, file, status) "
+                           "VALUES (%s, 'd.jpg', 'image/jpeg', %s, 'processing') RETURNING id", (ALICE, JPG + b'boom')).fetchone()['id']
+    app.QUEUED.add(down)
+    app.process(down)
+    app.public_error = real_error
+    assert down not in app.QUEUED
+    c.delete(f'/documents/{down}')
     # control characters typed into a field can't break the Excel export
     assert app.cell('vendor', 'A\x01B', xlsx=True) == 'AB'
     print('ok')
