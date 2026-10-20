@@ -77,7 +77,8 @@ export async function api(path: string, init: RequestInit = {}): Promise<Respons
     const detail = body?.detail;
     // a 422 lists the fields it rejected, e.g. a total typed as "12,50"
     const field = Array.isArray(detail) && detail[0] ? `${String(detail[0].loc?.at(-1) ?? "a field")}: ${detail[0].msg}` : null;
-    throw new Error(typeof detail === "string" ? detail : field ? `Check ${field}` : `Request failed (${res.status}). Please try again.`);
+    const message = typeof detail === "string" ? detail : field ? `Check ${field}` : `Request failed (${res.status}). Please try again.`;
+    throw Object.assign(new Error(message), { status: res.status }); // status lets callers tell a 404 apart
   }
   return res;
 }

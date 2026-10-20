@@ -52,11 +52,16 @@ export default function UploadPage() {
   useEffect(() => {
     if (!pendingKey) return;
     const timer = setTimeout(async () => {
+      const gone: number[] = []; // deleted meanwhile (e.g. in another tab): stop polling them
       const done = await Promise.all(
-        pendingKey.split(",").map((id) => getJSON<DocumentDetail>(`/documents/${id}`).catch(() => null)),
+        pendingKey.split(",").map((id) => getJSON<DocumentDetail>(`/documents/${id}`).catch((err) => {
+          if (err.status === 404) gone.push(Number(id));
+          return null;
+        })),
       );
       setEntries((list) =>
         list.map((e) => {
+          if (e.id && gone.includes(e.id)) return { ...e, id: undefined, status: undefined, error: "This file was deleted." };
           const d = done.find((x) => x?.id === e.id);
           return d ? { ...e, status: d.status, error: d.error ?? undefined, vendor: d.vendor, total: d.document?.total ?? null, currency: d.currency } : e;
         }),
