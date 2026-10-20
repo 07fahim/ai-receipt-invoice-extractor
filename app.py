@@ -15,6 +15,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from decimal import Decimal
@@ -1060,7 +1061,9 @@ def quickbooks_rows(uid):
     rows, skipped = [], 0
     with store.conn() as con:
         found = con.execute("SELECT id, document FROM documents WHERE user_id = %s AND status IN ('passed', 'reviewed') "
-                            'ORDER BY id', (uid,))
+                            'ORDER BY id', (uid,)).fetchall()
+        # QuickBooks merges rows that share a Bill no. into one bill, so a number on two documents gets the id added
+        used = Counter(r['document'].get('doc_number') for r in found)
         for r in found:
             d = Document.model_validate(r['document'])
             if d.issue_date is None or d.total is None:
@@ -1072,7 +1075,8 @@ def quickbooks_rows(uid):
             lines = next((ls for ls in (items + extra + ([('Tax', d.tax)] if d.tax else []), items + extra)
                           if items and sum(v for _, v in ls) == d.total), [('Total', d.total)])
             # US date order; QuickBooks asks for the file's date format on import.
-            bill = [cell('text', d.doc_number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
+            number = d.doc_number and (d.doc_number if used[d.doc_number] == 1 else f'{d.doc_number}-{r["id"]}')
+            bill = [cell('text', number or f'CC-{r["id"]}'), cell('text', d.vendor or 'Unknown supplier'),
                     f'{d.issue_date:%m/%d/%Y}', f'{(d.due_date or d.issue_date):%m/%d/%Y}', 'Uncategorized Expense']
             # 2 decimals, or 3 for currencies such as KWD
             rows += [bill + [cell('text', desc), f'{v:.2f}' if v == round(v, 2) else format(v.normalize(), 'f'), None] for desc, v in lines]

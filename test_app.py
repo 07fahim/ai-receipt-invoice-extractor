@@ -402,7 +402,11 @@ try:
     # documents without a date are skipped and counted
     ANSWERS['rounded'] = ('{"vendor": "Round Co", "doc_number": "R1", "issue_date": "2024-01-02", "subtotal": 999.60,'
                           ' "total": 1000, "items": [{"description": "Rice", "amount": 999.60}]}')
-    upload(('r.jpg', JPG + b'rounded'))
+    r1_id = upload(('r.jpg', JPG + b'rounded')).json()[0]['id']
+    # another supplier's bill with the same number
+    ANSWERS['rounded2'] = ('{"vendor": "Other Round", "doc_number": "R1", "issue_date": "2024-01-03", "subtotal": 30,'
+                           ' "total": 30, "items": [{"description": "Tea", "amount": 10}, {"description": "Milk", "amount": 20}]}')
+    r2_id = upload(('r2.jpg', JPG + b'rounded2')).json()[0]['id']
     # "VAT included": passes the checks, and the bill keeps its item lines without adding the VAT again
     ANSWERS['vatincl'] = ('{"vendor": "Green Basket", "doc_number": "GB1", "issue_date": "2026-09-18", "currency": "BDT",'
                           ' "subtotal": 1150, "tax": 150, "tax_included": true, "total": 1150,'
@@ -420,6 +424,8 @@ try:
     assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
     assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']
     assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.00')]
+    # QuickBooks merges rows that share a Bill no. into one bill: two documents numbered R1 get their ids added
+    assert [x[0] for x in qb if x[1] == 'Round Co'] == [f'R1-{r1_id}'] and [x[0] for x in qb if x[1] == 'Other Round'] == [f'R1-{r2_id}'] * 2
 
     # any-language file names download fine
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
