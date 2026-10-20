@@ -199,7 +199,7 @@ export default function UploadPage() {
       {usage && (
         <p className={cn("mt-2.5 text-sm", limitReached ? "font-medium text-bad" : "text-muted-foreground")} aria-live="polite">
           {limitReached
-            ? "No reads left today. Try again tomorrow."
+            ? "No reads left today. Try again later."
             : `${left} of ${usage.limit} reads left today.`}
         </p>
       )}
