@@ -428,8 +428,8 @@ try:
     assert [(x[5], x[6]) for x in qb if x[0] == f'CC-{good_id}'] == [('Total', '60.00')]
     assert first[0][1:5] == ['Green Field', '05/26/2016', '05/26/2016', 'Uncategorized Expense']
     assert [(x[5], x[6]) for x in qb if x[1] == 'Round Co'] == [('Total', '1000.00')]
-    # QuickBooks merges rows that share a Bill no. into one bill: two documents numbered R1 get their ids added
-    assert [x[0] for x in qb if x[1] == 'Round Co'] == [f'R1-{r1_id}'] and [x[0] for x in qb if x[1] == 'Other Round'] == [f'R1-{r2_id}'] * 2
+    # QuickBooks merges rows that share a Bill no. into one bill: the later R1 gets its id added, the first keeps its number
+    assert [x[0] for x in qb if x[1] == 'Round Co'] == ['R1'] and [x[0] for x in qb if x[1] == 'Other Round'] == [f'R1-{r2_id}'] * 2
 
     # any-language file names download fine
     uni_id = upload(('領収書.jpg', JPG + b'good')).json()[0]['id']
