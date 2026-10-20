@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1040" width="1200" height="1040" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
-  <title>How Crosscheck is built: the Next.js web app on Vercel sends uploads to a FastAPI API on Render. Gemini 3.1 Flash-Lite reads each page, plain Python checks test the reading, passed documents are ready to export and flagged ones go to review. A second reading by Gemini 3.5 Flash, an assistant, exports and signed webhooks to n8n are attached. Everything is stored in Postgres on Supabase.</title>
+  <title>How Crosscheck is built: the Next.js web app on Vercel sends uploads to a FastAPI API on Render. Gemini 3.1 Flash-Lite reads each image or PDF, plain Python checks test the reading, passed documents are ready to export and flagged ones go to review. A second reading by Gemini 3.5 Flash, an assistant, exports and signed webhooks to n8n are attached. Everything is stored in Postgres on Supabase.</title>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
@@ -92,7 +92,7 @@
   <circle cx="270" cy="327" r="14" fill="#EEF2FF"/>
   <text x="270" y="332" text-anchor="middle" font-size="15" font-weight="700" fill="#1D4ED8">2</text>
   <text x="292" y="334" font-size="19" font-weight="700" fill="#111827">Reading</text>
-  <text x="264" y="368" font-size="14" fill="#374151">Each image or PDF page</text>
+  <text x="264" y="368" font-size="14" fill="#374151">Each image or PDF</text>
   <text x="264" y="389" font-size="14" fill="#374151">comes back as JSON with</text>
   <text x="264" y="410" font-size="14" fill="#374151">every field and line item</text>
   <text x="264" y="436" font-size="13" fill="#6B7280">providers.py</text>
@@ -140,7 +140,7 @@
   <!-- exports -->
   <text x="510" y="712" font-size="18" font-weight="700" fill="#111827">Exports</text>
   <text x="510" y="744" font-size="14" font-weight="600" fill="#111827">CSV and Excel</text>
-  <text x="510" y="765" font-size="14" fill="#374151">all read documents</text>
+  <text x="510" y="765" font-size="14" fill="#374151">passed or reviewed</text>
   <text x="510" y="796" font-size="14" font-weight="600" fill="#111827">QuickBooks bills</text>
   <text x="510" y="817" font-size="14" fill="#374151">passed or reviewed</text>
 
@@ -179,7 +179,8 @@
   <text x="50" y="708" font-size="13" font-weight="700" fill="#6B7280" letter-spacing="1">CHAT MODELS</text>
   <text x="50" y="736" font-size="17" font-weight="700" fill="#111827">Gemini</text>
   <text x="50" y="758" font-size="17" font-weight="700" fill="#111827">Qwen</text>
-  <text x="50" y="790" font-size="14" fill="#374151">assistant answers</text>
+  <text x="50" y="780" font-size="17" font-weight="700" fill="#111827">OpenRouter</text>
+  <text x="50" y="812" font-size="14" fill="#374151">assistant answers</text>
   <path d="M206 765 H242" stroke="#94A3B8" stroke-width="2" fill="none" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 
   <!-- webhook targets -->
