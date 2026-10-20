@@ -13,11 +13,11 @@ import { cn } from "@/lib/utils";
 
 const features = [
   { icon: Upload, title: "Upload in batches", text: "Drop up to 20 photos or PDFs at once." },
-  { icon: Languages, title: "English and Bangla", text: "Works with receipts, invoices and handwritten memos in either language." },
+  { icon: Languages, title: "English and Bangla", text: "Reads receipts, invoices and handwritten memos in English or Bangla. Handwriting gets flagged most often." },
   { icon: ClipboardCheck, title: "Review only what needs it", text: "Receipts that pass every check go straight to your export. You only open the ones that need a look." },
   { icon: Search, title: "Find any document", text: "Search by supplier and filter by status. The dashboard shows what you spent, the tax you paid and your top suppliers." },
   { icon: Download, title: "Export anywhere", text: "Download a CSV or Excel file for your accountant, or a file QuickBooks imports as bills." },
-  { icon: Webhook, title: "Send to your tools", text: "Add each document to Google Sheets, or get an email or Telegram alert when one needs review." },
+  { icon: Webhook, title: "Send to your tools", text: "Send each document to your own webhook. The included n8n workflow adds it to Google Sheets and sends an email or Telegram alert when one needs review." },
 ];
 
 // Who it is for: the paper that comes in from outside, which a POS or accounting system does not capture.
@@ -37,7 +37,7 @@ const fixes = [
   { icon: Scale, text: "Weighed items like meat and produce" },
   { icon: Hash, text: "A wrong digit in a price or total" },
   { icon: CalendarDays, text: "Dates that could mean two different days" },
-  { icon: ScanSearch, text: "A second opinion from another AI model on anything flagged" },
+  { icon: ScanSearch, text: "A second opinion from another AI model on flagged documents, while the daily quota lasts" },
 ];
 
 const questions = ["How much did I spend last month?", "Which bills are due this week?", "Why is this receipt flagged?"];
@@ -49,7 +49,7 @@ const checks = [
   ["Tax matches the rate on the bill", "VAT, GST or sales tax, and printed discounts"],
   ["Tax numbers are valid", "Catches mistyped GSTIN and UK VAT numbers"],
   ["Dates make sense", "A date like 05/11 is sent to you to confirm"],
-  ["Nothing is missing", "Total, items and currency are all there"],
+  ["Nothing is missing", "A total and line items are there"],
   ["No duplicates", "The same bill uploaded twice is caught"],
   ["One bill per photo", "Two receipts in one photo are flagged"],
 ];
@@ -240,7 +240,8 @@ export default function Home() {
               ))}
             </ul>
             <p className="mt-6 text-foreground/75">
-              When a check fails, a second AI model reads the document again and shows where the two readings disagree.
+              When a check fails, a second AI model can read the document again and show where the two readings disagree.
+              The demo has a small daily quota for this.
             </p>
           </div>
         </section>
