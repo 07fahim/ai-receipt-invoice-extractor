@@ -59,7 +59,9 @@ export default function DocumentsPage() {
 
   async function exportAs(format: "csv" | "xlsx" | "quickbooks") {
     try {
-      const res = await download(`/export?format=${format}`, `documents.${format === "xlsx" ? "xlsx" : "csv"}`);
+      // CSV and Excel hold checked documents, or the status picked in the filter (QuickBooks: always checked ones)
+      const only = status && format !== "quickbooks" ? `&status=${status}` : "";
+      const res = await download(`/export?format=${format}${only}`, `documents.${format === "xlsx" ? "xlsx" : "csv"}`);
       const skipped = Number(res.headers.get("X-Skipped") ?? 0);
       if (skipped) toast.info(`${skipped} document${skipped > 1 ? "s" : ""} without a date or total left out.`);
     } catch (e) {
