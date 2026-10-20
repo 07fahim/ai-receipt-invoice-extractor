@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) return NextResponse.redirect(`${origin}${target}`);
+    return NextResponse.redirect(`${origin}/login?error=link`);
   }
-  return NextResponse.redirect(`${origin}/login?error=link`);
+  // no code: Google sign-in was cancelled or refused, unless Supabase says an emailed link expired
+  const expired = searchParams.get("error_code") === "otp_expired";
+  return NextResponse.redirect(`${origin}/login?error=${expired ? "link" : "signin"}`);
 }

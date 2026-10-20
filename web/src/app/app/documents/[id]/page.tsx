@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { api, getJSON, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type SecondChange, type Suggestion } from "@/lib/api";
+import { api, getJSON, money, sendJSON, type Check, type Doc, type DocumentDetail, type DocumentRow, type Item, type SecondChange, type Suggestion } from "@/lib/api";
 import { cn, skip, skippedIds } from "@/lib/utils";
 
 type Order = "MDY" | "DMY";
@@ -148,10 +148,19 @@ export default function ReviewPage() {
     return () => removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  // leaving for another document with unsaved edits asks first
-  function leaveCheck(e: React.MouseEvent) {
-    if (dirty && !window.confirm("Leave without saving your changes?")) e.preventDefault();
-  }
+  // any link in the app (sidebar, assistant, prev/next) asks first; Next's Link skips navigation when the click is prevented
+  useEffect(() => {
+    if (!dirty) return;
+    const guard = (e: MouseEvent) => {
+      const a = (e.target as Element).closest?.("a[href]");
+      const target = a?.getAttribute("target");
+      // a new tab or a download keeps this page open
+      if (!a || (target && target !== "_self") || a.hasAttribute("download") || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!window.confirm("Leave without saving your changes?")) e.preventDefault();
+    };
+    document.addEventListener("click", guard, true);
+    return () => document.removeEventListener("click", guard, true);
+  }, [dirty]);
 
   const issues = checks.filter((c) => c.level !== "note");
   const notes = checks.filter((c) => c.level === "note");
@@ -277,7 +286,9 @@ export default function ReviewPage() {
 
   const pos = queue.indexOf(Number(id));
   const canReadAgain = detail.status === "failed" || detail.status === "needs_review";
-  const itemsTotal = doc?.items.reduce((s, i) => s + Number(i.amount ?? 0) - Math.abs(Number(i.discount ?? 0)), 0) ?? 0;
+  // a half-typed amount like "12,5" is left out rather than turning the total into NaN
+  const num = (v: string | null) => (isNaN(Number(v)) ? 0 : Number(v));
+  const itemsTotal = doc?.items.reduce((s, i) => s + num(i.amount) - Math.abs(num(i.discount)), 0) ?? 0;
 
   return (
     <div>
@@ -296,10 +307,10 @@ export default function ReviewPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {pos + 1} of {queue.length}
               <Button variant="outline" size="icon" aria-label="Previous document" disabled={pos === 0} asChild={pos > 0}>
-                {pos > 0 ? <Link href={`/app/documents/${queue[pos - 1]}`} onClick={leaveCheck}><ArrowLeft /></Link> : <ArrowLeft />}
+                {pos > 0 ? <Link href={`/app/documents/${queue[pos - 1]}`}><ArrowLeft /></Link> : <ArrowLeft />}
               </Button>
               <Button variant="outline" size="icon" aria-label="Next document" disabled={pos === queue.length - 1} asChild={pos < queue.length - 1}>
-                {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`} onClick={leaveCheck}><ArrowRight /></Link> : <ArrowRight />}
+                {pos < queue.length - 1 ? <Link href={`/app/documents/${queue[pos + 1]}`}><ArrowRight /></Link> : <ArrowRight />}
               </Button>
             </div>
           )}
@@ -468,8 +479,8 @@ export default function ReviewPage() {
                   + Add line
                 </button>
                 <span className="tabular-nums">
-                  Lines total {itemsTotal.toFixed(2)}
-                  {doc.subtotal !== null && !isNaN(Number(doc.subtotal)) && <> · Subtotal {Number(doc.subtotal).toFixed(2)}</>}
+                  Lines total {money(itemsTotal, doc.currency)}
+                  {doc.subtotal !== null && !isNaN(Number(doc.subtotal)) && <> · Subtotal {money(doc.subtotal, doc.currency)}</>}
                 </span>
               </div>
             </Group>
@@ -720,6 +731,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
   const [pages, setPages] = useState(1);
   const [page, setPage] = useState(0);
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null); // the id/page whose image could not be fetched
   const [zoom, setZoom] = useState(1);
   const [turn, setTurn] = useState(0);
 
@@ -736,7 +748,9 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
       .then((b) => {
         if (!gone) setSrc((url = URL.createObjectURL(b)));
       })
-      .catch(() => !gone && setSrc(null));
+      .catch(() => {
+        if (!gone) { setSrc(null); setFailed(`${id}/${page}`); }
+      });
     return () => {
       gone = true;
       if (url) URL.revokeObjectURL(url);
@@ -775,7 +789,7 @@ function Viewer({ id, mime, fileName, onReadAgain, onDelete }: {
             style={{ width: `${zoom * 100}%`, height: zoom > 1 ? "auto" : "100%", transform: `rotate(${turn}deg)` }}
           />
         ) : (
-          <p className="p-6 text-sm text-muted-foreground">Loading the original…</p>
+          <p className="p-6 text-sm text-muted-foreground">{failed === `${id}/${page}` ? "Could not load the file." : "Loading the original…"}</p>
         )}
       </div>
     </section>

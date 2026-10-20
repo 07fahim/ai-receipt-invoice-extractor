@@ -64,6 +64,7 @@ export default function DashboardPage() {
       .then((s) => {
         if (!current) return;
         setStats(s);
+        setError(null);
         // keep the chosen currency; otherwise start with the one that has the most documents
         const top = [...s.spend_by_currency].sort((a, b) => b.n - a.n)[0];
         setCurrency((c) => (c && (!s.spend_by_currency.length || s.spend_by_currency.some((x) => (x.currency ?? NO_CURRENCY) === c)) ? c : top ? top.currency ?? NO_CURRENCY : null));
@@ -75,8 +76,7 @@ export default function DashboardPage() {
     getJSON<DocumentRow[]>("/documents?limit=5").then(setRecent).catch(() => {});
   }, []);
 
-  if (error) return <p className="text-bad">{error}</p>;
-  if (!stats) return <p className="text-muted-foreground">Loading…</p>;
+  if (!stats) return error ? <p className="text-bad">{error}</p> : <p className="text-muted-foreground">Loading…</p>;
 
   if (stats.documents === 0) {
     return (
@@ -127,6 +127,9 @@ export default function DashboardPage() {
           <Button asChild className="h-9"><Link href="/app/upload">Upload documents</Link></Button>
         </div>
       </div>
+
+      {/* a failed range change keeps the page and its range picker, so another range can be tried */}
+      {error && <p role="alert" className="mb-5 rounded-md bg-bad-soft px-3 py-2 text-sm text-bad">Could not load this range. {error}</p>}
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Total spend" value={spend ? money(spend.total) : "–"} unit={spend ? code : undefined}>

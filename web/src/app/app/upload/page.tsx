@@ -52,11 +52,16 @@ export default function UploadPage() {
   useEffect(() => {
     if (!pendingKey) return;
     const timer = setTimeout(async () => {
+      const gone: number[] = []; // deleted meanwhile (e.g. in another tab): stop polling them
       const done = await Promise.all(
-        pendingKey.split(",").map((id) => getJSON<DocumentDetail>(`/documents/${id}`).catch(() => null)),
+        pendingKey.split(",").map((id) => getJSON<DocumentDetail>(`/documents/${id}`).catch((err) => {
+          if (err.status === 404) gone.push(Number(id));
+          return null;
+        })),
       );
       setEntries((list) =>
         list.map((e) => {
+          if (e.id && gone.includes(e.id)) return { ...e, id: undefined, status: undefined, error: "This file was deleted." };
           const d = done.find((x) => x?.id === e.id);
           return d ? { ...e, status: d.status, error: d.error ?? undefined, vendor: d.vendor, total: d.document?.total ?? null, currency: d.currency } : e;
         }),
@@ -66,7 +71,11 @@ export default function UploadPage() {
   }, [pendingKey, entries]);
 
   const send = useCallback(async (files: File[]) => {
-    if (!files.length || busy) return;
+    if (!files.length) return;
+    if (busy) {
+      toast.error("Wait for this batch to finish.");
+      return;
+    }
     if (files.length > 20) {
       toast.error("Upload up to 20 files at a time.");
       return;
@@ -181,16 +190,16 @@ export default function UploadPage() {
         <span className="mt-1 text-sm text-muted-foreground">JPG, PNG, WebP, HEIC or PDF · up to 10 MB each</span>
         <span className="mt-0.5 hidden text-sm text-muted-foreground pointer-fine:inline">or paste an image with Ctrl+V</span>
         <span className="mt-2 text-[13px] text-muted-foreground">Tip: lay the receipt flat in good light and fill the frame.</span>
-        <Button asChild className="mt-4 h-10 px-4" disabled={busy}>
+        <Button asChild className={cn("mt-4 h-10 px-4", busy && "opacity-50")}>
           <span>{busy ? "Uploading…" : "Choose files"}</span>
         </Button>
-        <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => send([...(e.target.files ?? [])])} />
+        <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only" disabled={busy} onChange={(e) => send([...(e.target.files ?? [])])} />
       </label>
 
       {usage && (
         <p className={cn("mt-2.5 text-sm", limitReached ? "font-medium text-bad" : "text-muted-foreground")} aria-live="polite">
           {limitReached
-            ? "No reads left today. Try again tomorrow."
+            ? "No reads left today. Try again later."
             : `${left} of ${usage.limit} reads left today.`}
         </p>
       )}

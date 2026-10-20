@@ -77,7 +77,8 @@ export async function api(path: string, init: RequestInit = {}): Promise<Respons
     const detail = body?.detail;
     // a 422 lists the fields it rejected, e.g. a total typed as "12,50"
     const field = Array.isArray(detail) && detail[0] ? `${String(detail[0].loc?.at(-1) ?? "a field")}: ${detail[0].msg}` : null;
-    throw new Error(typeof detail === "string" ? detail : field ? `Check ${field}` : `Request failed (${res.status}). Please try again.`);
+    const message = typeof detail === "string" ? detail : field ? `Check ${field}` : `Request failed (${res.status}). Please try again.`;
+    throw Object.assign(new Error(message), { status: res.status }); // status lets callers tell a 404 apart
   }
   return res;
 }
@@ -108,7 +109,14 @@ export async function download(path: string, fallbackName: string) {
 
 export function money(value: string | number | null, currency?: string | null) {
   if (value === null || value === undefined) return "–";
-  // 2 decimals, 3 for currencies such as KWD
-  const n = Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+  // the currency's own decimals (JPY 0, KWD 3); else 2, or 3 if the amount has them
+  let digits = { minimumFractionDigits: 2, maximumFractionDigits: 3 };
+  try {
+    if (currency) {
+      const d = new Intl.NumberFormat("en-US", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+      digits = { minimumFractionDigits: d, maximumFractionDigits: d };
+    }
+  } catch {} // not a currency code, e.g. "XX"
+  const n = Number(value).toLocaleString("en-US", digits);
   return currency ? `${n} ${currency}` : n;
 }

@@ -24,10 +24,11 @@ export function FormError({ message }: { message: string | null }) {
   ) : null;
 }
 
-/** The message for ?error=link: an emailed link or Google sign-in that failed or expired. Needs a Suspense boundary. */
+/** The message for ?error=link (an emailed link or sign-in code that failed or expired) or ?error=signin (Google sign-in cancelled). Needs a Suspense boundary. */
 export function LinkError() {
-  const failed = useSearchParams().get("error") === "link";
-  return <FormError message={failed ? "This link has expired. Please try again." : null} />;
+  const error = useSearchParams().get("error");
+  const message = error === "link" ? "This link has expired. Please try again." : error === "signin" ? "Sign-in didn't finish. Please try again." : null;
+  return <FormError message={message} />;
 }
 
 /** Runs an async action with a busy flag and a readable error message. */
