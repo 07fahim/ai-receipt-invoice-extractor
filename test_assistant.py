@@ -56,6 +56,7 @@ os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
 KEY = ec.generate_private_key(ec.SECP256R1())
 app.signing_key = lambda token: KEY.public_key()
 app.delete_auth_user = lambda uid: None
+os.environ['SUPABASE_SECRET_KEY'] = 'test-key'  # account deletion refuses to start without one (CI has none)
 ALICE, BOB, CARL = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
 
 
