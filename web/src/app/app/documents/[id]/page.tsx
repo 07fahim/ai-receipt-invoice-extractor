@@ -505,7 +505,7 @@ export default function ReviewPage() {
             {suggestion && (
               <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p className="font-medium">Suggested fix</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message} Compare with the photo before applying.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message}</p>
                 {suggestion.options ? (
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                     {suggestion.options.map((o) => (
@@ -537,7 +537,7 @@ export default function ReviewPage() {
             {second.length > 0 && (
               <div className="mb-3 rounded-md border p-3 text-sm">
                 <p className="font-medium">Second reading</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Another reading found different values. Compare with the photo first.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">A second read of the photo found different values. Check those fields on the photo.</p>
                 <ul className="mt-1.5 space-y-1 text-xs">
                   {second.map((c) => (
                     <li key={c.field} className="flex items-center justify-between gap-2">
