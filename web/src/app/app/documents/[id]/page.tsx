@@ -153,7 +153,9 @@ export default function ReviewPage() {
     if (!dirty) return;
     const guard = (e: MouseEvent) => {
       const a = (e.target as Element).closest?.("a[href]");
-      if (!a || a.getAttribute("target") === "_blank" || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const target = a?.getAttribute("target");
+      // a new tab or a download keeps this page open
+      if (!a || (target && target !== "_self") || a.hasAttribute("download") || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (!window.confirm("Leave without saving your changes?")) e.preventDefault();
     };
     document.addEventListener("click", guard, true);
