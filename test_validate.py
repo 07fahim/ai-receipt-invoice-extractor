@@ -386,7 +386,7 @@ assert found(**{**greenleaf, 'tax': D('2.88'), 'total': D('17.28'), 'seller_tax_
     {'tax_id_invalid': 'GB123 4567 89 is not a real UK VAT number. If the photo shows the same, ask the seller for the right one. '
                        'You need it to claim the VAT back.'}
 assert found(**{**gst_halves, 'seller_tax_id': '07AAHCA1234F1Z6'}) == \
-    {'tax_id_invalid': '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.'}
+    {'tax_id_invalid': '07AAHCA1234F1Z6 is not a real GSTIN. If the photo shows the same, ask the seller for the right one. You need it to claim the GST back.'}
 assert found(**{**mehedi, 'tax': D('127.68'), 'total': D('978.88'), 'seller_tax_id': None}) == \
     {'tax_id_missing': 'No seller BIN found. You need it to claim this VAT back. Check the photo or ask the seller.'}  # Bangladesh says BIN
 assert found(**{**gst_halves, 'seller_tax_id': None}) == {'tax_id_missing': 'No seller GSTIN found. You need it to claim this GST back. Check the photo or ask the seller.'}

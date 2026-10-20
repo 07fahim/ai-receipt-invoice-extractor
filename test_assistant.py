@@ -111,7 +111,7 @@ def bangla_messages():
                 'A 10% discount on 26.85 is 2.69 but the discount says 3.49. If the photo shows 3.49, ask the seller or save anyway.',
                 'GB123 4567 89 is not a real UK VAT number. If the photo shows the same, ask the seller for the right one. '
                 'You need it to claim the VAT back.',
-                '07AAHCA1234F1Z6 is not a valid GSTIN. Check it on the document.',
+                '07AAHCA1234F1Z6 is not a real GSTIN. If the photo shows the same, ask the seller for the right one. You need it to claim the GST back.',
                 'No seller VAT number found. You need it to claim this VAT back. Check the photo or ask the seller.',
                 'No seller BIN found. You need it to claim this VAT back. Check the photo or ask the seller.',
                 'No seller GSTIN found. You need it to claim this GST back. Check the photo or ask the seller.',
@@ -120,7 +120,7 @@ def bangla_messages():
                 'With total 36.30 every sum adds up. Apply it if the photo shows 36.30. If not, the seller added it up wrong.',
                 'Changing the tax or the total makes the sums add up. Pick the one the photo shows. If neither, the seller added it up wrong.',
                 'Changing the total or adding a missed charge makes the sums add up. Pick the one the photo shows.',
-                'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.',
+                'Changing the tax or the total or adding a missed charge makes the sums add up. Pick the one the photo shows.',
                 'Tax 3.30', 'Other charge 5', 'Total 41.30']
     assert len(examples) == len(assistant.BANGLA)
     # a new check or fix-suggestion message needs a Bangla pattern in assistant.BANGLA and an example here:

@@ -224,7 +224,8 @@ def tax_id_problem(raw, currency=None):
         return None if uk_vat_valid(s[2:11]) else (f'{raw} is not a real UK VAT number. If the photo shows the same, '
                                                        'ask the seller for the right one. You need it to claim the VAT back.')
     if len(s) == 15 and s[:2].isdigit() and s[13] == 'Z':
-        return None if gstin_valid(s) else f'{raw} is not a valid GSTIN. Check it on the document.'
+        return None if gstin_valid(s) else (f'{raw} is not a real GSTIN. If the photo shows the same, '
+                                                    'ask the seller for the right one. You need it to claim the GST back.')
     return None
 
 
@@ -511,7 +512,7 @@ def suggest(doc: Document) -> dict | None:
             message = {('tax', 'total'): 'Changing the tax or the total makes the sums add up. Pick the one the photo shows. '
                                          'If neither, the seller added it up wrong.',
                        ('total', 'service_charge'): 'Changing the total or adding a missed charge makes the sums add up. Pick the one the photo shows.',
-                       ('tax', 'total', 'service_charge'): 'The tax or the total was misread, or a charge was not read. Pick the one the photo shows.'}
+                       ('tax', 'total', 'service_charge'): 'Changing the tax or the total or adding a missed charge makes the sums add up. Pick the one the photo shows.'}
             label = {'tax': 'Tax', 'total': 'Total', 'service_charge': 'Other charge'}
             return {'message': message[tuple(f for f, _ in options)], 'changes': [],
                     'options': [{'label': f'{label[f]} {num(v - (doc.service_charge or 0) if f == "service_charge" else v)}',

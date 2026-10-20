@@ -156,7 +156,9 @@ BANGLA = [(re.compile(p), t) for p, t in [
     (r'(.+) is not a real UK VAT number\. If the photo shows the same, ask the seller for the right one\. '
      r'You need it to claim the VAT back\.',
      '{0} আসল ইউকে ভ্যাট নম্বর নয়। ছবিতেও একই থাকলে বিক্রেতার কাছে সঠিক নম্বরটি চেয়ে নিন। ভ্যাট ফেরত দাবি করতে এটি লাগবে।'),
-    (r'(.+) is not a valid GSTIN\. Check it on the document\.', '{0} সঠিক জিএসটিআইএন নয়। ডকুমেন্টে নম্বরটি মিলিয়ে দেখুন।'),
+    (r'(.+) is not a real GSTIN\. If the photo shows the same, ask the seller for the right one\. '
+     r'You need it to claim the GST back\.',
+     '{0} আসল জিএসটিআইএন নয়। ছবিতেও একই থাকলে বিক্রেতার কাছে সঠিক নম্বরটি চেয়ে নিন। জিএসটি ফেরত দাবি করতে এটি লাগবে।'),
     (r'No seller VAT number found\. You need it to claim this VAT back\. Check the photo or ask the seller\.',
      'বিক্রেতার ভ্যাট নম্বর পাওয়া যায়নি। এই ভ্যাট ফেরত দাবি করতে এটি লাগবে। ছবিতে দেখুন অথবা বিক্রেতাকে জিজ্ঞেস করুন।'),
     (r'No seller BIN found\. You need it to claim this VAT back\. Check the photo or ask the seller\.',
@@ -173,8 +175,8 @@ BANGLA = [(re.compile(p), t) for p, t in [
      'কর অথবা মোট বদলালে যোগফল মিলে যায়। ছবিতে যেটি আছে সেটি বেছে নিন। কোনোটিই না থাকলে বিক্রেতা যোগে ভুল করেছেন।'),
     (r'Changing the total or adding a missed charge makes the sums add up\. Pick the one the photo shows\.',
      'মোট বদলালে অথবা বাদ পড়া একটি চার্জ যোগ করলে যোগফল মিলে যায়। ছবিতে যেটি আছে সেটি বেছে নিন।'),
-    (r'The tax or the total was misread, or a charge was not read\. Pick the one the photo shows\.',
-     'কর অথবা মোট ভুল পড়া হয়েছে, অথবা একটি চার্জ পড়া হয়নি। ছবিতে যেটি আছে সেটি বেছে নিন।'),
+    (r'Changing the tax or the total or adding a missed charge makes the sums add up\. Pick the one the photo shows\.',
+     'কর বা মোট বদলালে অথবা বাদ পড়া একটি চার্জ যোগ করলে যোগফল মিলে যায়। ছবিতে যেটি আছে সেটি বেছে নিন।'),
     (r'Tax (\S+)', 'কর {0}'),  # option labels of the tax-or-total suggestion
     (r'Other charge (\S+)', 'অন্য চার্জ {0}'),
     (r'Total (\S+)', 'মোট {0}'),
