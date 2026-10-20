@@ -20,6 +20,7 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Total read as printed", ["total_format"]],
   ["Quantity × price = amount", ["line_math"]],
   ["Tax matches its rate", ["tax_rate"]],
+  ["VAT table adds up", ["vat_row", "vat_rows_tax"]],
   ["Discount matches its rate", ["discount_rate"]],
   ["Tax number is valid", ["tax_id_invalid"]],
   ["Dates are valid", ["date_future", "due_before_issue"]],
@@ -516,7 +517,7 @@ export default function ReviewPage() {
             {suggestion && (
               <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p className="font-medium">Suggested fix</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message} Compare with the photo before applying.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{suggestion.message}</p>
                 {suggestion.options ? (
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                     {suggestion.options.map((o) => (
@@ -548,7 +549,7 @@ export default function ReviewPage() {
             {second.length > 0 && (
               <div className="mb-3 rounded-md border p-3 text-sm">
                 <p className="font-medium">Second reading</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Another reading found different values. Compare with the photo first.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">A second read of the photo found different values. Check those fields on the photo.</p>
                 <ul className="mt-1.5 space-y-1 text-xs">
                   {second.map((c) => (
                     <li key={c.field} className="flex items-center justify-between gap-2">
@@ -567,8 +568,10 @@ export default function ReviewPage() {
               {CHECK_GROUPS.filter(([, names]) => !names.includes("second_reading") || detail.second_read
                 || issues.some((c) => names.includes(c.check)))
                 .filter(([, names]) => !names.includes("tax_id_invalid") || !!doc?.seller_tax_id)
+                .filter(([, names]) => !names.includes("vat_row") || !!doc?.vat_lines?.length)
                 .map(([label, names]) => {
-                const issue = issues.find((c) => names.includes(c.check));
+                const found = issues.filter((c) => names.includes(c.check));
+                const issue = found.length > 0;
                 return (
                   <li key={label} className={cn("flex gap-2 py-1.5", issue && "font-medium text-warn")}>
                     <span className={cn("w-4 text-center", !issue && "text-ok")}>
@@ -577,14 +580,14 @@ export default function ReviewPage() {
                     </span>
                     <span>
                       {label}
-                      {issue && (
-                        <span className="block text-xs font-normal">
-                          {issue.message}
-                          {issue.duplicate_of && (
-                            <> · <Link href={`/app/documents/${issue.duplicate_of}`} className="text-primary underline">Open it</Link></>
+                      {found.map((c, n) => (
+                        <span key={n} className="block text-xs font-normal">
+                          {c.message}
+                          {c.duplicate_of && (
+                            <> · <Link href={`/app/documents/${c.duplicate_of}`} className="text-primary underline">Open it</Link></>
                           )}
                         </span>
-                      )}
+                      ))}
                     </span>
                   </li>
                 );

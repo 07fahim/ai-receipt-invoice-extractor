@@ -30,6 +30,7 @@ export type Doc = {
   total_text?: string | null;
   tax_rate?: string | null;
   seller_tax_id?: string | null;
+  vat_lines?: unknown[];
   items: Item[];
 };
 

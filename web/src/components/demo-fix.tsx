@@ -5,23 +5,29 @@ import { Cursor, DemoFrame, useSteps } from "@/components/demo-frame";
 
 type Scene = {
   shop: string; lines: [string, string, string][]; subtotal: string; bad: number; fixed: string;
-  checks: string[]; fix: string;
+  checks: string[]; fix: [string, string];
 };
 
+// each check shows the first sentence of the app's message, and small screens show the fix's first sentence only:
+// the whole messages do not fit the frame
 const SCENES: Scene[] = [
   {
     shop: "MAPLE STREET MARKET", subtotal: "32.65", bad: 3, fixed: "4.47",
     lines: [["ORGANIC BANANAS", "2.31 lb @ 0.79", "1.82"], ["GREEK YOGURT 32OZ", "", "5.49"], ["EGGS LARGE 12CT", "", "3.89"],
       ["AVOCADO HASS", "3 @ 1.49", "4.97"], ["SOURDOUGH LOAF", "", "4.99"], ["COFFEE BEANS 12OZ", "", "11.99"]],
-    checks: ["Line items add up to 33.15. The subtotal is 32.65.", "3 x 1.49 = 4.47. The line says 4.97."],
-    fix: "Did you mean 4.47 instead of 4.97? Then every sum adds up.",
+    checks: ["The lines add up to 33.15 but the subtotal says 32.65.",
+      "AVOCADO HASS: 3 x 1.49 = 4.47 but the line says 4.97."],
+    fix: ["With 4.47 instead of 4.97, every sum adds up.",
+      "Apply it if the photo shows 4.47. If it shows 4.97, the seller made the mistake. Apply or save anyway."],
   },
   {
     shop: "মা-বাবার ফল ভান্ডার", subtotal: "1,230", bad: 2, fixed: "240",
     lines: [["আম (হিমসাগর)", "2 x 140", "280"], ["কলা (সাগর)", "1 x 60", "60"], ["কমলা (মালটা)", "2 x 120", "280"],
       ["আপেল (রেডেল গালা)", "1 x 200", "200"], ["আঙ্গুর (কালো)", "1 x 220", "220"], ["পেঁপে (পাকা)", "1 x 80", "80"], ["ড্রাগন ফল", "1 x 150", "150"]],
-    checks: ["Line items add up to 1,270. The subtotal is 1,230.", "2 x 120 = 240. The line says 280."],
-    fix: "Did you mean 240 instead of 280? Then every sum adds up.",
+    checks: ["The lines add up to 1,270 but the subtotal says 1,230.",
+      "কমলা (মালটা): 2 x 120 = 240 but the line says 280."],
+    fix: ["With 240 instead of 280, every sum adds up.",
+      "Apply it if the photo shows 240. If it shows 280, the seller made the mistake. Apply or save anyway."],
   },
 ];
 // per scene: reading, flagged, fix shown, cursor to Apply, click, all pass
@@ -74,7 +80,7 @@ export function DemoFix({ className }: { className?: string }) {
               <div className="overflow-hidden">
                 <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 @md:p-2.5">
                   <p className="hidden font-medium @md:block">Suggested fix</p>
-                  <p className="text-muted-foreground">{s.fix}</p>
+                  <p className="text-muted-foreground">{s.fix[0]}<span className="hidden @md:inline"> {s.fix[1]}</span></p>
                   <span className="relative mt-1.5 inline-block">
                     <span className={cn("inline-block rounded-md bg-primary px-2.5 py-0.5 font-medium text-primary-foreground transition-transform duration-150 @md:py-1",
                       p === 4 && "scale-90")}>Apply</span>
