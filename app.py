@@ -662,7 +662,7 @@ def meaningful_changes(doc: Document, second: Document, first: Document | None =
 
 def document_detail(con, doc_id, uid):
     r = get_row(con, doc_id, uid)
-    if r['status'] == 'needs_review' and any(c['check'] == 'duplicate' for c in r['checks'] or []):
+    if r['status'] in ('needs_review', 'reviewed') and any(c['check'] == 'duplicate' for c in r['checks'] or []):
         dup = store.duplicate_of(con, uid, Document(**r['document']), before_id=doc_id)
         # the original may have been deleted or corrected since: drop the flag, or link the copy still there
         r['checks'] = [duplicate_check(dup['id']) if c['check'] == 'duplicate' else c

@@ -290,6 +290,7 @@ one = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total
 assert one == {'message': 'With total 36.30 every sum adds up. Apply it if the photo shows 36.30. If not, the seller added it up wrong.', 'changes': [{'field': 'total', 'from': '26.30', 'to': '36.30'}]}, one
 three = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), total=D('41.30'), total_text='41.30', items=lines))
 assert [o['label'] for o in three['options']] == ['Tax 8.30', 'Total 36.30', 'Other charge 5'], three
+assert three['message'] == 'Changing the tax or the total or adding a missed charge makes the sums add up. Pick the one the photo shows.'
 # a service charge already read: the label gives the missed amount, the change the new service charge
 svc = suggest(Document(currency='USD', subtotal=D('33.00'), tax=D('3.30'), service_charge=D('2.00'), total=D('43.30'), total_text='43.30', items=lines))
 assert svc['options'][-1] == {'label': 'Other charge 5', 'changes': [{'field': 'service_charge', 'from': '2.00', 'to': '7.00'}]}, svc

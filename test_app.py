@@ -530,6 +530,11 @@ try:
     assert c.delete(f'/documents/{ids[0]}', headers=george).status_code == 204
     dup = c.get(f'/documents/{third}', headers=george).json()['checks'][0]
     assert dup['duplicate_of'] == ids[1] and f'#{ids[1]} ' in dup['message'] and f'#{ids[0]} ' not in dup['message'], dup
+    # saved anyway, then the other copy deleted too: the reviewed copy no longer points at a deleted one
+    doc3 = c.get(f'/documents/{third}', headers=george).json()['document']
+    assert c.put(f'/documents/{third}', json=doc3, headers=george).json()['status'] == 'reviewed'
+    assert c.delete(f'/documents/{ids[1]}', headers=george).status_code == 204
+    assert 'duplicate' not in [x['check'] for x in c.get(f'/documents/{third}', headers=george).json()['checks']]
 
     # iPhone HEIC photos are stored as JPEG (model, viewer and browsers can read them); a fake HEIC is refused
     from PIL import Image
