@@ -7,13 +7,13 @@ import { DemoFrame, useSteps } from "@/components/demo-frame";
 
 type Chat = { doc: [string, string][]; flagged: number; shop: string; date?: string; question: string; chip: string; answer: string[] };
 
-// answers recorded from the live assistant (doc #97 on 2026-10-08, doc #74 earlier)
+// answers recorded from the live assistant (doc #97 on 2026-10-08, doc #74 earlier); #97's check message updated to the current wording
 const CHATS: Chat[] = [
   {
     shop: "HARBOR FRESH MARKET", date: "Date: 10/03/2026", flagged: 5, question: "Why is this flagged?", chip: "Read document #97",
     answer: ["Document #97 is flagged for the following reasons:",
       "Is 10/03/2026 day first or month first? Readings: 3 Oct 2026 (month first), 10 Mar 2026 (day first).",
-      "In the AI's reading: Line items add up to 26.85. The subtotal is 29.85."],
+      "In the AI's reading: The lines add up to 26.85 but the subtotal says 29.85. If the photo shows the same, the seller added it up wrong. Ask the seller or save anyway."],
     doc: [["CHICKEN BREAST", "11.73"], ["WHOLE MILK 1 GAL", "4.29"], ["EGGS LARGE 12CT", "3.89"], ["BANANAS", "1.45"],
       ["SOURDOUGH BREAD", "5.49"], ["SUBTOTAL", "29.85"]],
   },
