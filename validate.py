@@ -225,7 +225,7 @@ def tax_id_problem(raw, currency=None):
                                                        'ask the seller for the right one. You need it to claim the VAT back.')
     if len(s) == 15 and s[:2].isdigit() and s[13] == 'Z':
         return None if gstin_valid(s) else (f'{raw} is not a real GSTIN. If the photo shows the same, '
-                                                    'ask the seller for the right one. You need it to claim the GST back.')
+                                            'ask the seller for the right one. You need it to claim the GST back.')
     return None
 
 
