@@ -20,6 +20,7 @@ const CHECK_GROUPS: [string, string[]][] = [
   ["Total read as printed", ["total_format"]],
   ["Quantity × price = amount", ["line_math"]],
   ["Tax matches its rate", ["tax_rate"]],
+  ["VAT table adds up", ["vat_row", "vat_rows_tax"]],
   ["Discount matches its rate", ["discount_rate"]],
   ["Tax number is valid", ["tax_id_invalid"]],
   ["Dates are valid", ["date_future", "due_before_issue"]],
@@ -556,6 +557,7 @@ export default function ReviewPage() {
               {CHECK_GROUPS.filter(([, names]) => !names.includes("second_reading") || detail.second_read
                 || issues.some((c) => names.includes(c.check)))
                 .filter(([, names]) => !names.includes("tax_id_invalid") || !!doc?.seller_tax_id)
+                .filter(([, names]) => !names.includes("vat_row") || !!doc?.vat_lines?.length)
                 .map(([label, names]) => {
                 const found = issues.filter((c) => names.includes(c.check));
                 const issue = found.length > 0;
