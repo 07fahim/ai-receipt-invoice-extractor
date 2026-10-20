@@ -841,7 +841,7 @@ def delete_account(uid: str = Depends(current_user)):
     with store.conn() as con:
         con.execute('DELETE FROM documents WHERE user_id = %s', (uid,))
         con.execute('DELETE FROM vendor_date_orders WHERE user_id = %s', (uid,))
-        con.execute('DELETE FROM reads WHERE user_id = %s', (uid,))
+        con.execute('UPDATE reads SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts toward the app-wide cap
         con.execute('UPDATE second_reads SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts toward the app-wide cap
         con.execute('DELETE FROM assistant_chats WHERE user_id = %s', (uid,))
         con.execute('UPDATE assistant_messages SET user_id = NULL WHERE user_id = %s', (uid,))  # still counts app-wide

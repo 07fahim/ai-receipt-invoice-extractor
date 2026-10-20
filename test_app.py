@@ -531,7 +531,13 @@ try:
             assert con.execute('SELECT count(*) AS n FROM documents WHERE user_id = %s', (uid,)).fetchone()['n'] == 0
         removed.append(uid)
     app.delete_auth_user = removed_after_commit
+
+    def all_reads():
+        with store.conn() as con:
+            return con.execute("SELECT count(*) AS n FROM reads WHERE at > now() - interval '1 day'").fetchone()['n']
+    before = all_reads()
     assert c.delete('/account', headers=frank).status_code == 204 and removed == [FRANK]
+    assert all_reads() == before  # its reads still count toward the app-wide cap
     app.delete_auth_user = removed.append
     assert c.get('/stats', headers=frank).json()['documents'] == 0 and c.get(f'/documents/{good_id}').status_code == 200
 
