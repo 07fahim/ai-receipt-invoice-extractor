@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, useAction } from "@/components/auth-form";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,7 @@ export default function ForgotPasswordPage() {
   const router = useRouter();
   const { busy, error, run } = useAction();
   const [email, setEmail] = useState<string | null>(null); // set once the code has been sent
+  const verified = useRef(false); // a code works once: if saving the password fails, a retry skips it
 
   function sendCode(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,8 +30,11 @@ export default function ForgotPasswordPage() {
     const form = new FormData(e.currentTarget);
     run(async () => {
       const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({ email: email!, token: String(form.get("code")).trim(), type: "recovery" });
-      if (error) throw error;
+      if (!verified.current) {
+        const { error } = await supabase.auth.verifyOtp({ email: email!, token: String(form.get("code")).trim(), type: "recovery" });
+        if (error) throw error;
+        verified.current = true;
+      }
       const { error: updateError } = await supabase.auth.updateUser({ password: String(form.get("password")) });
       if (updateError) throw updateError;
       router.replace("/app/upload");
