@@ -742,8 +742,10 @@ def retry(doc_id: int, tasks: BackgroundTasks, uid: str = Depends(current_user))
 @app.delete('/documents/{doc_id}', status_code=204)
 def delete_document(doc_id: int, uid: str = Depends(current_user)):
     with store.conn() as con:
-        gone = con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s RETURNING status', (doc_id, uid)).fetchone()
-        if gone and gone['status'] in ('passed', 'reviewed'):  # only checked documents have a spreadsheet row to mark
+        gone = con.execute('DELETE FROM documents WHERE id = %s AND user_id = %s RETURNING status, checks', (doc_id, uid)).fetchone()
+        # only checked documents have a spreadsheet row to mark, and passed ones a second reading sent to review
+        if gone and (gone['status'] in ('passed', 'reviewed') or
+                     gone['status'] == 'needs_review' and {c['check'] for c in review(gone['checks'] or [])} == {'second_reading'}):
             queue_event(con, uid, {'event': 'document.deleted', 'id': doc_id, 'status': 'deleted'})
     if gone is None:
         raise HTTPException(404, 'Document not found.')

@@ -810,6 +810,10 @@ try:
     d2 = c.get(f'/documents/{pass2_id}').json()
     fixed = {**d2['document'], 'total': '120'}
     assert not any(x['check'] == 'second_reading' for x in c.post('/check', json=fixed, params={'doc_id': pass2_id}).json()['checks'])
+    # it was sent as passed first, so the sheet has its row: deleting it still marks the row deleted
+    assert c.delete(f'/documents/{pass2_id}').status_code == 204
+    flush()
+    assert events[-1][0]['event'] == 'document.deleted' and events[-1][0]['id'] == pass2_id
     # a passed receipt whose second reading differs only in vendor case and a 0.00 line stays passed
     pass3_id = c.post('/documents', files=[('files', ('p3.jpg', io.BytesIO(JPG + b'pass3'), 'image/jpeg'))]).json()[0]['id']
     second_done()

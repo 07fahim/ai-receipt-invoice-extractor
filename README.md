@@ -266,8 +266,9 @@ def from_crosscheck(body: bytes, signature: str, secret: str) -> bool:
 ```
 
 A send can be repeated after a timeout, so use `event_id` to ignore repeats. `document.deleted` is sent only for
-checked documents and carries just `id` and `status` (plus `event` and `event_id`). The Account page's "Send test"
-posts `{"event": "test", "id": null}` to your own saved address.
+checked documents (also a passed one that a second reading later sent to review) and carries just `id` and `status`
+(plus `event` and `event_id`). The Account page's "Send test" posts `{"event": "test", "id": null}` to your own
+saved address.
 
 ## Tests
 
