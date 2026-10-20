@@ -109,7 +109,7 @@ export async function download(path: string, fallbackName: string) {
 
 export function money(value: string | number | null, currency?: string | null) {
   if (value === null || value === undefined) return "–";
-  // the currency's own decimals (JPY 0, KWD 3); without a known currency 2, or 3 when printed
+  // the currency's own decimals (JPY 0, KWD 3); else 2, or 3 if the amount has them
   let digits = { minimumFractionDigits: 2, maximumFractionDigits: 3 };
   try {
     if (currency) {
